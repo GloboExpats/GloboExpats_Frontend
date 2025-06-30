@@ -1,25 +1,25 @@
-import { Shield, Globe, CreditCard, Award } from "lucide-react"
+import { Shield, Globe, CreditCard, Award } from 'lucide-react'
 
 const indicators = [
   {
     icon: Shield,
-    title: "Verified Sellers",
-    description: "All sellers go through identity verification",
+    title: 'Verified Sellers',
+    description: 'All sellers go through identity verification',
   },
   {
     icon: CreditCard,
-    title: "Secure Payments",
-    description: "Protected transactions with buyer guarantee",
+    title: 'Secure Payments',
+    description: 'Protected transactions with buyer guarantee',
   },
   {
     icon: Globe,
-    title: "Global Shipping",
-    description: "Worldwide delivery with tracking",
+    title: 'Reliable Delivery',
+    description: 'Door-to-door delivery with tracking',
   },
   {
     icon: Award,
-    title: "Premium Quality",
-    description: "Curated items from trusted expat community",
+    title: 'Trusted Quality',
+    description: 'Curated items from trusted expat community',
   },
 ]
 
@@ -35,7 +35,9 @@ export default function TrustIndicators() {
                 <div className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-4 bg-green-100 rounded-full flex items-center justify-center">
                   <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
-                <h3 className="font-semibold text-slate-900 mb-1 sm:mb-2 text-sm sm:text-base">{indicator.title}</h3>
+                <h3 className="font-semibold text-slate-900 mb-1 sm:mb-2 text-sm sm:text-base">
+                  {indicator.title}
+                </h3>
                 <p className="text-xs sm:text-sm text-slate-600 px-1">{indicator.description}</p>
               </div>
             )

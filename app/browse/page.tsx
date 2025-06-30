@@ -1,199 +1,496 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Search, Filter, Grid, List, Star, MapPin, Shield, Crown, SlidersHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { featuredItems as products } from "@/lib/constants"
+} from '@/components/ui/select'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Separator } from '@/components/ui/separator'
+import {
+  featuredItems as products,
+  CATEGORIES,
+  ITEM_CONDITIONS,
+  EXPAT_LOCATIONS,
+} from '@/lib/constants'
+import { ProductCard } from '@/components/ui/product-card'
+import {
+  Search,
+  Filter,
+  Grid,
+  List,
+  SlidersHorizontal,
+  X,
+  Clock,
+  Star,
+  Shield,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  ChevronDown,
+} from 'lucide-react'
 
-const categories = [
-  { name: "Automotive", count: 2847, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Home & Furniture", count: 5234, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Electronics & Tech", count: 8921, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Games & Toys", count: 1456, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Fashion & Style", count: 3678, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Fitness & Sports", count: 987, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Books & Media", count: 2134, image: "/placeholder.svg?height=100&width=100" },
-  { name: "Arts & Crafts", count: 756, image: "/placeholder.svg?height=100&width=100" },
-]
+const categories = CATEGORIES.map((c) => ({
+  name: c.name,
+  count: parseInt(c.count.replace(/\D/g, '')),
+  slug: c.slug,
+}))
 
-export default function BrowsePage() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [selectedCategory, setSelectedCategory] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState("relevance")
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+interface FilterState {
+  selectedCategory: string
+  priceRange: [number, number]
+  condition: string
+  sellerType: string
+  timePosted: string
+  location: string
+}
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch
-  })
+interface FilterProps {
+  filters: FilterState
+  setFilters: (filters: FilterState) => void
+  clearAllFilters: () => void
+}
 
-  const FilterContent = () => (
+const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) => {
+  const updateFilter = (key: keyof FilterState, value: any) => {
+    setFilters({
+      ...filters,
+      [key]: value,
+    })
+  }
+
+  const hasActiveFilters =
+    filters.selectedCategory ||
+    filters.priceRange[0] > 0 ||
+    filters.priceRange[1] < 10000000 ||
+    filters.condition ||
+    filters.sellerType ||
+    filters.timePosted ||
+    filters.location
+
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between pb-4 border-b">
-        <h3 className="text-lg font-semibold text-neutral-800 flex items-center gap-2">
-          <Filter className="h-5 w-5" />
+      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <Filter className="h-5 w-5 text-blue-600" />
           Filters
         </h3>
-        <Button variant="ghost" className="text-sm text-brand-primary hover:text-brand-primary">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          onClick={clearAllFilters}
+          disabled={!hasActiveFilters}
+        >
+          <X className="h-4 w-4 mr-1" />
           Clear All
         </Button>
       </div>
 
-      {/* Categories */}
-      <div>
-        <Label className="text-sm font-medium text-neutral-700 mb-3 block">Categories</Label>
+      {/* Categories - Primary Filter */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-gray-700">Categories</Label>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
           {categories.map((category) => (
-            <div key={category.name} className="flex items-center space-x-2">
+            <div
+              key={category.name}
+              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+            >
               <Checkbox
-                id={`filter-${category.name}`}
-                checked={selectedCategory === category.name}
-                onCheckedChange={(checked) => setSelectedCategory(checked ? category.name : "")}
+                id={`filter-${category.slug}`}
+                checked={filters.selectedCategory === category.slug}
+                onCheckedChange={(checked) =>
+                  updateFilter('selectedCategory', checked ? category.slug : '')
+                }
               />
               <Label
-                htmlFor={`filter-${category.name}`}
-                className="text-sm text-neutral-600 flex-1 cursor-pointer"
+                htmlFor={`filter-${category.slug}`}
+                className="text-sm text-gray-600 flex-1 cursor-pointer hover:text-gray-800 transition-colors"
               >
-                {category.name} <span className="text-neutral-500">({category.count})</span>
+                {category.name}
+                <span className="text-gray-400 ml-1">({category.count.toLocaleString()})</span>
               </Label>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Location */}
-      <div>
-        <Label className="text-sm font-medium text-neutral-700 mb-3 block">Location</Label>
-        <Select>
-          <SelectTrigger className="text-neutral-600">
-            <SelectValue placeholder="Any location" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="dar">Dar es Salaam, TZ</SelectItem>
-            <SelectItem value="arusha">Arusha, TZ</SelectItem>
-            <SelectItem value="nairobi">Nairobi, KE</SelectItem>
-            <SelectItem value="kampala">Kampala, UG</SelectItem>
-            <SelectItem value="zanzibar">Zanzibar, TZ</SelectItem>
-          </SelectContent>
-        </Select>
+      <Separator />
+
+      {/* Price Range - Primary Filter */}
+      <div className="space-y-4">
+        <Label className="text-sm font-semibold text-gray-700">Price Range (TZS)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="number"
+            placeholder="Min"
+            value={filters.priceRange[0]}
+            onChange={(e) =>
+              updateFilter('priceRange', [parseInt(e.target.value) || 0, filters.priceRange[1]])
+            }
+            className="text-sm h-9"
+          />
+          <Input
+            type="number"
+            placeholder="Max"
+            value={filters.priceRange[1]}
+            onChange={(e) =>
+              updateFilter('priceRange', [
+                filters.priceRange[0],
+                parseInt(e.target.value) || 10000000,
+              ])
+            }
+            className="text-sm h-9"
+          />
+        </div>
       </div>
+
+      <Separator />
+
+      {/* Advanced Filters Toggle */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="w-full"
+      >
+        {showAdvanced ? 'Hide' : 'Show'} Advanced Filters
+        <ChevronDown
+          className={`h-4 w-4 ml-2 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+        />
+      </Button>
+
+      {/* Advanced Filters - Hidden by default */}
+      {showAdvanced && (
+        <>
+          <Separator />
+
+          {/* New Listings Filter */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-green-600" />
+              Posted Time
+            </Label>
+            <RadioGroup
+              value={filters.timePosted}
+              onValueChange={(value) => updateFilter('timePosted', value)}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="" id="time-all" />
+                <Label
+                  htmlFor="time-all"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  Any time
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="24h" id="time-24h" />
+                <Label
+                  htmlFor="time-24h"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  Last 24 hours{' '}
+                  <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-700">
+                    New
+                  </Badge>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="7d" id="time-7d" />
+                <Label
+                  htmlFor="time-7d"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  Last week
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="30d" id="time-30d" />
+                <Label
+                  htmlFor="time-30d"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  Last month
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <Separator />
+
+          {/* Condition */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-gray-700">Condition</Label>
+            <RadioGroup
+              value={filters.condition}
+              onValueChange={(value) => updateFilter('condition', value)}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="" id="condition-all" />
+                <Label
+                  htmlFor="condition-all"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  Any condition
+                </Label>
+              </div>
+              {ITEM_CONDITIONS.slice(0, 4).map((condition) => (
+                <div
+                  key={condition.value}
+                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <RadioGroupItem value={condition.value} id={`condition-${condition.value}`} />
+                  <Label
+                    htmlFor={`condition-${condition.value}`}
+                    className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                  >
+                    {condition.label}
+                    <span className="text-gray-400 ml-1 text-xs">({condition.description})</span>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+
+          <Separator />
+
+          {/* Seller Type */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-blue-600" />
+              Seller Type
+            </Label>
+            <RadioGroup
+              value={filters.sellerType}
+              onValueChange={(value) => updateFilter('sellerType', value)}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="" id="seller-all" />
+                <Label
+                  htmlFor="seller-all"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  All sellers
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="verified" id="seller-verified" />
+                <Label
+                  htmlFor="seller-verified"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-2"
+                >
+                  Verified sellers only
+                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                    <Shield className="h-3 w-3 mr-1" />
+                    Trusted
+                  </Badge>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <RadioGroupItem value="premium" id="seller-premium" />
+                <Label
+                  htmlFor="seller-premium"
+                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-2"
+                >
+                  Premium sellers only
+                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700">
+                    <Star className="h-3 w-3 mr-1" />
+                    Premium
+                  </Badge>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <Separator />
+
+          {/* Location */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-gray-700">Location</Label>
+            <Select
+              value={filters.location || 'all'}
+              onValueChange={(value) => updateFilter('location', value === 'all' ? '' : value)}
+            >
+              <SelectTrigger className="text-gray-600 h-10">
+                <SelectValue placeholder="Any location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any location</SelectItem>
+                {EXPAT_LOCATIONS.map((location) => (
+                  <SelectItem key={location.value} value={location.value}>
+                    {location.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
     </div>
   )
+}
 
-  const ProductCard = ({ product, viewMode }: { product: typeof products[0]; viewMode: "grid" | "list" }) => {
-    if (viewMode === "list") {
-      return (
-        <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col sm:flex-row">
-          <div className="w-full sm:w-1/3 h-48 sm:h-auto bg-neutral-100 flex items-center justify-center">
-            <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
-          </div>
-          <CardContent className="p-4 flex-1 flex flex-col justify-between">
-            <div>
-              <h3 className="font-semibold text-lg text-neutral-800 mb-2">{product.title}</h3>
-              <div className="flex items-center gap-4 text-sm text-neutral-600 mb-2">
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 text-amber-500" />
-                  <span>
-                    {product.rating} ({product.reviews} reviews)
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4 text-neutral-500" />
-                  <span>{product.location}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                {product.isVerified && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Verified Seller
-                  </Badge>
-                )}
-                {product.isPremium && (
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
-                    <Crown className="w-3 h-3 mr-1" />
-                    {product.premiumLabel || 'Premium'}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div className="flex items-end justify-between">
-              <div className="text-2xl font-bold text-brand-primary">{product.price}</div>
-              <Button size="sm" className="bg-brand-secondary hover:bg-amber-500 text-brand-primary font-semibold">
-                View Details
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )
+export default function BrowsePage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const initialQuery = searchParams.get('q') || ''
+  const initialCategory = searchParams.get('category') || ''
+  const initialPage = parseInt(searchParams.get('page') || '1')
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [searchQuery, setSearchQuery] = useState(initialQuery)
+  const [sortBy, setSortBy] = useState('relevance')
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(initialPage)
+  const [itemsPerPage] = useState(12) // Fixed items per page
+
+  const [filters, setFilters] = useState<FilterState>({
+    selectedCategory: initialCategory,
+    priceRange: [0, 10000000],
+    condition: '',
+    sellerType: '',
+    timePosted: '',
+    location: '',
+  })
+
+  const clearAllFilters = () => {
+    setFilters({
+      selectedCategory: '',
+      priceRange: [0, 10000000],
+      condition: '',
+      sellerType: '',
+      timePosted: '',
+      location: '',
+    })
+  }
+
+  // Keep URL in sync when user types in search field
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    // query
+    if (searchQuery) params.set('q', searchQuery)
+    else params.delete('q')
+
+    // category
+    if (filters.selectedCategory) params.set('category', filters.selectedCategory)
+    else params.delete('category')
+
+    // page
+    if (currentPage > 1) params.set('page', currentPage.toString())
+    else params.delete('page')
+
+    router.replace(`/browse?${params.toString()}`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, filters.selectedCategory, currentPage])
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory =
+      !filters.selectedCategory ||
+      product.title.toLowerCase().includes(filters.selectedCategory.replace('-', ' '))
+
+    // Convert price string to number for comparison
+    const priceNumber = parseInt(product.price.replace(/[^\d]/g, ''))
+    const matchesPrice =
+      priceNumber >= filters.priceRange[0] && priceNumber <= filters.priceRange[1]
+
+    const matchesSellerType =
+      !filters.sellerType ||
+      (filters.sellerType === 'verified' && product.isVerified) ||
+      (filters.sellerType === 'premium' && product.isPremium)
+
+    const matchesLocation =
+      !filters.location || product.location.toLowerCase().includes(filters.location)
+
+    return matchesSearch && matchesCategory && matchesPrice && matchesSellerType && matchesLocation
+  })
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentProducts = filteredProducts.slice(startIndex, endIndex)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters, searchQuery])
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+      // Scroll to top of results
+      window.scrollTo({ top: 200, behavior: 'smooth' })
+    }
+  }
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers = []
+    const maxVisiblePages = 5
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i)
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i)
+        }
+        pageNumbers.push('ellipsis')
+        pageNumbers.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1)
+        pageNumbers.push('ellipsis')
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i)
+        }
+      } else {
+        pageNumbers.push(1)
+        pageNumbers.push('ellipsis')
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i)
+        }
+        pageNumbers.push('ellipsis')
+        pageNumbers.push(totalPages)
+      }
     }
 
-    return (
-      <Card className="w-full overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 group">
-        <div className="relative">
-          <div className="w-full h-48 bg-neutral-100">
-            <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
-          </div>
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {product.isVerified && (
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                <Shield className="w-3 h-3 mr-1" />
-                Verified
-              </Badge>
-            )}
-            {product.isPremium && (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200">
-                <Crown className="w-3 h-3 mr-1" />
-                {product.premiumLabel || 'Premium'}
-              </Badge>
-            )}
-          </div>
-        </div>
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-neutral-800 truncate mb-2">{product.title}</h3>
-          <div className="flex items-center text-sm text-neutral-600 mb-2">
-            <MapPin className="w-4 h-4 mr-1 text-neutral-500" />
-            <span>{product.location}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="text-xl font-bold text-brand-primary">{product.price}</div>
-            <div className="flex items-center gap-1 text-sm">
-              <Star className="w-4 h-4 text-amber-500" />
-              <span>
-                {product.rating} ({product.reviews})
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    return pageNumbers
   }
 
   return (
-    <div className="bg-neutral-50 min-h-screen">
-      <header className="bg-white shadow-sm sticky top-16 z-30">
+    <div className="bg-gray-50 min-h-screen">
+      <header className="bg-white shadow-sm sticky top-16 z-30 border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="w-full md:w-auto md:flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   placeholder="Search for cars, electronics, furniture..."
-                  className="pl-10 w-full h-11 bg-neutral-100 border-transparent focus:bg-white focus:border-brand-primary"
+                  className="pl-10 w-full h-11 bg-gray-100 border-transparent focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -204,19 +501,32 @@ export default function BrowsePage() {
               {/* Mobile Filter Trigger */}
               <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" className="md:hidden flex-1">
+                  <Button variant="outline" className="md:hidden flex-1 border-gray-300">
                     <SlidersHorizontal className="mr-2 h-4 w-4" />
                     Filters
+                    {(filters.selectedCategory ||
+                      filters.condition ||
+                      filters.sellerType ||
+                      filters.timePosted ||
+                      filters.location) && (
+                      <Badge variant="secondary" className="ml-2 text-xs bg-blue-100 text-blue-700">
+                        Active
+                      </Badge>
+                    )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80">
-                  <FilterContent />
+                  <FilterContentEl
+                    filters={filters}
+                    setFilters={setFilters}
+                    clearAllFilters={clearAllFilters}
+                  />
                 </SheetContent>
               </Sheet>
 
               {/* Sort By Dropdown */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full md:w-48 flex-1">
+                <SelectTrigger className="w-full md:w-48 flex-1 border-gray-300">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -229,22 +539,32 @@ export default function BrowsePage() {
               </Select>
 
               {/* View Mode Toggle */}
-              <div className="hidden md:flex items-center bg-neutral-100 rounded-lg p-1">
+              <div className="hidden md:flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
                 <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="icon"
-                  onClick={() => setViewMode("grid")}
+                  onClick={() => setViewMode('grid')}
                   aria-label="Grid view"
+                  className={
+                    viewMode === 'grid'
+                      ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                      : 'hover:bg-gray-200 text-gray-600'
+                  }
                 >
-                  <Grid className="h-5 w-5" />
+                  <Grid className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="icon"
-                  onClick={() => setViewMode("list")}
+                  onClick={() => setViewMode('list')}
                   aria-label="List view"
+                  className={
+                    viewMode === 'list'
+                      ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                      : 'hover:bg-gray-200 text-gray-600'
+                  }
                 >
-                  <List className="h-5 w-5" />
+                  <List className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -257,34 +577,163 @@ export default function BrowsePage() {
           {/* Desktop Filters */}
           <aside className="hidden md:block w-72 lg:w-80 flex-shrink-0">
             <div className="sticky top-32">
-              <FilterContent />
+              <Card className="border-gray-200 shadow-sm">
+                <CardContent className="p-6">
+                  <FilterContentEl
+                    filters={filters}
+                    setFilters={setFilters}
+                    clearAllFilters={clearAllFilters}
+                  />
+                </CardContent>
+              </Card>
             </div>
           </aside>
 
           {/* Product Grid / List */}
           <div className="flex-1">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-neutral-800">
-                Showing {filteredProducts.length} results
-              </h2>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} of{' '}
+                  {filteredProducts.length} results
+                </h2>
+                {totalPages > 1 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                )}
+                {filters.timePosted === '24h' && (
+                  <p className="text-sm text-green-600 mt-1 flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    Showing newest listings from last 24 hours
+                  </p>
+                )}
+              </div>
             </div>
 
             {filteredProducts.length > 0 ? (
-              <div
-                className={
-                  viewMode === "grid"
-                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                    : "space-y-6"
-                }
-              >
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} viewMode={viewMode} />
-                ))}
-              </div>
+              <>
+                <div
+                  className={
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                      : 'space-y-6'
+                  }
+                >
+                  {currentProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} viewMode={viewMode} />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-12 border-t border-gray-200 pt-8">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      {/* Page Info */}
+                      <div className="text-sm text-gray-600">
+                        Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+                        <span className="font-medium">
+                          {Math.min(endIndex, filteredProducts.length)}
+                        </span>{' '}
+                        of <span className="font-medium">{filteredProducts.length}</span> results
+                      </div>
+
+                      {/* Pagination Controls */}
+                      <div className="flex items-center space-x-2">
+                        {/* Previous Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goToPage(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="flex items-center gap-1 border-gray-300 hover:bg-gray-50"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+
+                        {/* Page Numbers */}
+                        <div className="flex items-center space-x-1">
+                          {getPageNumbers().map((pageNum, index) =>
+                            pageNum === 'ellipsis' ? (
+                              <div key={`ellipsis-${index}`} className="px-2">
+                                <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                              </div>
+                            ) : (
+                              <Button
+                                key={pageNum}
+                                variant={currentPage === pageNum ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => goToPage(pageNum as number)}
+                                className={
+                                  currentPage === pageNum
+                                    ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600'
+                                    : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                                }
+                              >
+                                {pageNum}
+                              </Button>
+                            )
+                          )}
+                        </div>
+
+                        {/* Next Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => goToPage(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className="flex items-center gap-1 border-gray-300 hover:bg-gray-50"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Mobile Pagination - Simplified */}
+                    <div className="sm:hidden mt-4 flex justify-center items-center space-x-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-1"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Prev
+                      </Button>
+
+                      <span className="text-sm text-gray-600 font-medium">
+                        {currentPage} / {totalPages}
+                      </span>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-1"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-16">
-                <h3 className="text-2xl font-semibold text-neutral-700">No products found</h3>
-                <p className="text-neutral-500 mt-2">Try adjusting your search or filters.</p>
+                <div className="mb-4">
+                  <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-700">No products found</h3>
+                <p className="text-gray-500 mt-2 mb-6">
+                  Try adjusting your search or filters to see more results.
+                </p>
+                <Button onClick={clearAllFilters} variant="outline" className="border-gray-300">
+                  Clear all filters
+                </Button>
               </div>
             )}
           </div>

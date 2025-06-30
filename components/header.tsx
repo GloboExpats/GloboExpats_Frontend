@@ -1,375 +1,491 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
+/**
+ * =============================================================================
+ * HEADER COMPONENT - MAIN NAVIGATION
+ * =============================================================================
+ *
+ * The primary navigation header for the Expat Marketplace application. This component
+ * serves as the main entry point for user interactions and provides access to all
+ * major application features through a responsive design.
+ *
+ * Key Features:
+ * - Responsive design (mobile/desktop navigation)
+ * - Dynamic user authentication state handling
+ * - Real-time shopping cart integration
+ * - Live notification and message counts
+ * - Global search functionality
+ * - Admin navigation for privileged users
+ * - Currency selection for international users
+ * - Performance optimizations with memoization
+ *
+ * Connected Components & Systems:
+ * - providers/auth-provider.tsx - Authentication state and user data
+ * - providers/cart-provider.tsx - Shopping cart state and item count
+ * - hooks/use-notifications.ts - Real-time notification counts
+ * - hooks/use-currency.ts - Currency preferences
+ * - components/search-bar.tsx - Global product search
+ * - components/header/* - Modular header sub-components
+ *
+ * Backend Integration Points:
+ * - GET /api/auth/me - Current user session validation
+ * - GET /api/cart - Shopping cart synchronization
+ * - GET /api/notifications/count - Unread notification count
+ * - GET /api/messages/count - Unread message count
+ * - GET /api/search/suggestions - Search autocomplete
+ *
+ * Performance Features:
+ * - Memoized components prevent unnecessary re-renders
+ * - Conditional rendering reduces DOM complexity
+ * - Loading skeletons improve perceived performance
+ * - Route-based visibility optimization
+ *
+ * Usage:
+ * This component is automatically included in the root layout and doesn't
+ * need to be manually imported in pages. It adapts its content based on:
+ * - User authentication status
+ * - Current route/page
+ * - User permissions (admin, verified, etc.)
+ * - Device size (responsive behavior)
+ */
+
+import React, { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, Menu, Package, Shield, LogIn, UserPlus, MessageCircle, User, Bell, Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import {
+  ChevronDown,
+  Menu,
+  Package,
+  Shield,
+  LogIn,
+  UserPlus,
+  MessageCircle,
+  User,
+  Bell,
+  Search,
+  ShoppingCart,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth } from "@/hooks/use-auth"
-import { useCurrency } from "@/hooks/use-currency"
-import { getInitials } from "@/lib/utils"
-import SearchBar from "@/components/search-bar"
-import { CATEGORIES } from "@/lib/constants"
+} from '@/components/ui/dropdown-menu'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useAuth } from '@/hooks/use-auth'
+import { useCurrency } from '@/hooks/use-currency'
+import { useCart } from '@/hooks/use-cart'
+import { getInitials } from '@/lib/utils'
+import SearchBar from '@/components/search-bar'
+import { CATEGORIES } from '@/lib/constants'
+import { useRenderTracker } from '@/hooks/use-performance'
+import { AuthButtons } from '@/components/header/auth-buttons'
+import { NotificationBadge } from '@/components/header/notification-badge'
+import { ProfileDropdown } from '@/components/header/profile-dropdown'
+import { Logo } from '@/components/header/logo'
+import { Navigation } from '@/components/header/navigation'
+import { MobileMenu } from '@/components/header/mobile-menu'
+import { useNotifications } from '@/hooks/use-notifications'
 
-export default function Header() {
-  const { isLoggedIn, user, isVerifiedBuyer, isAdmin, handleLogin, handleLogout } = useAuth()
+/**
+ * =============================================================================
+ * LOADING SKELETON COMPONENT
+ * =============================================================================
+ *
+ * Displays a skeleton loader while the header is mounting or loading data.
+ * This improves perceived performance by showing the layout structure immediately
+ * and prevents layout shift when the actual content loads.
+ *
+ * Design matches the actual header layout for seamless transition.
+ */
+const HeaderSkeleton = React.memo(() => (
+  <header className="bg-brand-primary text-neutral-100 shadow-md sticky top-0 z-50">
+    <div className="container mx-auto px-4">
+      <div className="flex items-center justify-between h-16">
+        {/* Logo skeleton - represents brand logo area */}
+        <div className="flex items-center space-x-2">
+          <div className="text-2xl font-bold font-display text-white">
+            Global<span className="text-brand-secondary">Expat</span>
+          </div>
+        </div>
+
+        {/* Search skeleton - represents search bar area on desktop */}
+        <div className="h-10 w-1/2 bg-brand-primary/50 animate-pulse rounded-md hidden md:block"></div>
+
+        {/* Action buttons skeleton - represents user actions area */}
+        <div className="h-10 w-48 bg-brand-primary/50 animate-pulse rounded-md"></div>
+      </div>
+    </div>
+  </header>
+))
+
+HeaderSkeleton.displayName = 'HeaderSkeleton'
+
+/**
+ * =============================================================================
+ * USER NAVIGATION COMPONENT
+ * =============================================================================
+ *
+ * Handles navigation and actions for authenticated users. This component
+ * displays user-specific actions like cart, notifications, messages, and
+ * profile dropdown. It uses real-time data from various hooks to show
+ * accurate counts and status information.
+ *
+ * Features:
+ * - Real-time cart item count display
+ * - Live notification badge with unread count
+ * - Message notification with unread count
+ * - User profile dropdown with account actions
+ * - Responsive design for mobile/desktop
+ *
+ * @param user - Current user object from auth context
+ * @param isVerifiedBuyer - Whether user has verified buyer status
+ * @param isAdmin - Whether user has admin privileges
+ * @param handleLogout - Function to log out the user
+ * @param cartItemCount - Number of items in shopping cart
+ */
+const UserNavigation = React.memo<{
+  user: any
+  isVerifiedBuyer: boolean
+  isAdmin: boolean
+  handleLogout: () => void
+  cartItemCount: number
+}>(({ user, isVerifiedBuyer, isAdmin, handleLogout, cartItemCount }) => {
+  const { notificationCounts, messageCounts } = useNotifications()
+
+  return (
+    <div className="flex items-center gap-2" role="navigation" aria-label="User navigation">
+      {/* Shopping Cart - Always visible for easy access */}
+      <NotificationBadge
+        href="/cart"
+        icon={ShoppingCart}
+        count={cartItemCount}
+        ariaLabel={`View shopping cart (${cartItemCount} items)`}
+        testId="cart-button"
+        className="hover:bg-brand-primary/80 transition-colors"
+      />
+
+      {/* Notifications - Real-time updates from backend */}
+      <NotificationBadge
+        href="/notifications"
+        icon={Bell}
+        count={notificationCounts.unread}
+        ariaLabel={`View notifications (${notificationCounts.unread} unread)`}
+        testId="notifications-button"
+        className="hover:bg-brand-primary/80 transition-colors"
+      />
+
+      {/* Messages - Real-time messaging system */}
+      <NotificationBadge
+        href="/messages"
+        icon={MessageCircle}
+        count={messageCounts.unread}
+        ariaLabel={`View messages (${messageCounts.unread} unread)`}
+        testId="messages-button"
+        className="hover:bg-brand-primary/80 transition-colors"
+      />
+
+      {/* User Profile Dropdown - Account management and settings */}
+      <ProfileDropdown
+        user={user}
+        isVerifiedBuyer={isVerifiedBuyer}
+        isAdmin={isAdmin}
+        onLogout={handleLogout}
+      />
+    </div>
+  )
+})
+
+UserNavigation.displayName = 'UserNavigation'
+
+/**
+ * =============================================================================
+ * GUEST NAVIGATION COMPONENT
+ * =============================================================================
+ *
+ * Handles navigation for non-authenticated users. Shows essential actions
+ * like cart access and authentication buttons while maintaining a clean
+ * interface that encourages user registration.
+ *
+ * @param cartItemCount - Number of items in cart (persisted for guests)
+ * @param isAuthPage - Whether currently on login/register page
+ */
+const GuestNavigation = React.memo<{
+  cartItemCount: number
+  isAuthPage: boolean
+}>(({ cartItemCount, isAuthPage }) => (
+  <div className="flex items-center gap-2">
+    {/* Guest cart access - Allow guests to view cart items */}
+    <NotificationBadge
+      href="/cart"
+      icon={ShoppingCart}
+      count={cartItemCount}
+      ariaLabel={`View shopping cart (${cartItemCount} items)`}
+      testId="guest-cart-button"
+      className="hover:bg-brand-primary/80 transition-colors"
+    />
+
+    {/* Authentication buttons - Only show if not on auth pages */}
+    {!isAuthPage && <AuthButtons />}
+  </div>
+))
+
+GuestNavigation.displayName = 'GuestNavigation'
+
+/**
+ * =============================================================================
+ * CURRENCY SELECTOR COMPONENT
+ * =============================================================================
+ *
+ * Desktop currency selector for international users.
+ * Shows flag and currency code with dropdown selection.
+ *
+ * @param currency - Current selected currency
+ * @param currencies - Available currencies
+ * @param setCurrency - Function to change currency
+ */
+const CurrencySelector = React.memo<{
+  currency: string
+  currencies: readonly any[]
+  setCurrency: (currency: string) => void
+}>(({ currency, currencies, setCurrency }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-sm font-medium text-white bg-transparent hover:bg-white/10 hover:text-white border border-transparent hover:border-white/20 h-8 px-3"
+        aria-label="Select currency"
+      >
+        {currencies.find((c) => c.code === currency)?.flag} {currency}
+        <ChevronDown className="ml-1 h-3 w-3" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent className="bg-white border border-slate-200 shadow-lg">
+      {currencies.map((curr) => (
+        <DropdownMenuItem
+          key={curr.code}
+          onClick={() => setCurrency(curr.code)}
+          className="text-slate-900 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:bg-slate-100 focus:text-slate-900"
+          aria-label={`Switch to ${curr.code} currency`}
+        >
+          <span aria-hidden="true">{curr.flag}</span> {curr.code}
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenuContent>
+  </DropdownMenu>
+))
+
+CurrencySelector.displayName = 'CurrencySelector'
+
+/**
+ * =============================================================================
+ * MAIN HEADER COMPONENT
+ * =============================================================================
+ *
+ * The main header component that orchestrates all header functionality.
+ * It adapts its content and behavior based on user authentication status,
+ * current route, device size, and user permissions.
+ *
+ * State Management Integration:
+ * - AuthProvider: User authentication and verification status
+ * - CartProvider: Shopping cart state and item count
+ * - Currency preferences via useCurrency hook
+ * - Notifications via useNotifications hook
+ *
+ * Performance Optimizations:
+ * - Memoized components prevent unnecessary re-renders
+ * - Conditional rendering reduces DOM complexity
+ * - Route-based content optimization
+ * - Development performance tracking
+ * - SSR-compatible loading states
+ *
+ * Responsive Design:
+ * - Desktop: Full navigation with search bar
+ * - Mobile: Hamburger menu with collapsed navigation
+ * - Tablet: Hybrid approach with selective hiding
+ */
+const Header = React.memo(() => {
+  // Authentication and user state from AuthProvider
+  const { isLoggedIn, user, isVerifiedBuyer, isAdmin, logout, isLoading: authLoading } = useAuth()
+
+  // Application state hooks
   const { currency, setCurrency, currencies } = useCurrency()
-  const [isMounted, setIsMounted] = useState(false)
-  
-  const pathname = usePathname()
-  const isAuthPage = pathname === "/login" || pathname === "/register"
+  const { itemCount: cartItemCount, isLoading: cartLoading } = useCart()
 
+  // Component internal state
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Current route for conditional rendering
+  const pathname = usePathname()
+
+  // Performance tracking in development mode only
+  useRenderTracker('Header', process.env.NODE_ENV === 'development')
+
+  /**
+   * =============================================================================
+   * ROUTE-BASED VISIBILITY LOGIC
+   * =============================================================================
+   *
+   * Memoized route checks for performance optimization. These determine
+   * which UI elements to show or hide based on the current page context.
+   */
+  const routeConfig = useMemo(() => {
+    const isAuthPage = pathname === '/login' || pathname === '/register'
+    const isBrowsePage = pathname.startsWith('/browse')
+    const isAdminPage = pathname.startsWith('/admin')
+    const isAccountPage = pathname.startsWith('/account')
+
+    return {
+      isAuthPage,
+      isBrowsePage,
+      isAdminPage,
+      isAccountPage,
+      showSearch: !isAuthPage && !isBrowsePage, // Hide search on auth and browse pages
+      showFullNavigation: !isAuthPage, // Hide full nav only on auth pages
+    }
+  }, [pathname])
+
+  /**
+   * =============================================================================
+   * COMPONENT LIFECYCLE MANAGEMENT
+   * =============================================================================
+   *
+   * Handle component mounting for SSR compatibility. This prevents hydration
+   * mismatches by showing a skeleton until the component is fully mounted
+   * and all client-side state is available.
+   */
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  const renderAuthButtons = () => {
-    if (isAuthPage) return null
-
-    return (
-      <div className="flex items-center gap-2">
-        <Link href="/register" className="hidden lg:block">
-          <Button
-            variant="outline"
-            className="border-neutral-400 text-neutral-100 bg-brand-primary hover:bg-neutral-100 hover:text-brand-primary transition-all duration-300"
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            Join as Expert
-          </Button>
-        </Link>
-        <Link href="/login">
-          <Button className="bg-brand-secondary hover:bg-amber-500 text-brand-primary font-semibold transition-all duration-300 transform hover:scale-105">
-            <LogIn className="mr-2 h-4 w-4" />
-            Login
-          </Button>
-        </Link>
-      </div>
-    )
+  // Show skeleton while loading or during SSR
+  if (!isMounted || authLoading) {
+    return <HeaderSkeleton />
   }
 
-  const renderProfileDropdown = () => (
-    <>
-      {/* Notifications */}
-      <Link href="/notifications" className="hidden md:block">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-neutral-200 hover:bg-white/10 hover:text-white relative rounded-full"
-        >
-          <Bell className="h-5 w-5" />
-          <Badge className="absolute -top-1 -right-1 bg-status-error text-white text-xs px-1 min-w-[16px] h-4">
-            5
-          </Badge>
-        </Button>
-      </Link>
-
-      {/* Messages */}
-      <Link href="/messages" className="hidden md:block">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-neutral-200 hover:bg-white/10 hover:text-white relative rounded-full"
-        >
-          <MessageCircle className="h-5 w-5" />
-          <Badge className="absolute -top-1 -right-1 bg-status-error text-white text-xs px-1 min-w-[16px] h-4">
-            3
-          </Badge>
-        </Button>
-      </Link>
-
-      {/* Profile Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="text-neutral-100 hover:bg-white/10 hover:text-white flex items-center gap-2 p-1 rounded-full md:rounded-lg md:p-2"
-          >
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-              <AvatarFallback className="bg-brand-secondary text-brand-primary text-xs font-bold">
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="hidden md:flex items-center gap-2">
-              <span className="font-medium">{user.name}</span>
-              {isVerifiedBuyer && (
-                <Badge className="bg-status-success text-white text-xs">
-                  <Shield className="w-3 h-3 mr-1" />
-                  Verified
-                </Badge>
-              )}
-            </div>
-            <ChevronDown className="h-4 w-4 hidden md:block" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <div className="px-2 py-1.5 text-sm font-medium">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                <AvatarFallback className="bg-brand-secondary text-brand-primary text-xs font-bold">
-                  {getInitials(user.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="font-semibold">{user.name}</span>
-                <span className="text-xs text-neutral-500">{user.email}</span>
-              </div>
-            </div>
-          </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100">
-            <Link href="/seller/settings">
-              <User className="w-4 h-4 mr-2" />
-              Profile
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100">
-            <Link href="/seller/dashboard">
-              <Package className="w-4 h-4 mr-2" />
-              My Listings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100">
-            <Link href="/messages">
-              <Bell className="w-4 h-4 mr-2" />
-              Notifications
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {isAdmin && (
-            <>
-              <DropdownMenuItem className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100">
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Dashboard
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-          <DropdownMenuItem onClick={handleLogout} className="text-status-error focus:text-status-error focus:bg-red-50 cursor-pointer hover:bg-red-100/50">
-            Logout
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
-  )
-  
-  if (!isMounted) {
-    return (
-       <header className="bg-brand-primary text-neutral-100 shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-             {/* Placeholder for logo */}
-            <div className="flex items-center space-x-2">
-               <div className="text-2xl font-bold font-display text-white">
-                Global<span className="text-brand-secondary">Expat</span>
-              </div>
-            </div>
-             {/* Placeholder for nav */}
-            <div className="h-10 w-1/2 bg-brand-primary/50 animate-pulse rounded-md"></div>
-             {/* Placeholder for buttons */}
-            <div className="h-10 w-48 bg-brand-primary/50 animate-pulse rounded-md"></div>
-          </div>
-        </div>
-      </header>
-    )
-  }
-
+  /**
+   * =============================================================================
+   * MAIN RENDER
+   * =============================================================================
+   */
   return (
-    <header className="bg-brand-primary text-neutral-100 shadow-md sticky top-0 z-50">
+    <header
+      className="bg-brand-primary text-neutral-100 shadow-md sticky top-0 z-50"
+      role="banner"
+      aria-label="Main navigation"
+    >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="text-2xl font-bold font-display text-white">
-              Global<span className="text-brand-secondary">Expat</span>
+          {/* 
+            =================================================================
+            LOGO SECTION
+            =================================================================
+            Brand logo with link to homepage. Always visible and positioned
+            on the left side for consistent navigation expectations.
+          */}
+          <Logo />
+
+          {/* 
+            =================================================================
+            SEARCH SECTION
+            =================================================================
+            Global search functionality. Conditionally displayed based on
+            current route. Hidden on auth pages and browse pages where
+            search is either not needed or has dedicated space.
+          */}
+          {routeConfig.showSearch && (
+            <div className="hidden md:flex flex-1 max-w-lg mx-4 lg:mx-8">
+              <SearchBar />
             </div>
-          </Link>
+          )}
 
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-4 lg:mx-8">
-            <SearchBar />
-          </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            <Link href="/browse" className="text-sm font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-colors">
-              Browse
-            </Link>
-            {isLoggedIn && (
-              <Link
-                href="/seller/dashboard"
-                className="text-sm font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-colors flex items-center gap-1"
-              >
-                <Package className="h-4 w-4" />
-                Seller Hub
-              </Link>
-            )}
-            {isAdmin && (
-              <Link
-                href="/admin/dashboard"
-                className="text-sm font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-colors flex items-center gap-1"
-              >
-                <Shield className="h-4 w-4" />
-                Admin
-              </Link>
-            )}
-          </nav>
-
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            {/* Mobile Search Toggle */}
-            {!isLoggedIn && (
-              <div className="md:hidden">
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-neutral-200 hover:text-white">
-                      <Search className="h-5 w-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="top" className="h-24 bg-brand-primary border-b-0">
-                    <div className="pt-4 px-4">
-                      <SearchBar />
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            )}
-
-            {/* Currency Selector */}
-            <div className="hidden sm:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="text-sm font-medium text-neutral-200 hover:bg-ghost-hover hover:text-ghost-hover-foreground"
-                  >
-                    {currencies.find((c) => c.code === currency)?.flag} {currency} <ChevronDown className="ml-1 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {currencies.map((curr) => (
-                    <DropdownMenuItem key={curr.code} onClick={() => setCurrency(curr.code)}>
-                      {curr.flag} {curr.code}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+          {/* 
+            =================================================================
+            DESKTOP NAVIGATION & CURRENCY
+            =================================================================
+            Desktop navigation links and currency selector. Responsive design
+            hides this on mobile devices where it's replaced by the
+            mobile hamburger menu.
+          */}
+          {routeConfig.showFullNavigation && (
+            <div className="hidden lg:flex items-center space-x-4">
+              <Navigation isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
+              <div className="h-4 w-px bg-white/20"></div>
+              <CurrencySelector
+                currency={currency}
+                currencies={currencies}
+                setCurrency={setCurrency}
+              />
             </div>
+          )}
 
-            {/* Profile/Login */}
-            {isLoggedIn ? renderProfileDropdown() : renderAuthButtons()}
+          {/* Currency selector for medium screens without full navigation */}
+          {!routeConfig.showFullNavigation && (
+            <div className="hidden md:block lg:hidden">
+              <CurrencySelector
+                currency={currency}
+                currencies={currencies}
+                setCurrency={setCurrency}
+              />
+            </div>
+          )}
 
-            {/* Mobile Menu */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden text-neutral-200 hover:text-white">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="bg-brand-primary text-neutral-100 w-64 sm:w-72">
-                <div className="flex flex-col h-full p-4 space-y-6">
-                  <div className="border-b border-neutral-700 pb-4">
-                    <h3 className="font-display text-lg font-semibold">Menu</h3>
-                  </div>
+          {/* 
+            =================================================================
+            USER ACTIONS SECTION
+            =================================================================
+            Right-aligned user-specific actions. Content adapts based on
+            authentication status, showing different sets of actions for
+            logged-in users versus guests.
+          */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Authenticated User Actions */}
+            {isLoggedIn ? (
+              <UserNavigation
+                user={user}
+                isVerifiedBuyer={isVerifiedBuyer}
+                isAdmin={isAdmin}
+                handleLogout={logout}
+                cartItemCount={cartItemCount}
+              />
+            ) : (
+              /* Guest User Actions */
+              <GuestNavigation cartItemCount={cartItemCount} isAuthPage={routeConfig.isAuthPage} />
+            )}
 
-                  <nav className="flex flex-col space-y-4 text-sm">
-                    <Link href="/browse" className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2">
-                      <Search className="h-4 w-4" /> Browse
-                    </Link>
-                    
-                    {isLoggedIn ? (
-                      <>
-                        <Link
-                          href="/seller/dashboard"
-                          className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2"
-                        >
-                          <Package className="h-4 w-4" />
-                          Seller Hub
-                        </Link>
-                        <Link href="/notifications" className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2">
-                          <Bell className="h-4 w-4" />
-                          Notifications
-                        </Link>
-                        <Link href="/messages" className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2">
-                          <MessageCircle className="h-4 w-4" />
-                          Messages
-                        </Link>
-                        {isAdmin && (
-                          <Link
-                            href="/admin/dashboard"
-                            className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2"
-                          >
-                            <Shield className="h-4 w-4" />
-                            Admin Dashboard
-                          </Link>
-                        )}
-                      </>
-                    ) : null}
-                  </nav>
-
-                  <div className="mt-auto pt-6 border-t border-neutral-700 space-y-3">
-                    {/* Mobile Currency Selector */}
-                    <div className="sm:hidden">
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                           <Button variant="outline" className="w-full justify-between border-neutral-400 text-neutral-100 hover:bg-neutral-700 hover:text-white">
-                            <span>{currencies.find((c) => c.code === currency)?.flag} {currency}</span>
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56">
-                          {currencies.map((curr) => (
-                            <DropdownMenuItem key={curr.code} onClick={() => setCurrency(curr.code)}>
-                              {curr.flag} {curr.code}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    {isLoggedIn ? (
-                       <Button onClick={handleLogout} variant="outline" className="w-full border-status-error/50 text-status-error hover:bg-status-error hover:text-white">
-                         Logout
-                       </Button>
-                    ) : (
-                      !isAuthPage && (
-                        <>
-                          <Link href="/login" className="block">
-                            <Button className="w-full bg-brand-secondary hover:bg-amber-500 text-brand-primary font-semibold">
-                              <LogIn className="mr-2 h-4 w-4" />
-                              Login
-                            </Button>
-                          </Link>
-                          <Link href="/register" className="block lg:hidden">
-                            <Button
-                              variant="outline"
-                              className="w-full border-neutral-400 text-neutral-100 hover:bg-neutral-100 hover:text-brand-primary"
-                            >
-                              <UserPlus className="mr-2 h-4 w-4" />
-                              Join as Expert
-                            </Button>
-                          </Link>
-                        </>
-                      )
-                    )}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+            {/* 
+              =============================================================
+              MOBILE MENU
+              =============================================================
+              Responsive navigation for mobile devices. Includes all
+              navigation items, user actions, and currency selection
+              in a slide-out drawer interface.
+            */}
+            <div className="lg:hidden">
+              <MobileMenu
+                isLoggedIn={isLoggedIn}
+                isAdmin={isAdmin}
+                isAuthPage={routeConfig.isAuthPage}
+                user={user}
+                currency={currency}
+                currencies={currencies}
+                setCurrency={setCurrency}
+                handleLogout={logout}
+              />
+            </div>
           </div>
         </div>
       </div>
     </header>
   )
-}
+})
+
+// Set display name for debugging and React DevTools
+Header.displayName = 'Header'
+
+export default Header

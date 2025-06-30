@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Menu, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"
-import CategorySidebar from "@/components/category-sidebar"
+import { useState } from 'react'
+import { Menu, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'
+import CategorySidebar from '@/components/category-sidebar'
 
 export default function MobileSidebarToggle() {
   const [isOpen, setIsOpen] = useState(false)
@@ -38,4 +38,4 @@ export default function MobileSidebarToggle() {
       </Sheet>
     </div>
   )
-} 
+}

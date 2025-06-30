@@ -1,42 +1,50 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Upload, FileText, Shield, MapPin, Store } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+import { useState } from 'react'
+import { Upload, FileText, Shield, MapPin, Store } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 
 const categories = [
-  "Automotive",
-  "Home & Furniture",
-  "Electronics & Tech",
-  "Games & Toys",
-  "Fashion & Style",
-  "Fitness & Sports",
-  "Books & Media",
-  "Arts & Crafts",
+  'Automotive',
+  'Home & Furniture',
+  'Electronics & Tech',
+  'Games & Toys',
+  'Fashion & Style',
+  'Fitness & Sports',
+  'Books & Media',
+  'Arts & Crafts',
 ]
 
-const languages = ["English", "Arabic", "Hindi", "Urdu", "French", "German", "Spanish", "Mandarin"]
+const languages = ['English', 'Arabic', 'Hindi', 'Urdu', 'French', 'German', 'Spanish', 'Mandarin']
 
 export default function SellerRegisterPage() {
-  const [businessType, setBusinessType] = useState("")
+  const [businessType, setBusinessType] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
 
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
     )
   }
 
   const toggleLanguage = (language: string) => {
-    setSelectedLanguages((prev) => (prev.includes(language) ? prev.filter((l) => l !== language) : [...prev, language]))
+    setSelectedLanguages((prev) =>
+      prev.includes(language) ? prev.filter((l) => l !== language) : [...prev, language]
+    )
   }
 
   return (
@@ -48,14 +56,18 @@ export default function SellerRegisterPage() {
             <div className="text-4xl font-bold text-white mb-2">
               Global<span className="text-amber-400">Expat</span>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-4">Become a Premium Seller</h1>
-            <p className="text-xl text-white/90">Join thousands of verified sellers in our global marketplace</p>
+            <h1 className="text-3xl font-bold text-white mb-4">Open Your Seller Account</h1>
+            <p className="text-xl text-white/90">
+              Join thousands of verified sellers in our global marketplace
+            </p>
           </div>
 
           <Card className="bg-white shadow-2xl">
             <CardHeader>
               <CardTitle className="text-2xl text-blue-900">Seller Registration</CardTitle>
-              <p className="text-slate-600">Complete your profile to start selling premium items</p>
+              <p className="text-slate-600">
+                Complete your profile to start selling with confidence
+              </p>
             </CardHeader>
 
             <CardContent className="space-y-8">
@@ -214,9 +226,11 @@ export default function SellerRegisterPage() {
                       {categories.map((category) => (
                         <Badge
                           key={category}
-                          variant={selectedCategories.includes(category) ? "default" : "outline"}
+                          variant={selectedCategories.includes(category) ? 'default' : 'outline'}
                           className={`cursor-pointer transition-colors ${
-                            selectedCategories.includes(category) ? "bg-cyan-500 hover:bg-cyan-600" : "hover:bg-cyan-50"
+                            selectedCategories.includes(category)
+                              ? 'bg-cyan-500 hover:bg-cyan-600'
+                              : 'hover:bg-cyan-50'
                           }`}
                           onClick={() => toggleCategory(category)}
                         >
@@ -232,11 +246,11 @@ export default function SellerRegisterPage() {
                       {languages.map((language) => (
                         <Badge
                           key={language}
-                          variant={selectedLanguages.includes(language) ? "default" : "outline"}
+                          variant={selectedLanguages.includes(language) ? 'default' : 'outline'}
                           className={`cursor-pointer transition-colors ${
                             selectedLanguages.includes(language)
-                              ? "bg-green-500 hover:bg-green-600"
-                              : "hover:bg-green-50"
+                              ? 'bg-green-500 hover:bg-green-600'
+                              : 'hover:bg-green-50'
                           }`}
                           onClick={() => toggleLanguage(language)}
                         >
@@ -253,15 +267,20 @@ export default function SellerRegisterPage() {
                 <div className="flex items-start space-x-2">
                   <Checkbox id="sellerTerms" className="mt-1" />
                   <Label htmlFor="sellerTerms" className="text-sm text-slate-600 leading-relaxed">
-                    I agree to the Seller Terms of Service, understand the verification process may take 2-5 business
-                    days, and commit to maintaining high-quality listings and customer service standards.
+                    I agree to the Seller Terms of Service, understand the verification process may
+                    take 2-5 business days, and commit to maintaining high-quality listings and
+                    customer service standards.
                   </Label>
                 </div>
 
                 <div className="flex items-start space-x-2">
                   <Checkbox id="premiumInterest" className="mt-1" />
-                  <Label htmlFor="premiumInterest" className="text-sm text-slate-600 leading-relaxed">
-                    I'm interested in Premium Seller benefits (priority listing, advanced analytics, dedicated support)
+                  <Label
+                    htmlFor="premiumInterest"
+                    className="text-sm text-slate-600 leading-relaxed"
+                  >
+                    I'm interested in advanced seller benefits (priority listing, analytics,
+                    dedicated support)
                   </Label>
                 </div>
 

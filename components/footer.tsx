@@ -1,18 +1,28 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, ArrowRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  ArrowRight,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { CATEGORIES } from '@/lib/constants'
 
 export default function Footer() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     // Check login status from localStorage
-    if (typeof window !== "undefined") {
-      setIsLoggedIn(localStorage.getItem("isLoggedIn") === "true")
+    if (typeof window !== 'undefined') {
+      setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true')
     }
   }, [])
 
@@ -26,7 +36,8 @@ export default function Footer() {
               Global<span className="text-brand-secondary">Expat</span>
             </h3>
             <p className="mt-4 text-sm leading-relaxed text-neutral-300">
-              The premium marketplace for the expat community. Buy and sell quality goods with verified professionals.
+              The marketplace for the expat community. Buy and sell quality goods with verified
+              professionals.
             </p>
           </div>
 
@@ -34,26 +45,16 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">Popular Categories</h3>
             <ul className="space-y-3">
-              <li>
-                <Link href="/browse?category=automotive" className="hover:text-white transition-colors">
-                  Vehicles
-                </Link>
-              </li>
-              <li>
-                <Link href="/browse?category=electronics-tech" className="hover:text-white transition-colors">
-                  Electronics
-                </Link>
-              </li>
-              <li>
-                <Link href="/browse?category=home-furniture" className="hover:text-white transition-colors">
-                  Home & Furniture
-                </Link>
-              </li>
-              <li>
-                <Link href="/browse?category=services" className="hover:text-white transition-colors">
-                  Local Services
-                </Link>
-              </li>
+              {CATEGORIES.slice(0, 4).map((cat) => (
+                <li key={cat.slug}>
+                  <Link
+                    href={`/browse?category=${cat.slug}`}
+                    className="hover:text-white transition-colors"
+                  >
+                    {cat.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -101,9 +102,11 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-sm">
-          <p className="text-neutral-400">&copy; {new Date().getFullYear()} GlobalExpat Tanzania. All rights reserved.</p>
+          <p className="text-neutral-400">
+            &copy; {new Date().getFullYear()} GlobalExpat Tanzania. All rights reserved.
+          </p>
           <div className="flex items-center gap-4 mt-4 sm:mt-0">
-             <div className="flex justify-start md:justify-end gap-4">
+            <div className="flex justify-start md:justify-end gap-4">
               <Link
                 href="https://facebook.com"
                 target="_blank"

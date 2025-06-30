@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 import {
   Archive,
   Bell,
@@ -16,22 +16,36 @@ import {
   CheckCircle2,
   X,
   Calendar,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+  Eye,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -40,70 +54,71 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { RouteGuard } from '@/components/route-guard'
 
 // Sample data for overdue items
 const overdueItems = [
   {
     id: 1,
-    title: "iPhone 15 Pro Max 256GB - Natural Titanium",
-    category: "Electronics",
+    title: 'iPhone 15 Pro Max 256GB - Natural Titanium',
+    category: 'Electronics',
     seller: {
-      name: "John Smith",
-      email: "john.smith@undp.com",
-      avatar: "/images/seller-avatar-1.jpg",
+      name: 'John Smith',
+      email: 'john.smith@undp.com',
+      avatar: '/images/seller-avatar-1.jpg',
     },
-    listingDate: "2024-05-10",
+    listingDate: '2024-05-10',
     daysListed: 14,
     notificationsSent: 1,
-    price: "$1,199",
-    status: "Active",
+    price: '$1,199',
+    status: 'Active',
   },
   {
     id: 2,
-    title: "BMW X5 2022 - Expat Owned",
-    category: "Automotive",
+    title: 'BMW X5 2022 - Expat Owned',
+    category: 'Automotive',
     seller: {
-      name: "Sarah Johnson",
-      email: "sarah.johnson@un.org",
-      avatar: "/images/seller-avatar-2.jpg",
+      name: 'Sarah Johnson',
+      email: 'sarah.johnson@un.org',
+      avatar: '/images/seller-avatar-2.jpg',
     },
-    listingDate: "2024-05-08",
+    listingDate: '2024-05-08',
     daysListed: 16,
     notificationsSent: 2,
-    price: "$45,000",
-    status: "Active",
+    price: '$45,000',
+    status: 'Active',
   },
   {
     id: 3,
-    title: "Designer Italian Sofa Set",
-    category: "Furniture",
+    title: 'Designer Italian Sofa Set',
+    category: 'Furniture',
     seller: {
-      name: "Michael Wong",
-      email: "michael.wong@who.int",
-      avatar: "/images/seller-avatar-3.jpg",
+      name: 'Michael Wong',
+      email: 'michael.wong@who.int',
+      avatar: '/images/seller-avatar-3.jpg',
     },
-    listingDate: "2024-05-05",
+    listingDate: '2024-05-05',
     daysListed: 19,
     notificationsSent: 2,
-    price: "$1,200",
-    status: "Active",
+    price: '$1,200',
+    status: 'Active',
   },
   {
     id: 4,
     title: 'MacBook Pro 16" M3 Max - Perfect for Professionals',
-    category: "Electronics",
+    category: 'Electronics',
     seller: {
-      name: "Emma Davis",
-      email: "emma.davis@embassy.gov",
-      avatar: "/images/seller-avatar-1.jpg",
+      name: 'Emma Davis',
+      email: 'emma.davis@embassy.gov',
+      avatar: '/images/seller-avatar-1.jpg',
     },
-    listingDate: "2024-05-01",
+    listingDate: '2024-05-01',
     daysListed: 23,
     notificationsSent: 3,
-    price: "$2,899",
-    status: "Active",
+    price: '$2,899',
+    status: 'Active',
   },
 ]
 
@@ -111,59 +126,68 @@ const overdueItems = [
 const archivedItems = [
   {
     id: 5,
-    title: "Herman Miller Aeron Chair - Size B",
-    category: "Furniture",
+    title: 'Herman Miller Aeron Chair - Size B',
+    category: 'Furniture',
     seller: {
-      name: "David Lee",
-      email: "david.lee@unicef.org",
-      avatar: "/images/seller-avatar-2.jpg",
+      name: 'David Lee',
+      email: 'david.lee@unicef.org',
+      avatar: '/images/seller-avatar-2.jpg',
     },
-    listingDate: "2024-04-15",
-    archivedDate: "2024-05-10",
+    listingDate: '2024-04-15',
+    archivedDate: '2024-05-10',
     notificationsSent: 3,
-    price: "$450",
-    status: "Archived",
+    price: '$450',
+    status: 'Archived',
   },
   {
     id: 6,
-    title: "Canon EOS R5 + 24-70mm Lens Kit",
-    category: "Electronics",
+    title: 'Canon EOS R5 + 24-70mm Lens Kit',
+    category: 'Electronics',
     seller: {
-      name: "Lisa Wang",
-      email: "lisa.wang@un.org",
-      avatar: "/images/seller-avatar-3.jpg",
+      name: 'Lisa Wang',
+      email: 'lisa.wang@un.org',
+      avatar: '/images/seller-avatar-3.jpg',
     },
-    listingDate: "2024-04-18",
-    archivedDate: "2024-05-12",
+    listingDate: '2024-04-18',
+    archivedDate: '2024-05-12',
     notificationsSent: 3,
-    price: "$2,200",
-    status: "Archived",
+    price: '$2,200',
+    status: 'Archived',
   },
 ]
 
 // Sample data for allowed domains
 const allowedDomains = [
-  { id: 1, domain: "undp.com" },
-  { id: 2, domain: "un.org" },
-  { id: 3, domain: "embassy.gov" },
-  { id: 4, domain: "who.int" },
-  { id: 5, domain: "unicef.org" },
+  { id: 1, domain: 'undp.com' },
+  { id: 2, domain: 'un.org' },
+  { id: 3, domain: 'embassy.gov' },
+  { id: 4, domain: 'who.int' },
+  { id: 5, domain: 'unicef.org' },
 ]
 
-export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overdue")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
+export default function AdminDashboardPage() {
+  return (
+    <RouteGuard requireAuth requireAdmin loadingMessage="Verifying admin access...">
+      <AdminDashboardContent />
+    </RouteGuard>
+  )
+}
+
+function AdminDashboardContent() {
+  const [activeTab, setActiveTab] = useState('overdue')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false)
-  const [notificationMessage, setNotificationMessage] = useState("")
+  const [notificationMessage, setNotificationMessage] = useState('')
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false)
-  const [newDomain, setNewDomain] = useState("")
+  const [newDomain, setNewDomain] = useState('')
   const [localAllowedDomains, setLocalAllowedDomains] = useState(allowedDomains)
 
   const filteredOverdueItems = overdueItems.filter((item) => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || item.category.toLowerCase() === selectedCategory.toLowerCase()
+    const matchesCategory =
+      selectedCategory === 'all' || item.category.toLowerCase() === selectedCategory.toLowerCase()
     return matchesSearch && matchesCategory
   })
 
@@ -184,7 +208,7 @@ export default function AdminDashboard() {
     })
 
     // Reset form
-    setNotificationMessage("")
+    setNotificationMessage('')
     setSelectedItem(null)
   }
 
@@ -197,8 +221,11 @@ export default function AdminDashboard() {
 
   const handleAddDomain = () => {
     if (newDomain && !localAllowedDomains.some((d) => d.domain === newDomain)) {
-      setLocalAllowedDomains([...localAllowedDomains, { id: localAllowedDomains.length + 1, domain: newDomain }])
-      setNewDomain("")
+      setLocalAllowedDomains([
+        ...localAllowedDomains,
+        { id: localAllowedDomains.length + 1, domain: newDomain },
+      ])
+      setNewDomain('')
     }
   }
 
@@ -214,10 +241,15 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-              <p className="text-white/80 mt-2">Manage listings, monitor overdue items, and maintain the marketplace</p>
+              <p className="text-white/80 mt-2">
+                Manage listings, monitor overdue items, and maintain the marketplace
+              </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" className="border-white/30 text-white hover:bg-white hover:text-blue-900">
+              <Button
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white hover:text-blue-900"
+              >
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </Button>
@@ -364,7 +396,9 @@ export default function AdminDashboard() {
                                 className="w-12 h-12 object-cover rounded-lg"
                               />
                               <div>
-                                <p className="font-medium text-slate-900 line-clamp-1">{item.title}</p>
+                                <p className="font-medium text-slate-900 line-clamp-1">
+                                  {item.title}
+                                </p>
                                 <Badge variant="outline" className="text-xs mt-1">
                                   {item.category}
                                 </Badge>
@@ -374,12 +408,12 @@ export default function AdminDashboard() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={item.seller.avatar || "/placeholder.svg"} />
+                                <AvatarImage src={item.seller.avatar || '/placeholder.svg'} />
                                 <AvatarFallback>
                                   {item.seller.name
-                                    .split(" ")
+                                    .split(' ')
                                     .map((n) => n[0])
-                                    .join("")}
+                                    .join('')}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
@@ -391,19 +425,21 @@ export default function AdminDashboard() {
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="text-sm">{item.listingDate}</span>
-                              <span className="text-xs text-amber-600 font-medium">{item.daysListed} days ago</span>
+                              <span className="text-xs text-amber-600 font-medium">
+                                {item.daysListed} days ago
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge
                               className={
                                 item.notificationsSent === 0
-                                  ? "bg-slate-100 text-slate-800"
+                                  ? 'bg-slate-100 text-slate-800'
                                   : item.notificationsSent === 1
-                                    ? "bg-blue-100 text-blue-800"
+                                    ? 'bg-blue-100 text-blue-800'
                                     : item.notificationsSent === 2
-                                      ? "bg-amber-100 text-amber-800"
-                                      : "bg-red-100 text-red-800"
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-red-100 text-red-800'
                               }
                             >
                               {item.notificationsSent} of 3 sent
@@ -436,8 +472,8 @@ export default function AdminDashboard() {
                                   <DialogHeader>
                                     <DialogTitle>Send Notification to Seller</DialogTitle>
                                     <DialogDescription>
-                                      This will send a notification to {item.seller.name} about their listing "
-                                      {item.title}".
+                                      This will send a notification to {item.seller.name} about
+                                      their listing "{item.title}".
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="space-y-4 py-4">
@@ -455,10 +491,15 @@ export default function AdminDashboard() {
                                     </div>
                                   </div>
                                   <DialogFooter>
-                                    <Button variant="outline" onClick={() => setIsNotificationDialogOpen(false)}>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => setIsNotificationDialogOpen(false)}
+                                    >
                                       Cancel
                                     </Button>
-                                    <Button onClick={handleSendNotification}>Send Notification</Button>
+                                    <Button onClick={handleSendNotification}>
+                                      Send Notification
+                                    </Button>
                                   </DialogFooter>
                                 </DialogContent>
                               </Dialog>
@@ -485,18 +526,21 @@ export default function AdminDashboard() {
                                   <DialogHeader>
                                     <DialogTitle>Archive Item</DialogTitle>
                                     <DialogDescription>
-                                      This will archive the listing "{item.title}" as the seller has not responded to 3
-                                      notifications.
+                                      This will archive the listing "{item.title}" as the seller has
+                                      not responded to 3 notifications.
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="py-4">
                                     <p className="text-sm text-slate-700">
-                                      The item will be removed from active listings and the seller will be notified.
-                                      This action cannot be undone.
+                                      The item will be removed from active listings and the seller
+                                      will be notified. This action cannot be undone.
                                     </p>
                                   </div>
                                   <DialogFooter>
-                                    <Button variant="outline" onClick={() => setIsArchiveDialogOpen(false)}>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => setIsArchiveDialogOpen(false)}
+                                    >
                                       Cancel
                                     </Button>
                                     <Button variant="destructive" onClick={handleArchiveItem}>
@@ -516,7 +560,9 @@ export default function AdminDashboard() {
                                   <DropdownMenuItem>View Details</DropdownMenuItem>
                                   <DropdownMenuItem>Contact Seller</DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-red-600">Remove Listing</DropdownMenuItem>
+                                  <DropdownMenuItem className="text-red-600">
+                                    Remove Listing
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -530,11 +576,13 @@ export default function AdminDashboard() {
                 {filteredOverdueItems.length === 0 && (
                   <div className="text-center py-12">
                     <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No overdue items found</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                      No overdue items found
+                    </h3>
                     <p className="text-slate-600">
-                      {searchQuery || selectedCategory !== "all"
-                        ? "Try adjusting your filters or search terms."
-                        : "All items are up to date. No action required."}
+                      {searchQuery || selectedCategory !== 'all'
+                        ? 'Try adjusting your filters or search terms.'
+                        : 'All items are up to date. No action required.'}
                     </p>
                   </div>
                 )}
@@ -574,7 +622,9 @@ export default function AdminDashboard() {
                               className="w-12 h-12 object-cover rounded-lg"
                             />
                             <div>
-                              <p className="font-medium text-slate-900 line-clamp-1">{item.title}</p>
+                              <p className="font-medium text-slate-900 line-clamp-1">
+                                {item.title}
+                              </p>
                               <Badge variant="outline" className="text-xs mt-1">
                                 {item.category}
                               </Badge>
@@ -584,12 +634,12 @@ export default function AdminDashboard() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={item.seller.avatar || "/placeholder.svg"} />
+                              <AvatarImage src={item.seller.avatar || '/placeholder.svg'} />
                               <AvatarFallback>
                                 {item.seller.name
-                                  .split(" ")
+                                  .split(' ')
                                   .map((n) => n[0])
-                                  .join("")}
+                                  .join('')}
                               </AvatarFallback>
                             </Avatar>
                             <div>
@@ -601,7 +651,9 @@ export default function AdminDashboard() {
                         <TableCell>{item.listingDate}</TableCell>
                         <TableCell>{item.archivedDate}</TableCell>
                         <TableCell>
-                          <Badge className="bg-red-100 text-red-800">{item.notificationsSent} sent</Badge>
+                          <Badge className="bg-red-100 text-red-800">
+                            {item.notificationsSent} sent
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <span className="font-semibold text-amber-600">{item.price}</span>
@@ -677,8 +729,8 @@ export default function AdminDashboard() {
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800">
                     <p className="text-sm">
-                      <strong>Note:</strong> Only users with email addresses from these domains will be verified as
-                      buyers and able to contact sellers.
+                      <strong>Note:</strong> Only users with email addresses from these domains will
+                      be verified as buyers and able to contact sellers.
                     </p>
                   </div>
                 </div>
@@ -702,7 +754,10 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">42</span>
                         <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: "42%" }}></div>
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{ width: '42%' }}
+                          ></div>
                         </div>
                       </div>
                     </div>
@@ -714,7 +769,10 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">28</span>
                         <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-amber-500 rounded-full" style={{ width: "28%" }}></div>
+                          <div
+                            className="h-full bg-amber-500 rounded-full"
+                            style={{ width: '28%' }}
+                          ></div>
                         </div>
                       </div>
                     </div>
@@ -726,7 +784,10 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">35</span>
                         <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 rounded-full" style={{ width: "35%" }}></div>
+                          <div
+                            className="h-full bg-green-500 rounded-full"
+                            style={{ width: '35%' }}
+                          ></div>
                         </div>
                       </div>
                     </div>
@@ -738,7 +799,10 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">19</span>
                         <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-500 rounded-full" style={{ width: "19%" }}></div>
+                          <div
+                            className="h-full bg-purple-500 rounded-full"
+                            style={{ width: '19%' }}
+                          ></div>
                         </div>
                       </div>
                     </div>
