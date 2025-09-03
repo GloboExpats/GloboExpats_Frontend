@@ -54,7 +54,7 @@ interface FilterState {
   selectedCategory: string
   priceRange: [number, number]
   condition: string
-  sellerType: string
+  expatType: string
   timePosted: string
   location: string
 }
@@ -78,7 +78,7 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) 
     filters.priceRange[0] > 0 ||
     filters.priceRange[1] < 10000000 ||
     filters.condition ||
-    filters.sellerType ||
+    filters.expatType ||
     filters.timePosted ||
     filters.location
 
@@ -277,29 +277,29 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) 
           <div className="space-y-3">
             <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
               <Shield className="h-4 w-4 text-blue-600" />
-              Seller Type
+              Expat Type
             </Label>
             <RadioGroup
-              value={filters.sellerType}
-              onValueChange={(value) => updateFilter('sellerType', value)}
+              value={filters.expatType}
+              onValueChange={(value) => updateFilter('expatType', value)}
               className="space-y-2"
             >
               <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="" id="seller-all" />
+                <RadioGroupItem value="" id="expat-all" />
                 <Label
-                  htmlFor="seller-all"
+                  htmlFor="expat-all"
                   className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
                 >
-                  All sellers
+                  All expats
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="verified" id="seller-verified" />
+                <RadioGroupItem value="verified" id="expat-verified" />
                 <Label
-                  htmlFor="seller-verified"
+                  htmlFor="expat-verified"
                   className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-2"
                 >
-                  Verified sellers only
+                  Verified expats only
                   <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
                     <Shield className="h-3 w-3 mr-1" />
                     Trusted
@@ -307,12 +307,12 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) 
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="premium" id="seller-premium" />
+                <RadioGroupItem value="premium" id="expat-premium" />
                 <Label
-                  htmlFor="seller-premium"
+                  htmlFor="expat-premium"
                   className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-2"
                 >
-                  Premium sellers only
+                  Premium expats only
                   <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700">
                     <Star className="h-3 w-3 mr-1" />
                     Premium
@@ -380,7 +380,7 @@ export default function BrowsePage() {
     selectedCategory: initialCategory,
     priceRange: [0, 10000000],
     condition: '',
-    sellerType: '',
+    expatType: '',
     timePosted: '',
     location: '',
   })
@@ -416,7 +416,7 @@ export default function BrowsePage() {
       selectedCategory: '',
       priceRange: [0, 10000000],
       condition: '',
-      sellerType: '',
+      expatType: '',
       timePosted: '',
       location: '',
     })
@@ -452,15 +452,15 @@ export default function BrowsePage() {
     const matchesPrice =
       priceNumber >= filters.priceRange[0] && priceNumber <= filters.priceRange[1]
 
-    const matchesSellerType =
-      !filters.sellerType ||
-      (filters.sellerType === 'verified' && product.isVerified) ||
-      (filters.sellerType === 'premium' && product.isPremium)
+    const matchesExpatType =
+      !filters.expatType ||
+      (filters.expatType === 'verified' && product.isVerified) ||
+      (filters.expatType === 'premium' && product.isPremium)
 
     const matchesLocation =
       !filters.location || generateSlug(product.location).includes(filters.location)
 
-    return matchesSearch && matchesCategory && matchesPrice && matchesSellerType && matchesLocation
+    return matchesSearch && matchesCategory && matchesPrice && matchesExpatType && matchesLocation
   })
 
   // Pagination calculations
@@ -548,7 +548,7 @@ export default function BrowsePage() {
                     Filters
                     {(filters.selectedCategory ||
                       filters.condition ||
-                      filters.sellerType ||
+                      filters.expatType ||
                       filters.timePosted ||
                       filters.location) && (
                       <Badge variant="secondary" className="ml-2 text-xs bg-blue-100 text-blue-700">
@@ -658,7 +658,7 @@ export default function BrowsePage() {
                 <div
                   className={
                     viewMode === 'grid'
-                      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'
                       : 'space-y-6'
                   }
                 >
