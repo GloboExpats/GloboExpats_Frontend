@@ -4,10 +4,10 @@ import bundleAnalyzer from '@next/bundle-analyzer'
  * =============================================================================
  * NEXT.JS CONFIGURATION - EXPAT MARKETPLACE FRONTEND
  * =============================================================================
- * 
+ *
  * This configuration optimizes the frontend for performance and provides
  * clear integration points for the backend team.
- * 
+ *
  * Key Features:
  * - Optimized bundling and code splitting
  * - Backend API integration setup
@@ -23,11 +23,11 @@ const nextConfig = {
    * BUILD OPTIMIZATION
    * =============================================================================
    */
-  
+
   // Optimize package imports for better tree shaking and smaller bundles
   experimental: {
     optimizePackageImports: [
-      'lucide-react', 
+      'lucide-react',
       '@radix-ui/react-icons',
       '@radix-ui/react-accordion',
       '@radix-ui/react-alert-dialog',
@@ -39,7 +39,7 @@ const nextConfig = {
       '@radix-ui/react-popover',
       '@radix-ui/react-select',
       '@radix-ui/react-tabs',
-      '@radix-ui/react-toast'
+      '@radix-ui/react-toast',
     ],
     // Optimize CSS imports
     optimizeCss: true,
@@ -48,10 +48,10 @@ const nextConfig = {
       rules: {
         '*.svg': {
           loaders: ['@svgr/webpack'],
-          as: '*.js'
-        }
-      }
-    }
+          as: '*.js',
+        },
+      },
+    },
   },
 
   /**
@@ -80,7 +80,7 @@ const nextConfig = {
    * =============================================================================
    * BACKEND API INTEGRATION
    * =============================================================================
-   * 
+   *
    * These settings help the backend team understand how to integrate:
    * 1. API routes are proxied to backend
    * 2. Environment variables for different stages
@@ -93,7 +93,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws',
     NEXT_PUBLIC_CDN_URL: process.env.NEXT_PUBLIC_CDN_URL || '',
-    NEXT_PUBLIC_ENVIRONMENT: process.env.NODE_ENV || 'development'
+    NEXT_PUBLIC_ENVIRONMENT: process.env.NODE_ENV || 'development',
   },
 
   // Proxy API requests to backend server
@@ -102,7 +102,7 @@ const nextConfig = {
       {
         source: '/api/backend/:path*',
         destination: `${process.env.BACKEND_URL || 'http://localhost:8000'}/api/:path*`,
-      }
+      },
     ]
   },
 
@@ -157,7 +157,7 @@ const nextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
-          }
+          },
         ],
       },
       {
@@ -179,7 +179,7 @@ const nextConfig = {
       },
     ]
   },
-  
+
   /**
    * =============================================================================
    * WEBPACK OPTIMIZATION
@@ -217,9 +217,9 @@ const nextConfig = {
               priority: 5,
               chunks: 'all',
               reuseExistingChunk: true,
-            }
-          }
-        }
+            },
+          },
+        },
       }
     }
 
@@ -247,22 +247,22 @@ const nextConfig = {
    * DEPLOYMENT CONFIGURATION
    * =============================================================================
    */
-  
+
   // Generate standalone build for Docker deployment
   output: 'standalone',
-  
+
   // Compress static assets
   compress: true,
-  
+
   // Enable React strict mode for better development experience
   reactStrictMode: true,
-  
+
   // Disable X-Powered-By header for security
   poweredByHeader: false,
 
   // Ensure proper static file serving in Docker
   assetPrefix: process.env.NODE_ENV === 'production' ? '' : undefined,
-  
+
   // Configure static file serving
   trailingSlash: false,
 
@@ -271,7 +271,7 @@ const nextConfig = {
    * DEVELOPMENT OPTIMIZATIONS
    * =============================================================================
    */
-  
+
   // Skip type checking and linting during builds for faster CI/CD
   // These should be handled separately in the pipeline
   eslint: {
@@ -286,21 +286,20 @@ const nextConfig = {
    * LOGGING AND MONITORING
    * =============================================================================
    */
-  
+
   // Enhanced logging for debugging
   logging: {
     fetches: {
       fullUrl: true,
     },
   },
-
 }
 
 /**
  * =============================================================================
  * BUNDLE ANALYZER (FOR PERFORMANCE MONITORING)
  * =============================================================================
- * 
+ *
  * Run `ANALYZE=true npm run build` to analyze bundle sizes
  */
 const withBundleAnalyzer = bundleAnalyzer({
