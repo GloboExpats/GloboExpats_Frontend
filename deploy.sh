@@ -86,23 +86,56 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Try docker info, if it fails try with sudo
     if ! docker info &> /dev/null; then
-        log_error "Docker is not running. Please start Docker daemon."
-        exit 1
+        if ! sudo docker info &> /dev/null 2>&1; then
+            log_error "Docker is not running. Please start Docker daemon."
+            log_error "Try: sudo systemctl start docker"
+            exit 1
+        else
+            log_warn "Docker requires sudo privileges. Consider adding user to docker group:"
+            log_warn "sudo usermod -aG docker \$USER && newgrp docker"
+            DOCKER_CMD="sudo docker"
+        fi
+    else
+        DOCKER_CMD="docker"
     fi
     
     # Check if required files exist
     if [ ! -f "Dockerfile" ]; then
         log_error "Dockerfile not found in current directory."
+        log_error "Please run this script from the project root directory."
         exit 1
     fi
     
     if [ ! -f "package.json" ]; then
         log_error "package.json not found in current directory."
+        log_error "Please run this script from the project root directory."
         exit 1
     fi
     
+    # Check for lock files and provide guidance
+    if [ ! -f "pnpm-lock.yaml" ] && [ ! -f "package-lock.json" ] && [ ! -f "yarn.lock" ]; then
+        log_warn "No lock file found. This may cause inconsistent builds."
+        log_warn "Consider running 'pnpm install' or your preferred package manager first."
+    fi
+    
+    # Verify we're in the correct directory
+    if [ ! -d "app" ] || [ ! -d "components" ]; then
+        log_error "This doesn't appear to be a Next.js project root directory."
+        log_error "Please navigate to the project root and try again."
+        exit 1
+    fi
+    
+    # Check available disk space (require at least 2GB)
+    AVAILABLE_SPACE=$(df . | tail -1 | awk '{print $4}')
+    if [ "$AVAILABLE_SPACE" -lt 2097152 ]; then # 2GB in KB
+        log_warn "Low disk space detected. Docker build may fail."
+        log_warn "Available: $(( AVAILABLE_SPACE / 1024 ))MB. Recommended: 2GB+"
+    fi
+    
     log_info "Prerequisites check passed."
+    log_info "Docker command: $DOCKER_CMD"
 }
 
 cleanup_old_resources() {
@@ -110,76 +143,138 @@ cleanup_old_resources() {
         log_info "Cleaning up old resources..."
         
         # Stop and remove existing container
-        if docker ps -a --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        if $DOCKER_CMD ps -a --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
             log_info "Stopping existing container: $CONTAINER_NAME"
-            docker stop $CONTAINER_NAME || true
-            docker rm $CONTAINER_NAME || true
+            $DOCKER_CMD stop $CONTAINER_NAME || true
+            $DOCKER_CMD rm $CONTAINER_NAME || true
         fi
         
         # Remove old images (keep latest 3)
-        OLD_IMAGES=$(docker images $IMAGE_NAME --format "{{.ID}}" | tail -n +4)
+        OLD_IMAGES=$($DOCKER_CMD images $IMAGE_NAME --format "{{.ID}}" | tail -n +4)
         if [ ! -z "$OLD_IMAGES" ]; then
             log_info "Removing old images..."
-            echo $OLD_IMAGES | xargs docker rmi || true
+            echo $OLD_IMAGES | xargs $DOCKER_CMD rmi || true
         fi
         
-        # Clean up dangling images
-        docker image prune -f
+        # Clean up dangling images and build cache
+        log_info "Cleaning up Docker system..."
+        $DOCKER_CMD system prune -f || true
+        $DOCKER_CMD builder prune -f || true
         
         log_info "Cleanup completed."
     fi
 }
 
+prepare_build_environment() {
+    log_info "Preparing build environment..."
+    
+    # Ensure proper file permissions
+    if [ -f "pnpm-lock.yaml" ]; then
+        chmod 644 pnpm-lock.yaml
+        log_info "Set permissions for pnpm-lock.yaml"
+    fi
+    
+    if [ -f "package-lock.json" ]; then
+        chmod 644 package-lock.json
+        log_info "Set permissions for package-lock.json"
+    fi
+    
+    chmod 644 package.json
+    chmod 644 Dockerfile
+    
+    # Verify file integrity
+    if [ -f "pnpm-lock.yaml" ]; then
+        if ! grep -q "lockfileVersion" pnpm-lock.yaml; then
+            log_warn "pnpm-lock.yaml may be corrupted. Consider regenerating it."
+        fi
+    fi
+    
+    log_info "Build environment prepared."
+}
+
 create_network() {
     # Create Docker network if it doesn't exist
-    if ! docker network ls | grep -q $NETWORK_NAME; then
+    if ! $DOCKER_CMD network ls | grep -q $NETWORK_NAME; then
         log_info "Creating Docker network: $NETWORK_NAME"
-        docker network create $NETWORK_NAME
+        $DOCKER_CMD network create $NETWORK_NAME
     fi
 }
 
 build_image() {
     log_info "Building Docker image: $IMAGE_NAME:$TAG"
     
-    BUILD_CMD="docker build"
+    # Ensure we're in the right directory
+    if [ ! -f "Dockerfile" ]; then
+        log_error "Dockerfile not found. Please run from project root."
+        exit 1
+    fi
+    
+    # Create build command
+    BUILD_CMD="$DOCKER_CMD build"
     
     if [ "$NO_CACHE" = true ]; then
         BUILD_CMD="$BUILD_CMD --no-cache"
+        log_info "Building without cache..."
     fi
     
     if [ "$PULL_LATEST" = true ]; then
         BUILD_CMD="$BUILD_CMD --pull"
+        log_info "Pulling latest base images..."
     fi
+    
+    # Add build arguments
+    BUILD_CMD="$BUILD_CMD --build-arg NODE_ENV=$ENVIRONMENT"
     
     if [ ! -z "$BUILD_ARGS" ]; then
         BUILD_CMD="$BUILD_CMD $BUILD_ARGS"
     fi
     
-    BUILD_CMD="$BUILD_CMD -t $IMAGE_NAME:$TAG ."
+    # Add progress output and build context
+    BUILD_CMD="$BUILD_CMD --progress=plain -t $IMAGE_NAME:$TAG ."
+    
+    log_info "Build context: $(pwd)"
+    log_info "Available files:"
+    ls -la | grep -E "(package\.json|pnpm-lock\.yaml|package-lock\.json|yarn\.lock|Dockerfile)" || true
     
     log_info "Executing: $BUILD_CMD"
-    eval $BUILD_CMD
     
-    log_info "Image built successfully: $IMAGE_NAME:$TAG"
+    # Execute build with better error handling
+    if eval $BUILD_CMD; then
+        log_info "Image built successfully: $IMAGE_NAME:$TAG"
+        
+        # Show image info
+        IMAGE_SIZE=$($DOCKER_CMD images $IMAGE_NAME:$TAG --format "{{.Size}}")
+        log_info "Image size: $IMAGE_SIZE"
+    else
+        BUILD_EXIT_CODE=$?
+        log_error "Docker build failed with exit code: $BUILD_EXIT_CODE"
+        log_error "Common fixes:"
+        log_error "1. Ensure you're in the project root directory"
+        log_error "2. Check if all required files exist (package.json, lock files)"
+        log_error "3. Try building with --no-cache: $0 --no-cache"
+        log_error "4. Check available disk space: df -h"
+        log_error "5. Clean Docker cache: $DOCKER_CMD system prune -f"
+        exit $BUILD_EXIT_CODE
+    fi
 }
 
 deploy_container() {
     log_info "Deploying container: $CONTAINER_NAME"
     
     # Stop existing container if running
-    if docker ps --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    if $DOCKER_CMD ps --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
         log_info "Stopping existing container..."
-        docker stop $CONTAINER_NAME
+        $DOCKER_CMD stop $CONTAINER_NAME
     fi
     
     # Remove existing container if exists
-    if docker ps -a --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    if $DOCKER_CMD ps -a --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
         log_info "Removing existing container..."
-        docker rm $CONTAINER_NAME
+        $DOCKER_CMD rm $CONTAINER_NAME
     fi
     
     # Create and start new container
-    docker run -d \
+    $DOCKER_CMD run -d \
         --name $CONTAINER_NAME \
         --network $NETWORK_NAME \
         -p $PORT:3000 \
@@ -222,7 +317,7 @@ health_check() {
 show_logs() {
     if [ "$SHOW_LOGS" = true ]; then
         log_info "Showing container logs..."
-        docker logs -f $CONTAINER_NAME
+        $DOCKER_CMD logs -f $CONTAINER_NAME
     fi
 }
 
@@ -238,11 +333,11 @@ show_deployment_info() {
     echo "  Network: $NETWORK_NAME"
     echo ""
     echo "Useful Commands:"
-    echo "  View logs:        docker logs $CONTAINER_NAME"
-    echo "  Follow logs:      docker logs -f $CONTAINER_NAME"
-    echo "  Stop container:   docker stop $CONTAINER_NAME"
-    echo "  Start container:  docker start $CONTAINER_NAME"
-    echo "  Remove container: docker rm $CONTAINER_NAME"
+    echo "  View logs:        $DOCKER_CMD logs $CONTAINER_NAME"
+    echo "  Follow logs:      $DOCKER_CMD logs -f $CONTAINER_NAME"
+    echo "  Stop container:   $DOCKER_CMD stop $CONTAINER_NAME"
+    echo "  Start container:  $DOCKER_CMD start $CONTAINER_NAME"
+    echo "  Remove container: $DOCKER_CMD rm $CONTAINER_NAME"
     echo ""
     echo "Access your application at: http://localhost:$PORT"
 }
@@ -329,6 +424,7 @@ log_info "  Container: $CONTAINER_NAME"
 
 check_prerequisites
 cleanup_old_resources
+prepare_build_environment
 create_network
 build_image
 deploy_container

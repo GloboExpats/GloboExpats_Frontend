@@ -16,11 +16,24 @@ RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy package.json first
+COPY package.json ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile --prod=false
+# Copy lock files if they exist (handle different package managers)
+COPY package-loc*.json ./
+COPY pnpm-lock.yaml* ./
+COPY yarn.lock* ./
+
+# Install dependencies with fallback strategies
+RUN if [ -f pnpm-lock.yaml ]; then \
+        echo "Using pnpm..." && pnpm install --frozen-lockfile --prod=false; \
+    elif [ -f package-lock.json ]; then \
+        echo "Using npm..." && npm ci --only=production=false; \
+    elif [ -f yarn.lock ]; then \
+        echo "Using yarn..." && npm install -g yarn && yarn install --frozen-lockfile; \
+    else \
+        echo "No lock file found, using pnpm install..." && pnpm install --prod=false; \
+    fi
 
 # =============================================================================
 # Stage 2: Builder
