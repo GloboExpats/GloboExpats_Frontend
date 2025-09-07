@@ -35,6 +35,9 @@ services:
       - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8000/ws}
       - NEXT_PUBLIC_CDN_URL=${NEXT_PUBLIC_CDN_URL:-}
       - NEXT_PUBLIC_ENVIRONMENT=${NODE_ENV:-production}
+      # Optional: set only if hosting under a subpath or serving assets from a CDN
+      - 'NEXT_BASE_PATH=${NEXT_BASE_PATH:-}'
+      - 'ASSET_PREFIX=${ASSET_PREFIX:-}'
 
     # Health check
     healthcheck:

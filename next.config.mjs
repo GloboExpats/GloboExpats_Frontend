@@ -16,6 +16,21 @@ import bundleAnalyzer from '@next/bundle-analyzer'
  * - Environment-based configuration
  */
 
+// Resolve optional basePath/assetPrefix (safer defaults)
+const resolvedBasePath = process.env.NEXT_BASE_PATH || process.env.BASE_PATH || ''
+// Only allow assetPrefix when pointing to an absolute URL (CDN); otherwise leave empty to avoid broken asset URLs in production
+const resolvedAssetPrefix = (() => {
+  const p = process.env.ASSET_PREFIX
+  if (!p) return ''
+  try {
+    // Absolute URL is OK (e.g., https://cdn.example.com)
+    const u = new URL(p)
+    if (u.protocol === 'http:' || u.protocol === 'https:') return p.replace(/\/$/, '')
+  } catch {}
+  // If a subpath is intended (e.g., /frontend), prefer basePath instead of assetPrefix
+  return ''
+})()
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /**
@@ -60,12 +75,13 @@ const nextConfig = {
    * =============================================================================
    */
   images: {
-    // Configure allowed domains for external images
-    domains: [
-      'localhost',
-      'your-backend-domain.com', // Replace with actual backend domain
-      'cdn.example.com', // Replace with your CDN domain
-      'images.unsplash.com', // If using Unsplash for placeholder images
+    // Configure allowed remote patterns for external images (Next.js 15+)
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: '0.0.0.0' },
+      { protocol: 'http', hostname: 'your-backend-domain.com' }, // Replace with actual backend domain
+      { protocol: 'http', hostname: '10.123.22.21:3000' }, // Replace with your CDN domain
+      { protocol: 'http', hostname: '10.123.22.21' }, // If using Unsplash for placeholder images
     ],
     // Disable optimization in development for faster builds
     unoptimized: process.env.NODE_ENV === 'development',
@@ -248,8 +264,8 @@ const nextConfig = {
    * =============================================================================
    */
 
-  // Generate standalone build for Docker deployment
-  output: 'standalone',
+  // Generate standalone build for Docker deployment (skip on Windows to avoid symlink errors)
+  output: process.platform === 'win32' ? undefined : 'standalone',
 
   // Compress static assets
   compress: true,
@@ -260,14 +276,14 @@ const nextConfig = {
   // Disable X-Powered-By header for security
   poweredByHeader: false,
 
-  // Ensure proper static file serving in Docker
-  assetPrefix: process.env.ASSET_PREFIX || '',
+  // Ensure proper static file serving
+  // - If hosting under a subpath, set NEXT_BASE_PATH or BASE_PATH (e.g., "/frontend").
+  // - Only use ASSET_PREFIX for CDN absolute URLs (e.g., "https://cdn.example.com").
+  basePath: resolvedBasePath || undefined,
+  assetPrefix: resolvedAssetPrefix,
 
   // Configure static file serving
   trailingSlash: false,
-
-  // Force static optimization
-  generateStaticParams: async () => [],
 
   /**
    * =============================================================================
