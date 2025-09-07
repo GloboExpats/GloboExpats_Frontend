@@ -261,10 +261,13 @@ const nextConfig = {
   poweredByHeader: false,
 
   // Ensure proper static file serving in Docker
-  assetPrefix: process.env.NODE_ENV === 'production' ? '' : undefined,
+  assetPrefix: process.env.ASSET_PREFIX || '',
 
   // Configure static file serving
   trailingSlash: false,
+
+  // Force static optimization
+  generateStaticParams: async () => [],
 
   /**
    * =============================================================================

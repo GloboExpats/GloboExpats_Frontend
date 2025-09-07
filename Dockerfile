@@ -67,20 +67,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy standalone server files
-COPY --from=builder /app/.next/standalone ./
+# Copy standalone server files (includes necessary node_modules)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # Copy public folder
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Copy static assets (CSS, JS)
-COPY --from=builder /app/.next/static ./.next/static
-
-# Copy node_modules required by standalone server
-COPY --from=builder /app/node_modules ./node_modules
-
-# Fix permissions
-RUN chown -R nextjs:nodejs ./.next ./public ./node_modules
+# Copy static assets (CSS, JS) - critical for styling
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Expose port
 EXPOSE 3000
