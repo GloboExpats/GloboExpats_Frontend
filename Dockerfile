@@ -16,7 +16,7 @@ WORKDIR /app
 FROM base AS installer
 LABEL stage="installer"
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --no-frozen-lockfile --prod
 
 
 # 3. Builder stage for building the app
@@ -34,17 +34,21 @@ WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
-# Disable telemetry
-ENV NEXT_TELEMETRY_DISABLED 1
+# Disable telemetry (fixed legacy format)
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Create a non-root user for security
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Install production dependencies only
+COPY --from=installer /app/node_modules ./node_modules
 # Copy the standalone output
 COPY --from=builder /app/.next/standalone ./
 # Copy static assets
 COPY --from=builder /app/public ./public
+# Copy .next directory for static files
+COPY --from=builder /app/.next/static ./.next/static
 
 # Set correct ownership for the app files
 RUN chown -R nextjs:nodejs /app
