@@ -28,7 +28,7 @@ RUN pnpm prune --prod
 
 
 # 3. Runner stage for the final image
-FROM base AS runner  # Use base instead of fresh node image
+FROM base AS runner
 LABEL stage="runner"
 WORKDIR /app
 
