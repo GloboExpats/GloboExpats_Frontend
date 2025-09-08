@@ -11,13 +11,13 @@ RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copy package.json and lock files
+# Copy package.json and lock files (optional copies won't break if missing)
 COPY package.json ./
-COPY package-lock.json* ./ 
-COPY pnpm-lock.yaml* ./
-COPY yarn.lock* ./
+COPY pnpm-lock.yaml ./
+COPY yarn.lock ./
+COPY package-lock.json ./
 
-# Install dependencies
+# Install dependencies (choose based on available lockfile)
 RUN if [ -f pnpm-lock.yaml ]; then \
         pnpm install --frozen-lockfile; \
     elif [ -f yarn.lock ]; then \
