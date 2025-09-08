@@ -1,92 +1,59 @@
-# =============================================================================
-# DOCKERFILE - EXPAT MARKETPLACE FRONTEND (Production Mode)
-# =============================================================================
+# Dockerfile for Next.js App
 
-# Stage 1: Dependencies
-FROM node:18-alpine AS deps
-RUN apk add --no-cache libc6-compat
-
-# Install pnpm
-RUN npm install -g pnpm
-
-WORKDIR /app
-
-# Copy package.json and lock files (optional copies won't break if missing)
-COPY package.json ./
-COPY package-lock.json ./
-
-# Install dependencies (choose based on available lockfile)
-RUN if [ -f pnpm-lock.yaml ]; then \
-        pnpm install --frozen-lockfile; \
-    elif [ -f yarn.lock ]; then \
-        npm install -g yarn && yarn install --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then \
-        npm ci --legacy-peer-deps; \
-    else \
-        pnpm install; \
-    fi
-
-# =============================================================================
-# Stage 2: Builder
-FROM node:18-alpine AS builder
-WORKDIR /app
+# 1. Base image for dependencies and building
+FROM node:20-alpine AS base
+LABEL maintainer="Your Name <you@example.com>"
+LABEL stage="base"
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm i -g pnpm
 
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
+# Set working directory
+WORKDIR /app
 
-# Copy source code
+
+# 2. Installer stage for dependencies
+FROM base AS installer
+LABEL stage="installer"
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile --prod
+
+
+# 3. Builder stage for building the app
+FROM base AS builder
+LABEL stage="builder"
+COPY --from=installer /app/node_modules ./node_modules
 COPY . .
+RUN pnpm build
+
+
+# 4. Runner stage for the final image
+FROM node:20-alpine AS runner
+LABEL stage="runner"
+WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# Disable telemetry
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Build Next.js app (normal production build)
-RUN pnpm run build
-
-# =============================================================================
-# Stage 3: Production Runner
-FROM node:18-alpine AS runner
-WORKDIR /app
-
-# Install curl for health checks and pnpm
-RUN apk add --no-cache curl
-RUN npm install -g pnpm
-
-# Create non-root user
+# Create a non-root user for security
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Set environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Copy the standalone output
+COPY --from=builder /app/.next/standalone ./
+# Copy static assets
+COPY --from=builder /app/public ./public
 
-# Copy package.json and next.config.mjs for the start command
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/next.config.mjs ./next.config.mjs
-
-# Copy built application and dependencies from builder stage
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-# Ensure proper permissions
+# Set correct ownership for the app files
 RUN chown -R nextjs:nodejs /app
 
-# Expose port
-EXPOSE 3000
-
-# Switch to non-root user
+# Switch to the non-root user
 USER nextjs
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+# Expose the port the app runs on
+EXPOSE 3000
 
-# Start the Next.js production server
-CMD ["pnpm", "start"]
+# Set the command to run the server
+CMD ["node", "server.js"]
