@@ -264,8 +264,8 @@ const nextConfig = {
    * =============================================================================
    */
 
-  // Generate standalone build for Docker deployment
-  output: 'standalone',
+  // Use normal production build (not standalone)
+  // output: 'standalone', // Removed for normal production deployment
 
   // Compress static assets
   compress: true,

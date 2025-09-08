@@ -1,5 +1,5 @@
 # =============================================================================
-# DOCKERFILE - EXPAT MARKETPLACE FRONTEND (Standalone Mode)
+# DOCKERFILE - EXPAT MARKETPLACE FRONTEND (Production Mode)
 # =============================================================================
 
 # Stage 1: Dependencies
@@ -46,7 +46,7 @@ COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build Next.js app (standalone)
+# Build Next.js app (normal production build)
 RUN pnpm run build
 
 # =============================================================================
@@ -67,14 +67,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy standalone server files (includes necessary node_modules)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# Install only production dependencies
+COPY package*.json pnpm-lock.yaml* ./
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
 
-# Copy public folder
+# Copy built application
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-# Copy static assets (CSS, JS) - critical for styling
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 # Expose port
 EXPOSE 3000
@@ -86,5 +86,5 @@ USER nextjs
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Start the standalone server
-CMD ["node", "server.js"]
+# Start the Next.js production server
+CMD ["pnpm", "start"]
