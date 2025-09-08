@@ -1,49 +1,97 @@
-# Dockerfile for Next.js App - Full Development-like Production
+# =============================================================================
+# DOCKERFILE - EXPAT MARKETPLACE FRONTEND
+# =============================================================================
+# Multi-stage Docker build for optimal production deployment
+# This Dockerfile creates a standalone Next.js application ready for production
 
-# 1. Base image
-FROM node:20-alpine AS base
-LABEL maintainer="Your Name <you@example.com>"
-
-# Install pnpm globally
-RUN npm i -g pnpm
+# =============================================================================
+# STAGE 1: Dependencies Installation
+# =============================================================================
+FROM node:22-alpine AS deps
 
 # Set working directory
 WORKDIR /app
 
-# 2. Install all dependencies
-FROM base AS dependencies
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --no-frozen-lockfile
+# Install system dependencies for native modules
+RUN apk add --no-cache libc6-compat
 
-# 3. Build stage
-FROM base AS builder
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY . .
-RUN pnpm build
+# Copy package files
+COPY package.json package-lock.json* ./
 
-# 4. Final production image - KEEP EVERYTHING
-FROM base AS production
+# Install dependencies with legacy peer deps to handle React 19 conflicts
+RUN npm ci --legacy-peer-deps --only=production && npm cache clean --force
+
+# =============================================================================
+# STAGE 2: Build Application
+# =============================================================================
+FROM node:22-alpine AS builder
+
+# Set working directory
 WORKDIR /app
 
-# Copy EVERYTHING from builder
-COPY --from=builder /app/ ./
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
-# Set production environment
+# Copy source code
+COPY . .
+
+# Install all dependencies (including dev) for building
+RUN npm ci --legacy-peer-deps
+
+# Build the application for production with standalone output
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create a non-root user (optional but recommended)
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN npm run build
 
-# Set ownership (optional)
+# =============================================================================
+# STAGE 3: Production Runtime
+# =============================================================================
+FROM node:22-alpine AS runner
+
+# Set working directory
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy built application from builder stage
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Set proper permissions
 RUN chown -R nextjs:nodejs /app
-
-# Switch to non-root user (optional)
 USER nextjs
 
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["pnpm", "start"]
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:${PORT}/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Start the application with dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "server.js"]
+
+# =============================================================================
+# BUILD METADATA
+# =============================================================================
+LABEL maintainer="Expat Marketplace Team"
+LABEL description="Expat Marketplace Frontend - Next.js Application"
+LABEL version="1.0.0"
+LABEL org.opencontainers.image.title="Expat Frontend"
+LABEL org.opencontainers.image.description="Next.js frontend for Expat Marketplace"
+LABEL org.opencontainers.image.vendor="Expat Marketplace"
+LABEL org.opencontainers.image.licenses="MIT"
