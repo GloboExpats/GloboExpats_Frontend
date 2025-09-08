@@ -5,7 +5,7 @@ FROM node:20-alpine AS base
 LABEL maintainer="Your Name <you@example.com>"
 LABEL stage="base"
 
-# Install pnpm
+# Install pnpm globally
 RUN npm i -g pnpm
 
 # Set working directory
@@ -28,7 +28,7 @@ RUN pnpm prune --prod
 
 
 # 3. Runner stage for the final image
-FROM node:20-alpine AS runner
+FROM base AS runner  # Use base instead of fresh node image
 LABEL stage="runner"
 WORKDIR /app
 
@@ -41,7 +41,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy the entire built project (except node_modules which we'll copy separately)
+# Copy the entire built project
 COPY --from=builder /app/ ./
 
 # Set correct ownership for the app files
