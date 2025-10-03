@@ -36,12 +36,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Accept build-time overridable environment arguments (provide defaults for local builds)
-ARG NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
+ARG NEXT_PUBLIC_API_URL=/api/backend/v1
 ARG BACKEND_URL=http://10.123.22.21:8081
 ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 ARG NEXT_PUBLIC_CDN_URL=
 ARG NEXT_PUBLIC_ENVIRONMENT=production
-ARG NEXT_PUBLIC_BACKEND_URL=/api/backend/v1
+ARG NEXT_PUBLIC_BACKEND_URL=http://10.123.22.21:8081
 
 # Expose them to the build (Next.js inlines NEXT_PUBLIC_*)
 # NOTE:
