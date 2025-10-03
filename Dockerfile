@@ -36,8 +36,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Accept build-time overridable environment arguments (provide defaults for local builds)
-ARG NEXT_PUBLIC_API_URL=http://globalexpats:8080
-ARG BACKEND_URL=http://globalexpats:8080
+ARG NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
+ARG BACKEND_URL=http://10.123.22.21:8081
 ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 ARG NEXT_PUBLIC_CDN_URL=
 ARG NEXT_PUBLIC_ENVIRONMENT=production
