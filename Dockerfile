@@ -36,14 +36,24 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Accept build-time overridable environment arguments (provide defaults for local builds)
-ARG NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
-ARG BACKEND_URL=http://10.123.22.21:8081
+ARG NEXT_PUBLIC_API_URL=http://globalexpats:8080
+ARG BACKEND_URL=http://globalexpats:8080
 ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 ARG NEXT_PUBLIC_CDN_URL=
 ARG NEXT_PUBLIC_ENVIRONMENT=production
 ARG NEXT_PUBLIC_BACKEND_URL=/api/backend/v1
 
 # Expose them to the build (Next.js inlines NEXT_PUBLIC_*)
+# NOTE:
+# - When running BOTH frontend and backend as containers on the SAME Docker network,
+#   do NOT use 'localhost' here. Use the backend container name + its internal port.
+#   Example build override:
+#     docker build --build-arg BACKEND_URL=http://globalexpats:8080 \
+#                  --build-arg NEXT_PUBLIC_API_URL=/api/backend \
+#                  -t expat-frontend .
+# - 'localhost' only works when the backend is running directly on the host (not another container).
+# - Set NEXT_PUBLIC_API_URL to a relative path (like /api/backend) so browser clients hit the Next.js
+#   server, letting the rewrite proxy the request to BACKEND_URL internally.
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
   BACKEND_URL=${BACKEND_URL} \
   NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL} \
