@@ -35,6 +35,22 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source code
 COPY . .
 
+# Accept build-time overridable environment arguments (provide defaults for local builds)
+ARG NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
+ARG BACKEND_URL=http://10.123.22.21:8081
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+ARG NEXT_PUBLIC_CDN_URL=
+ARG NEXT_PUBLIC_ENVIRONMENT=production
+ARG NEXT_PUBLIC_BACKEND_URL=/api/backend/v1
+
+# Expose them to the build (Next.js inlines NEXT_PUBLIC_*)
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+  BACKEND_URL=${BACKEND_URL} \
+  NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL} \
+  NEXT_PUBLIC_CDN_URL=${NEXT_PUBLIC_CDN_URL} \
+  NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT} \
+  NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+
 # Install all dependencies (including dev) for building
 RUN npm ci --legacy-peer-deps
 
@@ -72,10 +88,16 @@ USER nextjs
 EXPOSE 3000
 
 # Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production \
+  PORT=3000 \
+  HOSTNAME=0.0.0.0 \
+  NEXT_TELEMETRY_DISABLED=1 \
+  NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+  BACKEND_URL=${BACKEND_URL} \
+  NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL} \
+  NEXT_PUBLIC_CDN_URL=${NEXT_PUBLIC_CDN_URL} \
+  NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT} \
+  NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
