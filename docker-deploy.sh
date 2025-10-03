@@ -59,6 +59,7 @@ show_help() {
     echo "Options:"
     echo "  -p, --port PORT       Host port (default: 3000)"
     echo "  -d, --detach         Run in detached mode"
+    echo "       --env-file FILE   Use a specific env file (default: auto-detect .env)"
     echo "  -h, --help           Show this help"
     echo ""
     echo "Environment Variables:"
@@ -119,6 +120,26 @@ run_container() {
     
     # Run new container
     local run_opts=()
+    local env_file_to_use=".env"
+
+    # If user specified --env-file FILE, it's already stored in ENV_FILE variable
+    if [ -n "$ENV_FILE" ]; then
+        if [ -f "$ENV_FILE" ]; then
+            env_file_to_use="$ENV_FILE"
+        else
+            warn "Specified env file '$ENV_FILE' not found. Ignoring."
+        fi
+    elif [ -f .env ]; then
+        # Auto-detect .env in project root
+        env_file_to_use=".env"
+    fi
+
+    if [ -n "$env_file_to_use" ]; then
+        log "Including environment variables from $env_file_to_use"
+        run_opts+=(--env-file "$env_file_to_use")
+    else
+        warn "No env file provided or found (.env). Continuing without external runtime env file."
+    fi
     
     if [ "$DETACHED" = "true" ]; then
         run_opts+=("-d")
@@ -259,6 +280,10 @@ while [[ $# -gt 0 ]]; do
         -d|--detach)
             DETACHED="true"
             shift
+            ;;
+        --env-file)
+            ENV_FILE="$2"
+            shift 2
             ;;
         -h|--help)
             show_help
