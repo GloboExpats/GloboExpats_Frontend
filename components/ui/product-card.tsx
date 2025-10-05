@@ -31,6 +31,24 @@ export function ProductCard({
     fullImageCheck: product.image ? 'HAS IMAGE' : 'NO IMAGE',
   })
 
+  // Debug: Check if product contains any problematic nested objects
+  console.log('🔍 [PRODUCT-CARD-DEBUG] Full product object:', product)
+
+  // Check for problematic review objects in product
+  Object.keys(product).forEach((key) => {
+    const value = (product as any)[key]
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      if (value.reviewId || value.reviewerName || value.reviewText || value.formattedCreatedAt) {
+        console.error(
+          '🚨 [PRODUCT-CARD-DEBUG] Found problematic review object in product key:',
+          key,
+          'value:',
+          value
+        )
+      }
+    }
+  })
+
   const handleViewDetails = () => {
     if (onViewDetails) {
       onViewDetails(product.id)

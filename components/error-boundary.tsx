@@ -172,6 +172,19 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
     })
 
     console.error('Error caught by boundary:', error, errorInfo)
+    console.error('🐛 Error Stack:', error.stack)
+    console.error('🎯 Component Stack:', errorInfo.componentStack)
+
+    // Check if this is the review object rendering error
+    if (error.message.includes('Objects are not valid as a React child')) {
+      console.error('🔍 REVIEW OBJECT ERROR DETECTED!')
+      console.error(
+        '🔍 This error is likely caused by rendering a review object directly instead of its properties'
+      )
+      console.error(
+        '🔍 Look for code that renders objects with keys: reviewId, reviewerName, reviewText, formattedCreatedAt'
+      )
+    }
 
     if (this.props.onError) {
       this.props.onError(error, errorInfo)

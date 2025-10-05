@@ -28,6 +28,14 @@ export const transformBackendProduct = (item: any) => {
   console.log('🔄 [IMAGE-UTILS] Transforming item:', item)
   console.log('🖼️ [IMAGE-UTILS] Raw images:', item.productImages)
 
+  // Debug: Check reviews data type and structure
+  console.log('📝 [IMAGE-UTILS] Reviews data:', {
+    reviews: item.reviews,
+    type: typeof item.reviews,
+    isArray: Array.isArray(item.reviews),
+    length: Array.isArray(item.reviews) ? item.reviews.length : 'N/A',
+  })
+
   const transformed = {
     id: item.productId || item.id,
     title: item.productName || item.title,
@@ -43,7 +51,14 @@ export const transformBackendProduct = (item: any) => {
     images: item.productImages?.map((img: any) => getFullImageUrl(img.imageUrl)) || [],
     listedBy: item.sellerName || item.listedBy?.name || item.listedBy || 'Unknown Seller',
     rating: item.rating || 4.5,
-    reviews: item.reviews || Math.floor(Math.random() * 100) + 10,
+    reviews:
+      typeof item.reviews === 'number'
+        ? item.reviews
+        : Array.isArray(item.reviews)
+          ? item.reviews.length
+          : typeof item.reviews === 'object' && item.reviews !== null
+            ? 1 // If it's a single review object, count as 1
+            : Math.floor(Math.random() * 100) + 10, // Fallback for no reviews
     location: item.productLocation || item.location || 'Dar es Salaam, TZ',
     isVerified: item.listedBy?.verified || item.isVerified || true,
     isPremium: item.isPremium || false,

@@ -79,6 +79,33 @@ export default function FeaturedListings() {
         // Process featured listings - use centralized content extraction
         const all = extractContentFromResponse(allResponse)
         console.log('🔥 All Products Count:', all.length)
+
+        // Debug: Check for problematic objects in product data
+        all.forEach((product, index) => {
+          if (typeof product === 'object' && product !== null) {
+            Object.keys(product).forEach((key) => {
+              const value = (product as any)[key]
+              if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                if (
+                  value.reviewId ||
+                  value.reviewerName ||
+                  value.reviewText ||
+                  value.formattedCreatedAt
+                ) {
+                  console.warn(
+                    '🚨 [FEATURED-DEBUG] Found potential problematic review object in product',
+                    index,
+                    'key:',
+                    key,
+                    'value:',
+                    value
+                  )
+                }
+              }
+            })
+          }
+        })
+
         setFeaturedListings(all.slice(0, 9).map(transformToFeaturedItem))
       } catch (err) {
         console.error('Error fetching listings:', err)
