@@ -392,7 +392,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userDetails.verificationStatus === 'VERIFIED' &&
             userDetails.passportVerificationStatus === 'VERIFIED' &&
             userDetails.addressVerificationStatus === 'VERIFIED',
-    isIdentityVerified: true,
+          isIdentityVerified: true,
           isOrganizationEmailVerified: !!userDetails.organizationalEmail,
           canBuy:
             userDetails.verificationStatus === 'VERIFIED' || !!userDetails.organizationalEmail,
@@ -713,9 +713,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Update verification status to fully verified
       const updatedVerificationStatus: VerificationStatus = {
-  isFullyVerified: true,
-  isIdentityVerified: true,
-  isOrganizationEmailVerified: true,
+        isFullyVerified: true,
+        isIdentityVerified: true,
+        isOrganizationEmailVerified: true,
         canBuy: true,
         canList: true,
         canSell: true,

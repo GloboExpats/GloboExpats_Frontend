@@ -184,7 +184,7 @@ function LoginContent() {
     try {
       if (provider === 'google') {
         // Redirect to Google OAuth
-  window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
+        window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
         return
       }
 

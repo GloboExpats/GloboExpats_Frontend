@@ -146,14 +146,14 @@ export function initializeAutoLogout() {
 // Google OAuth functions
 export function redirectToGoogleLogin() {
   if (typeof window !== 'undefined') {
-  window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
+    window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
   }
 }
 
 export async function exchangeAuthCode(authCode: string) {
   try {
     const response = await fetch(
-  `https://dev.globoexpats.com/api/v1/oauth2/exchange?auth_code=${authCode}`
+      `https://dev.globoexpats.com/api/v1/oauth2/exchange?auth_code=${authCode}`
     )
     if (!response.ok) {
       throw new Error('Failed to exchange auth code')
