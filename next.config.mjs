@@ -107,15 +107,13 @@ const nextConfig = {
    *
    * These settings help the backend team understand how to integrate:
    * 1. API routes are proxied to backend
-   * 2. Environment variables for different stages
    * 3. CORS and security headers
    */
 
   // Environment variables accessible to the frontend
   env: {
-    BACKEND_URL: process.env.BACKEND_URL || 'https://dev.globoexpats.com',
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://dev.globoexpats.com/api',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'wss://dev.globoexpats.com/ws',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081/api/v1',
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://10.123.22.21:8081/ws',
     NEXT_PUBLIC_CDN_URL: process.env.NEXT_PUBLIC_CDN_URL || '',
     NEXT_PUBLIC_ENVIRONMENT: process.env.NODE_ENV || 'development',
   },
@@ -124,8 +122,8 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/backend/:path*',
-        destination: `${process.env.BACKEND_URL || 'https://dev.globoexpats.com'}/api/:path*`,
+        source: '/api/v1/:path*',
+        destination: `${process.env.BACKEND_URL || 'http://10.123.22.21:8081'}/api/v1/:path*`,
       },
     ]
   },

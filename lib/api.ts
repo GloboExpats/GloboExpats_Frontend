@@ -22,10 +22,9 @@
 // ============================================================================
 
 /** Base API URL from environment or fallback */
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(
-  /\/$/,
-  ''
-)
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081/api/v1'
+).replace(/\/$/, '')
 
 /**
  * Standard API response wrapper
