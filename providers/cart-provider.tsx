@@ -263,13 +263,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
    * Persists cart items to localStorage with timestamp
    */
   const persistCart = useCallback(
-    (items: CartItem[], selectedItems?: string[]) => {
+    (items: CartItem[], selectedItems: string[] = []) => {
       if (!isLoggedIn) return // Don't persist if user not logged in
 
       try {
         const cartData = {
           items,
-          selectedItems: selectedItems || cart.selectedItems,
+          selectedItems,
           timestamp: Date.now(),
           userId: user?.id, // Associate cart with user
         }
@@ -282,47 +282,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }))
       }
     },
-    [isLoggedIn, user?.id, cart.selectedItems]
+    [isLoggedIn, user?.id]
   )
-
-  /**
-   * Load cart data from backend and convert to frontend format
-   */
-  const loadCartFromBackend = useCallback(async () => {
-    if (!isLoggedIn) return
-
-    try {
-      setCart((prev) => ({ ...prev, isLoading: true, error: null }))
-
-      const response = await apiClient.getUserCart()
-
-      if (response.success || response.data) {
-        const backendCart: BackendCartResponse = response.data || response
-
-        // Convert backend cart items to frontend format using utility function
-        const frontendItems = backendCartToFrontendItems(backendCart)
-
-        setCart((prev) => ({
-          ...prev,
-          items: frontendItems,
-          isLoading: false,
-          error: null,
-        }))
-
-        // Persist to localStorage
-        persistCart(frontendItems)
-      } else {
-        throw new Error(response.message || 'Failed to load cart')
-      }
-    } catch (error) {
-      console.error('Failed to load cart from backend:', error)
-      setCart((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load cart',
-      }))
-    }
-  }, [isLoggedIn, persistCart])
 
   // ============================================================================
   // INITIALIZATION & CLEANUP
@@ -351,7 +312,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Load from backend first for authenticated users
         try {
-          await loadCartFromBackend()
+          const response = await apiClient.getUserCart()
+
+          if (response.success || response.data) {
+            const backendCart: BackendCartResponse = response.data || response
+            const frontendItems = backendCartToFrontendItems(backendCart)
+
+            setCart((prev) => ({
+              ...prev,
+              items: frontendItems,
+              isLoading: false,
+              error: null,
+              isInitialized: true,
+            }))
+
+            // Persist to localStorage
+            persistCart(frontendItems, [])
+          } else {
+            throw new Error(response.message || 'Failed to load cart')
+          }
         } catch (backendError) {
           console.warn('Failed to load from backend, falling back to localStorage:', backendError)
 
@@ -406,7 +385,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     loadCart()
-  }, [isLoggedIn, user?.id, isCartDataValid, loadCartFromBackend])
+  }, [isLoggedIn, user?.id])
 
   /**
    * Clear cart when user logs out
@@ -517,7 +496,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         if (response.success || response.data) {
           // Refresh cart from backend to get updated state
-          await loadCartFromBackend()
+          const cartResponse = await apiClient.getUserCart()
+          if (cartResponse.success || cartResponse.data) {
+            const backendCart: BackendCartResponse = cartResponse.data || cartResponse
+            const frontendItems = backendCartToFrontendItems(backendCart)
+
+            setCart((prev) => {
+              persistCart(frontendItems, prev.selectedItems)
+              return {
+                ...prev,
+                items: frontendItems,
+                isLoading: false,
+                error: null,
+              }
+            })
+          }
 
           toast({
             title: 'Added to cart',
@@ -540,7 +533,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => ({ ...prev, isLoading: false }))
       }
     },
-    [isLoggedIn]
+    [isLoggedIn, persistCart]
   )
 
   const removeItem = useCallback(
@@ -568,7 +561,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         if (response.success || response.data !== undefined) {
           // Refresh cart from backend to get updated state
-          await loadCartFromBackend()
+          const cartResponse = await apiClient.getUserCart()
+          if (cartResponse.success || cartResponse.data) {
+            const backendCart: BackendCartResponse = cartResponse.data || cartResponse
+            const frontendItems = backendCartToFrontendItems(backendCart)
+
+            setCart((prev) => {
+              persistCart(frontendItems, prev.selectedItems)
+              return {
+                ...prev,
+                items: frontendItems,
+                isLoading: false,
+                error: null,
+              }
+            })
+          }
 
           toast({
             title: 'Item removed',
@@ -589,7 +596,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => ({ ...prev, isLoading: false }))
       }
     },
-    [isLoggedIn]
+    [isLoggedIn, persistCart]
   )
 
   /**
@@ -642,7 +649,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         if (response.success || response.data) {
           // Refresh cart from backend to get updated state
-          await loadCartFromBackend()
+          const cartResponse = await apiClient.getUserCart()
+          if (cartResponse.success || cartResponse.data) {
+            const backendCart: BackendCartResponse = cartResponse.data || cartResponse
+            const frontendItems = backendCartToFrontendItems(backendCart)
+
+            setCart((prev) => {
+              persistCart(frontendItems, prev.selectedItems)
+              return {
+                ...prev,
+                items: frontendItems,
+                isLoading: false,
+                error: null,
+              }
+            })
+          }
         } else {
           throw new Error(response.message || 'Failed to update quantity')
         }
@@ -658,7 +679,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => ({ ...prev, isLoading: false }))
       }
     },
-    [isLoggedIn, cart.items, removeItem]
+    [isLoggedIn, cart.items, removeItem, persistCart]
   )
 
   /**
@@ -712,7 +733,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!isLoggedIn) return
 
     try {
-      await loadCartFromBackend()
+      const response = await apiClient.getUserCart()
+      if (response.success || response.data) {
+        const backendCart: BackendCartResponse = response.data || response
+        const frontendItems = backendCartToFrontendItems(backendCart)
+
+        setCart((prev) => {
+          persistCart(frontendItems, prev.selectedItems)
+          return {
+            ...prev,
+            items: frontendItems,
+            error: null,
+          }
+        })
+      }
     } catch (error) {
       console.error('Failed to sync cart:', error)
       toast({
@@ -721,7 +755,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         variant: 'destructive',
       })
     }
-  }, [isLoggedIn, loadCartFromBackend])
+  }, [isLoggedIn, persistCart])
 
   /**
    * Validate cart items availability

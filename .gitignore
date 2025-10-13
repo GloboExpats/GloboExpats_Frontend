@@ -16,8 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-# .env*
+# env files (protect secrets)
+.env*
+!.env.example
 
 # vercel
 .vercel
@@ -26,5 +27,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documentation
-docs/
+#Editing rules
+.windsurf/
+.vscode/
+.idea/
+.cursor/
