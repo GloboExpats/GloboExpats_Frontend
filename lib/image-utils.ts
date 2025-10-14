@@ -6,7 +6,7 @@
  */
 
 /** Backend base URL for image serving */
-const BACKEND_BASE_URL = 'https://dev.globoexpats.com/'
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
 
 /**
  * Converts backend image paths to full URLs
@@ -15,8 +15,11 @@ const BACKEND_BASE_URL = 'https://dev.globoexpats.com/'
  */
 export const getFullImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return '/assets/images/products/placeholder.svg'
-  if (imageUrl.startsWith('http')) return imageUrl // Already full URL
-  return BACKEND_BASE_URL + imageUrl
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl // Already full URL
+  
+  // Ensure no double slashes
+  const cleanUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+  return `${BACKEND_BASE_URL}${cleanUrl}`
 }
 
 /**
@@ -54,8 +57,6 @@ export const transformBackendProduct = (item: any) => {
     isVerified: item.listedBy?.verified || item.isVerified || true,
     isPremium: item.isPremium || false,
   }
-
-  return transformed
 
   return transformed
 }

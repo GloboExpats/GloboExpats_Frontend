@@ -7,51 +7,72 @@
 
 /**
  * Check if a user can perform buy actions
- * Requires organization email verification at minimum
+ * Requires backend verification (email verified)
+ * 
+ * NOTE: Does NOT check buyer_profile existence - that's a backend database issue
  */
 export function canUserBuy(user: any): boolean {
   if (!user) return false
 
-  // Check new verification system first
-  if (user.verificationStatus) {
-    return user.verificationStatus.canBuy === true
-  }
+  // PRIMARY: Check backend verification status
+  if (user.backendVerificationStatus === 'VERIFIED') return true
+  
+  // SECONDARY: Check roles (SELLER role includes buyer permissions)
+  if (user.roles?.some((r: any) => r.roleName === 'SELLER' || r.roleName === 'ADMIN')) return true
+  
+  // TERTIARY: Check legacy flags
+  if (user.isVerified === true) return true
+  
+  // FALLBACK: Check verification status object (may be stale)
+  if (user.verificationStatus?.canBuy === true) return true
 
-  // Fallback for legacy data
-  return user.isOrganizationEmailVerified === true
+  return false
 }
 
 /**
  * Check if a user can perform sell actions
- * Requires email verification
+ * Requires backend verification (email verified)
+ * 
+ * NOTE: Does NOT check buyer_profile existence - that's a backend database issue
  */
 export function canUserSell(user: any): boolean {
   if (!user) return false
 
-  // Check new verification system first
-  if (user.verificationStatus) {
-    return user.verificationStatus.canSell === true
-  }
+  // PRIMARY: Check backend verification status
+  if (user.backendVerificationStatus === 'VERIFIED') return true
+  
+  // SECONDARY: Check roles (SELLER role required)
+  if (user.roles?.some((r: any) => r.roleName === 'SELLER' || r.roleName === 'ADMIN')) return true
+  
+  // TERTIARY: Check legacy flags
+  if (user.isVerified === true) return true
+  
+  // FALLBACK: Check verification status object (may be stale)
+  if (user.verificationStatus?.canSell === true) return true
 
-  // Simplified: Email verification = full access
-  return user.isVerified === true || user.isOrganizationEmailVerified === true || 
-         user.backendVerificationStatus === 'VERIFIED'
+  return false
 }
 
 /**
  * Check if a user can contact sellers
- * Requires organization email verification
+ * Requires backend verification (email verified)
  */
 export function canUserContact(user: any): boolean {
   if (!user) return false
 
-  // Check new verification system first
-  if (user.verificationStatus) {
-    return user.verificationStatus.canContact === true
-  }
+  // PRIMARY: Check backend verification status
+  if (user.backendVerificationStatus === 'VERIFIED') return true
+  
+  // SECONDARY: Check roles
+  if (user.roles?.some((r: any) => r.roleName === 'SELLER' || r.roleName === 'USER' || r.roleName === 'ADMIN')) return true
+  
+  // TERTIARY: Check legacy flags
+  if (user.isVerified === true) return true
+  
+  // FALLBACK: Check verification status object (may be stale)
+  if (user.verificationStatus?.canContact === true) return true
 
-  // Fallback for legacy data
-  return user.isOrganizationEmailVerified === true
+  return false
 }
 
 /**

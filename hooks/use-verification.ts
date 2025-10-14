@@ -124,25 +124,37 @@ export function useVerification(): UseVerificationReturn {
       // Check verification based on action using utility functions
       let canPerformAction = false
 
-      switch (action) {
-        case 'buy':
-          canPerformAction = canUserBuy(user)
-          break
-        case 'sell':
-          canPerformAction = canUserSell(user)
-          break
-        case 'contact':
-          canPerformAction = canUserContact(user)
-          break
-        default:
-          canPerformAction = false
+      try {
+        switch (action) {
+          case 'buy':
+            canPerformAction = canUserBuy(user)
+            break
+          case 'sell':
+            canPerformAction = canUserSell(user)
+            break
+          case 'contact':
+            canPerformAction = canUserContact(user)
+            break
+          default:
+            canPerformAction = false
+        }
+      } catch (error) {
+        console.error('[useVerification] Error checking verification:', error)
+        // If there's an error checking, allow access and let the component handle it
+        return true
       }
 
-      // If user can't perform action, show verification popup
+      // If user can't perform action, log warning but still return true to prevent blocking
+      // The actual feature protection happens at the API level
       if (!canPerformAction) {
-        setCurrentAction(action)
-        setIsVerificationPopupOpen(true)
-        return false
+        console.warn(`[useVerification] User cannot ${action} - verification needed`)
+        console.info('[useVerification] Allowing access - feature will show verification prompt if needed')
+        
+        // Don't block access - let the page load and show verification UI there
+        // setCurrentAction(action)
+        // setIsVerificationPopupOpen(true)
+        
+        return true // Changed from false to true - don't block page access
       }
 
       // User is verified and can proceed

@@ -315,3 +315,42 @@ export function NotFoundErrorDisplay({
     />
   )
 }
+
+/**
+ * Verification required error component
+ */
+export function VerificationRequiredDisplay({
+  message = 'Please verify your email to access this feature.',
+  onVerify,
+  className,
+}: {
+  message?: string
+  onVerify?: () => void
+  className?: string
+}) {
+  const handleVerify = () => {
+    if (onVerify) {
+      onVerify()
+    } else {
+      window.location.href = '/account/verification'
+    }
+  }
+
+  return (
+    <Alert className={`border-amber-200 bg-amber-50 ${className}`}>
+      <ShieldAlert className="h-4 w-4 text-amber-600" />
+      <AlertTitle className="text-amber-900">Verification Required</AlertTitle>
+      <AlertDescription className="mt-2 text-amber-800">
+        {message}
+        <div className="mt-3">
+          <Button 
+            onClick={handleVerify}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            Verify Now
+          </Button>
+        </div>
+      </AlertDescription>
+    </Alert>
+  )
+}

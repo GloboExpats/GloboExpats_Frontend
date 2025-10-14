@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus, DollarSign, AlertCircle, CheckCircle2, Camera, Sparkles } from 'lucide-react'
+import { X, Plus, DollarSign, AlertCircle, CheckCircle2, Camera, Sparkles, PackageCheck, Eye, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,6 +27,14 @@ import {
   CURRENCIES,
 } from '@/lib/constants'
 import Image from 'next/image'
+import Link from 'next/link'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface FormData {
   images: File[]
@@ -80,6 +88,8 @@ function SellPageContent() {
   const [backendCategories, setBackendCategories] = useState<
     Array<{ categoryId: number; categoryName: string }>
   >([])
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [createdProductId, setCreatedProductId] = useState<number | null>(null)
 
   // Debug logging
   console.log('🖼️ SELL PAGE - FormData:', {
@@ -307,8 +317,11 @@ function SellPageContent() {
       const result = await apiClient.createProduct(productData, formData.images)
 
       console.log('✅ Product created successfully:', result)
-      alert(`Listing published successfully! Product ID: ${result.productId}`)
-
+      
+      // Show success modal instead of alert
+      setCreatedProductId(result.productId)
+      setShowSuccessModal(true)
+      
       // Reset form
       setFormData(INITIAL_FORM_DATA)
       setCurrentStep(1)
@@ -430,6 +443,59 @@ function SellPageContent() {
           <SellingSidebar currentStep={currentStep} />
         </div>
       </div>
+
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+              <PackageCheck className="h-10 w-10 text-green-600" />
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-neutral-900">
+              🎉 Listing Published!
+            </DialogTitle>
+            <DialogDescription className="text-center text-base text-neutral-600">
+              Congratulations! Your product has been successfully listed on our marketplace.
+              {createdProductId && (
+                <span className="mt-2 block text-sm text-neutral-500">
+                  Product ID: <span className="font-mono font-semibold">#{createdProductId}</span>
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-6 flex flex-col gap-3">
+            <Button
+              asChild
+              className="w-full bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white"
+            >
+              <Link href={`/product/${createdProductId}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Your Listing
+              </Link>
+            </Button>
+            
+            <Button
+              asChild
+              variant="outline"
+              className="w-full border-2 border-[#E2E8F0]"
+            >
+              <Link href="/account/my-listings">
+                <User className="mr-2 h-4 w-4" />
+                Go to My Listings
+              </Link>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full text-neutral-600 hover:text-neutral-900"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

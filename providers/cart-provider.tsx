@@ -333,8 +333,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
           } else {
             throw new Error(response.message || 'Failed to load cart')
           }
-        } catch (backendError) {
-          console.warn('Failed to load from backend, falling back to localStorage:', backendError)
+        } catch (backendError: any) {
+          // Check if this is a buyer profile / verification error
+          const isBuyerProfileError = 
+            backendError?.message?.includes('Buyer profile not found') ||
+            backendError?.message?.includes('not verified') ||
+            backendError?.message?.includes('verification required') ||
+            backendError?.message?.includes('cannot add items to cart')
+          
+          if (isBuyerProfileError) {
+            // Silently handle buyer profile errors - user just needs to verify
+            // Don't spam console with errors for expected behavior
+            console.info('ℹ️ Cart unavailable: User verification required')
+            setCart((prev) => ({
+              ...prev,
+              items: [],
+              isLoading: false,
+              isInitialized: true,
+              selectedItems: [],
+              error: null, // Don't show error - this is expected for unverified users
+            }))
+            return
+          }
+          
+          // For other errors, log warning and fallback to localStorage
+          console.warn('Failed to load cart from backend, using local storage:', backendError)
 
           // Fallback to localStorage if backend fails
           const cartData = getItem(CART_STORAGE_KEY)

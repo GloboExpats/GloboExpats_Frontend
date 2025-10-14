@@ -170,6 +170,17 @@ class ApiClient {
             } else if (response.status === 401) {
               errorMessage =
                 errorData.message || 'Authentication failed. Please check your credentials.'
+            } else if (response.status === 404) {
+              // Handle verification-related 404 errors
+              if (errorData.message && (
+                errorData.message.includes('Buyer profile not found') ||
+                errorData.message.includes('not verified') ||
+                errorData.message.includes('cannot add items to cart')
+              )) {
+                errorMessage = 'Account verification required. Please verify your email to access this feature. Go to Account → Verification to complete the process.'
+              } else {
+                errorMessage = errorData.message || 'Resource not found.'
+              }
             } else if (response.status === 500) {
               errorMessage = 'Server error. Please try again later.'
             }
@@ -178,6 +189,13 @@ class ApiClient {
             const textError = await response.text()
             if (textError && textError.trim()) {
               errorMessage = textError
+              
+              // Check for verification-related plain text errors
+              if (errorMessage.includes('Buyer profile not found') ||
+                  errorMessage.includes('not verified') ||
+                  errorMessage.includes('cannot add items to cart')) {
+                errorMessage = 'Account verification required. Please verify your email to access this feature. Go to Account → Verification to complete the process.'
+              }
             }
           }
         } catch (parseError) {
@@ -185,7 +203,12 @@ class ApiClient {
           console.warn('Could not parse error response:', parseError)
         }
 
-        throw new Error(errorMessage)
+        // Create error object with type info
+        const apiError = new Error(errorMessage) as any
+        apiError.isVerificationError = errorMessage.includes('verification required') ||
+                                       errorMessage.includes('Buyer profile not found') ||
+                                       errorMessage.includes('not verified')
+        throw apiError
       }
 
       // Check Content-Type to determine how to parse response
@@ -206,8 +229,13 @@ class ApiClient {
           data: { message: text }
         } as ApiResponse<T>
       }
-    } catch (error) {
-      console.error('API request failed:', error)
+    } catch (error: any) {
+      // Don't log verification errors as errors - they're expected for unverified users
+      if (error.isVerificationError) {
+        console.info('ℹ️ Verification required for this action')
+      } else {
+        console.error('API request failed:', error)
+      }
       throw error
     }
   }
