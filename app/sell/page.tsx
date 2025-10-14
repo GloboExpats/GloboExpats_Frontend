@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus, DollarSign, AlertCircle, CheckCircle2, Camera, Sparkles, PackageCheck, Eye, User } from 'lucide-react'
+import { X, Plus, DollarSign, AlertCircle, CheckCircle2, Camera, PackageCheck, Eye, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -336,28 +336,23 @@ function SellPageContent() {
   return (
     <div className="min-h-screen bg-[#F8FAFB] py-6 sm:py-8 lg:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8 sm:mb-12 lg:mb-16">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-[#1E3A8A] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
-              <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-white" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-[#0F172A] tracking-tight">
-              List Your Item
-            </h1>
-          </div>
+        <div className="text-center mb-8 sm:mb-10 lg:mb-12">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-[#0F172A] tracking-tight mb-3 sm:mb-4">
+            List Your Item
+          </h1>
           <p className="text-base sm:text-lg lg:text-xl text-[#475569] max-w-2xl mx-auto px-4">
             Create a professional listing and reach thousands of potential buyers in our global expat community
           </p>
         </div>
 
         {/* Modern Step Indicator */}
-        <div className="mb-12 sm:mb-16">
-          <div className="flex items-center justify-between max-w-3xl mx-auto mb-6 sm:mb-10 px-2">
+        <div className="mb-10 sm:mb-12">
+          <div className="flex items-start justify-center max-w-4xl mx-auto px-4">
             {[1, 2, 3].map((step, index) => (
-              <div key={step} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
+              <div key={step} className="flex items-center">
+                <div className="flex flex-col items-center">
                   <div
-                    className={`w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-xl sm:rounded-2xl flex items-center justify-center text-base sm:text-lg lg:text-xl font-display font-bold transition-all duration-300 ${
+                    className={`w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-xl sm:rounded-2xl flex items-center justify-center text-base sm:text-lg lg:text-xl font-display font-bold transition-all duration-300 ${
                       step <= currentStep
                         ? 'bg-[#1E3A8A] text-white shadow-lg'
                         : 'bg-white text-[#475569] border-2 border-[#E2E8F0]'
@@ -366,7 +361,7 @@ function SellPageContent() {
                     {step < currentStep ? <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8" /> : step}
                   </div>
                   <span
-                    className={`mt-2 sm:mt-3 lg:mt-4 text-xs sm:text-sm lg:text-base font-display font-semibold transition-all duration-300 text-center ${
+                    className={`mt-3 sm:mt-4 text-xs sm:text-sm lg:text-base font-display font-semibold transition-all duration-300 text-center whitespace-nowrap ${
                       step <= currentStep ? 'text-[#1E3A8A]' : 'text-[#475569]'
                     }`}
                   >
@@ -376,11 +371,12 @@ function SellPageContent() {
                 </div>
                 {index < 2 && (
                   <div
-                    className={`flex-1 max-w-[40px] sm:max-w-[80px] lg:max-w-[120px] h-2 sm:h-3 mx-2 sm:mx-4 lg:mx-8 rounded-full transition-all duration-300 ${
+                    className={`w-16 sm:w-24 lg:w-32 h-1 sm:h-1.5 mx-3 sm:mx-4 lg:mx-6 rounded-full transition-all duration-300 flex-shrink-0 ${
                       step < currentStep
                         ? 'bg-[#1E3A8A]'
                         : 'bg-[#E2E8F0]'
                     }`}
+                    style={{ marginTop: '28px' }}
                   />
                 )}
               </div>

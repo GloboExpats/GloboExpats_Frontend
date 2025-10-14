@@ -109,7 +109,7 @@ const HeaderSkeleton = React.memo(() => (
         {/* Logo skeleton - represents brand logo area */}
         <div className="flex items-center space-x-2">
           <div className="text-2xl font-bold font-display text-white">
-            Global<span className="text-brand-secondary">Expat</span>
+            Globo<span className="text-brand-secondary">expat</span>
           </div>
         </div>
 
