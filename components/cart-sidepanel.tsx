@@ -195,7 +195,7 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[280px] sm:w-[320px] flex flex-col p-0 !right-0 !left-auto top-[64px] bottom-0 md:top-0 md:bottom-0 md:h-screen"
+        className="w-[280px] sm:w-[320px] flex flex-col p-0 !right-0 !left-auto top-[64px] bottom-0 md:h-[calc(100vh-64px)]"
         aria-label="Shopping cart panel"
         hideOverlay={true}
         hideClose={true}
