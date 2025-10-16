@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, X, Tag } from 'lucide-react'
+import { Search, Tag } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -205,7 +205,7 @@ export default function SearchBar({ autoExpand = false, onClose }: SearchBarProp
   return (
     <form
       onSubmit={handleSearch}
-      className="relative w-full"
+      className="relative w-full md:w-auto"
       role="search"
       aria-label="Search products"
     >
@@ -223,7 +223,7 @@ export default function SearchBar({ autoExpand = false, onClose }: SearchBarProp
             setSearchQuery(e.target.value)
             setActiveIndex(-1)
           }}
-          className="w-full sm:w-96 h-10 sm:h-9 pl-4 pr-20 bg-white border-slate-300 rounded-full text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-neutral-900 placeholder-neutral-500"
+          className="w-full sm:w-96 h-10 sm:h-9 pl-4 pr-4 bg-white border-slate-300 rounded-full text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-neutral-900 placeholder-neutral-500"
           autoComplete="off"
           role="combobox"
           aria-expanded={suggestions.length > 0}
@@ -256,8 +256,8 @@ export default function SearchBar({ autoExpand = false, onClose }: SearchBarProp
             }
           }}
         />
-        <div className="absolute right-2 flex items-center gap-1.5">
-          {searchQuery && (
+        {searchQuery && (
+          <div className="absolute right-0 md:-right-2 lg:-right-3 top-1/2 -translate-y-1/2 z-10">
             <Button
               type="submit"
               size="icon"
@@ -266,17 +266,8 @@ export default function SearchBar({ autoExpand = false, onClose }: SearchBarProp
             >
               <Search className="h-4 w-4" />
             </Button>
-          )}
-          <Button
-            type="button"
-            size="icon"
-            onClick={handleClose}
-            className="h-7 w-7 sm:h-7 sm:w-7 bg-gray-400 hover:bg-gray-500 rounded-full flex items-center justify-center"
-            aria-label="Close search"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+          </div>
+        )}
         {searchQuery.trim() && suggestions.length > 0 && (
           <ul
             id="search-suggestions"

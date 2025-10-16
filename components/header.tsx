@@ -49,18 +49,12 @@
  * - Device size (responsive behavior)
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, MessageCircle, Bell, ShoppingCart, Search } from 'lucide-react'
+import Link from 'next/link'
+import { MessageCircle, Bell, ShoppingCart, Search, User, Shield, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/use-auth'
-import { useCurrency } from '@/hooks/use-currency'
 import { useCart } from '@/hooks/use-cart'
 import SearchBar from '@/components/search-bar'
 import { useRenderTracker } from '@/hooks/use-performance'
@@ -72,6 +66,16 @@ import { Navigation } from '@/components/header/navigation'
 import { MobileMenu } from '@/components/header/mobile-menu'
 import { useNotifications } from '@/hooks/use-notifications'
 import { CartSidePanelTrigger } from '@/components/cart-sidepanel'
+import { CurrencyToggle } from '@/components/currency-toggle'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getInitials } from '@/lib/utils'
 
 /**
  * =============================================================================
@@ -139,6 +143,7 @@ const UserNavigation = React.memo<{
   cartItemCount: number
 }>(({ user, isVerifiedBuyer, isAdmin, handleLogout, cartItemCount }) => {
   const { notificationCounts, messageCounts } = useNotifications()
+  const userInitials = React.useMemo(() => getInitials(user?.name || 'U'), [user?.name])
 
   return (
     <div className="flex items-center gap-2" role="navigation" aria-label="User navigation">
@@ -151,6 +156,82 @@ const UserNavigation = React.memo<{
           </span>
         )}
       </CartSidePanelTrigger>
+
+      {/* Mobile Account Dropdown - Between cart and menu */}
+      <div className="lg:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative p-2 rounded-md text-white hover:bg-brand-primary/80 transition-colors h-auto"
+              aria-label="Open account menu"
+            >
+              <User className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            {/* User Info Header */}
+            <div className="px-3 py-2.5 border-b border-neutral-200">
+              <div className="flex items-center gap-2.5">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user?.avatar || '/placeholder.svg'} alt={user?.name} />
+                  <AvatarFallback className="bg-brand-secondary text-brand-primary text-sm font-bold">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-neutral-900 truncate">{user?.name}</p>
+                  <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
+                  {isVerifiedBuyer && (
+                    <p className="text-xs text-green-600 font-medium mt-0.5">Verified Member</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Menu Items */}
+            <div className="py-1">
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/account" className="flex items-center gap-2 px-3 py-2">
+                  <User className="w-4 h-4" />
+                  <span>My Account</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/account/verification" className="flex items-center gap-2 px-3 py-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Verification</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/account/settings" className="flex items-center gap-2 px-3 py-2">
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/notifications" className="flex items-center gap-2 px-3 py-2">
+                  <Bell className="w-4 h-4" />
+                  <span>Notifications</span>
+                </Link>
+              </DropdownMenuItem>
+            </div>
+
+            <DropdownMenuSeparator />
+
+            {/* Logout */}
+            <div className="py-1">
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer px-3 py-2 font-medium"
+              >
+                Logout
+              </DropdownMenuItem>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Notifications - Real-time updates from backend - HIDDEN ON MOBILE */}
       <div className="hidden md:block">
@@ -227,50 +308,16 @@ GuestNavigation.displayName = 'GuestNavigation'
 
 /**
  * =============================================================================
- * CURRENCY SELECTOR COMPONENT
+ * CURRENCY SELECTOR COMPONENT (DEPRECATED - Using CurrencyToggle)
  * =============================================================================
  *
- * Desktop currency selector for international users.
- * Shows flag and currency code with dropdown selection.
- *
- * @param currency - Current selected currency
- * @param currencies - Available currencies
- * @param setCurrency - Function to change currency
+ * Removed in favor of the new CurrencyToggle component which provides:
+ * - Better UI/UX with exchange rates display
+ * - Sample conversion preview
+ * - Last update timestamp
+ * - Refresh functionality
+ * - Better accessibility
  */
-const CurrencySelector = React.memo<{
-  currency: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  currencies: readonly any[]
-  setCurrency: (currency: string) => void
-}>(({ currency, currencies, setCurrency }) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-sm font-medium text-white bg-transparent hover:bg-white/10 hover:text-white border border-transparent hover:border-white/20 h-8 px-3"
-        aria-label="Select currency"
-      >
-        {currencies.find((c) => c.code === currency)?.flag} {currency}
-        <ChevronDown className="ml-1 h-3 w-3" />
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent className="bg-white border border-slate-200 shadow-lg">
-      {currencies.map((curr) => (
-        <DropdownMenuItem
-          key={curr.code}
-          onClick={() => setCurrency(curr.code)}
-          className="text-slate-900 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:bg-slate-100 focus:text-slate-900"
-          aria-label={`Switch to ${curr.code} currency`}
-        >
-          <span aria-hidden="true">{curr.flag}</span> {curr.code}
-        </DropdownMenuItem>
-      ))}
-    </DropdownMenuContent>
-  </DropdownMenu>
-))
-
-CurrencySelector.displayName = 'CurrencySelector'
 
 /**
  * =============================================================================
@@ -303,13 +350,13 @@ const Header = React.memo(() => {
   // Authentication and user state from AuthProvider
   const { isLoggedIn, user, isVerifiedBuyer, isAdmin, logout, isLoading: authLoading } = useAuth()
 
-  // Application state hooks
-  const { currency, setCurrency, currencies } = useCurrency()
+  // Application state hooks - currency is now managed by CurrencyToggle component
   const { itemCount: cartItemCount } = useCart()
 
   // Component internal state
   const [isMounted, setIsMounted] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
+  const headerRef = useRef<HTMLElement | null>(null)
 
   // Current route for conditional rendering
   const pathname = usePathname()
@@ -354,6 +401,17 @@ const Header = React.memo(() => {
     setIsMounted(true)
   }, [])
 
+  // Measure header height and expose as CSS variable for dependent components (e.g., cart sidepanel)
+  useEffect(() => {
+    const updateHeaderHeightVar = () => {
+      const h = headerRef.current?.getBoundingClientRect().height ?? 64
+      document.documentElement.style.setProperty('--site-header-height', `${Math.round(h)}px`)
+    }
+    updateHeaderHeightVar()
+    window.addEventListener('resize', updateHeaderHeightVar)
+    return () => window.removeEventListener('resize', updateHeaderHeightVar)
+  }, [isMobileSearchOpen, routeConfig.showSearch])
+
   // Show skeleton while loading or during SSR
   if (!isMounted || authLoading) {
     return <HeaderSkeleton />
@@ -366,6 +424,7 @@ const Header = React.memo(() => {
    */
   return (
     <header
+      ref={headerRef}
       className="bg-brand-primary text-neutral-100 shadow-md sticky top-0 z-[60]"
       role="banner"
       aria-label="Main navigation"
@@ -427,25 +486,17 @@ const Header = React.memo(() => {
             mobile hamburger menu.
           */}
           {routeConfig.showFullNavigation && (
-            <div className="hidden lg:flex items-center space-x-4">
+            <div className="hidden lg:flex items-center space-x-4 flex-shrink-0">
               <Navigation isLoggedIn={isLoggedIn} isAdmin={isAdmin} />
               <div className="h-4 w-px bg-white/20"></div>
-              <CurrencySelector
-                currency={currency}
-                currencies={currencies}
-                setCurrency={setCurrency}
-              />
+              <CurrencyToggle showRates />
             </div>
           )}
 
           {/* Currency selector for medium screens without full navigation */}
           {!routeConfig.showFullNavigation && (
             <div className="hidden md:block lg:hidden">
-              <CurrencySelector
-                currency={currency}
-                currencies={currencies}
-                setCurrency={setCurrency}
-              />
+              <CurrencyToggle variant="compact" />
             </div>
           )}
 
@@ -487,9 +538,6 @@ const Header = React.memo(() => {
                 isAdmin={isAdmin}
                 isAuthPage={routeConfig.isAuthPage}
                 user={user}
-                currency={currency}
-                currencies={currencies}
-                setCurrency={setCurrency}
                 handleLogout={logout}
               />
             </div>

@@ -5,53 +5,106 @@
  * useCurrency Hook - Currency Management
  * =============================================================================
  *
- * Manages currency selection and formatting for the marketplace.
- * Provides access to all supported currencies and current selection.
+ * Re-export of the useCurrency hook from CurrencyProvider.
+ * This maintains backward compatibility with existing imports.
  *
- * Features:
- * - Current currency state management
- * - Currency switching functionality
- * - Access to all supported currencies
- * - Fallback to default currency
+ * NEW IMPLEMENTATION: Now uses React Context with advanced features:
+ * - Global state management
+ * - Automatic currency conversion
+ * - localStorage persistence
+ * - Exchange rate management
+ * - Cross-tab synchronization
+ * - SSR-safe operations
  *
  * Usage:
  * ```tsx
- * const { currency, setCurrency, currentCurrency, currencies } = useCurrency()
+ * const { selectedCurrency, formatPrice, convertPrice, setSelectedCurrency } = useCurrency()
  *
  * // Get current currency
- * console.log(currentCurrency.code) // 'TZS'
+ * console.log(selectedCurrency) // 'TZS'
  *
  * // Change currency
- * setCurrency('USD')
+ * setSelectedCurrency('USD')
+ *
+ * // Format a price
+ * const formatted = formatPrice(1000) // "TSh 1,000" or "$0.40"
+ *
+ * // Convert between currencies
+ * const converted = convertPrice(1000, 'TZS', 'USD')
  * ```
  */
 
-import { useState } from 'react'
+import { useCurrency as useCurrencyContext } from '@/providers/currency-provider'
 import { CURRENCIES } from '@/lib/constants'
 
 /**
  * Currency management hook
  *
- * @returns Currency state and actions
+ * @deprecated The old API is maintained for backward compatibility
+ * @returns Currency state and actions with both old and new API
  */
 export function useCurrency() {
-  // Default to TZS (Tanzanian Shilling) as primary market currency
-  const [currency, setCurrency] = useState('TZS')
+  // Get the full context from the provider
+  const context = useCurrencyContext()
 
-  // Get current currency object with fallback to first available currency
-  const currentCurrency = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0]
+  // Map old constants format to new format for backward compatibility
+  const legacyCurrencies = CURRENCIES.map((c) => ({
+    code: c.code,
+    name: c.name,
+    flag: c.flag,
+  }))
 
+  const currentLegacyCurrency =
+    legacyCurrencies.find((c) => c.code === context.selectedCurrency) || legacyCurrencies[0]
+
+  // Return both old and new API for compatibility
   return {
-    /** Current currency code (e.g., 'TZS', 'USD') */
-    currency,
+    // OLD API (maintained for backward compatibility)
+    /** @deprecated Use selectedCurrency instead */
+    currency: context.selectedCurrency,
 
-    /** Function to change the current currency */
-    setCurrency,
+    /** @deprecated Use setSelectedCurrency instead */
+    setCurrency: context.setSelectedCurrency,
 
-    /** Current currency object with full details (name, symbol, etc.) */
-    currentCurrency,
+    /** @deprecated Use currencies object instead */
+    currentCurrency: currentLegacyCurrency,
 
-    /** Array of all supported currencies */
-    currencies: CURRENCIES,
+    /** @deprecated Use currencies object from context */
+    currencies: legacyCurrencies,
+
+    // NEW API (recommended)
+    /** Currently selected currency code */
+    selectedCurrency: context.selectedCurrency,
+
+    /** Change the selected currency */
+    setSelectedCurrency: context.setSelectedCurrency,
+
+    /** Format price with currency */
+    formatPrice: context.formatPrice,
+
+    /** Convert price between currencies */
+    convertPrice: context.convertPrice,
+
+    /** Get exchange rate */
+    getExchangeRate: context.getExchangeRate,
+
+    /** Refresh exchange rates */
+    refreshRates: context.refreshRates,
+
+    /** All currencies with full details */
+    currenciesMap: context.currencies,
+
+    /** Loading state */
+    isLoading: context.isLoading,
+
+    /** Error state */
+    error: context.error,
+
+    /** Last update timestamp */
+    lastUpdated: context.lastUpdated,
   }
 }
+
+// Re-export everything from the provider for direct imports
+export { useCurrency as useCurrencyContext } from '@/providers/currency-provider'
+export type { CurrencyContextValue } from '@/lib/currency-types'

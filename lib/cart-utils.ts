@@ -51,7 +51,8 @@ export function productToCartItem(product: {
  */
 export function backendCartToFrontendItems(backendCart: BackendCartResponse): CartItem[] {
   return backendCart.items.map((backendItem: BackendCartItem) => ({
-    id: backendItem.productId.toString(),
+    id: backendItem.cartId.toString(), // Use cartId for remove/update operations
+    productId: backendItem.productId, // Store productId for reference
     title: backendItem.productName,
     price: backendItem.price,
     originalPrice: backendItem.price,

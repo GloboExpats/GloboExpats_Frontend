@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Package, Shield } from 'lucide-react'
+import { Package, Shield, Store as StoreIcon } from 'lucide-react'
 
 interface NavigationProps {
   isLoggedIn: boolean
@@ -9,30 +9,31 @@ interface NavigationProps {
 }
 
 export const Navigation = React.memo<NavigationProps>(
-  ({ isLoggedIn, isAdmin, className = 'hidden md:flex items-center space-x-1' }) => {
+  ({ isLoggedIn, isAdmin, className = 'hidden md:flex items-center space-x-3 flex-shrink-0' }) => {
     return (
       <nav className={className}>
         <Link
           href="/browse"
-          className="text-sm font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-colors"
+          className="text-base font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-4 py-2 rounded-md transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap"
         >
-          Browse
+          <StoreIcon className="h-4 w-4" />
+          Store
         </Link>
 
         {isLoggedIn && (
           <Link
-            href="/expat/dashboard?tab=listings"
-            className="text-sm font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-colors flex items-center gap-1"
+            href="/account/listings"
+            className="text-base font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-4 py-2 rounded-md transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap"
           >
             <Package className="h-4 w-4" />
-            My Listings
+            My Space
           </Link>
         )}
 
         {isAdmin && (
           <Link
             href="/admin/dashboard"
-            className="text-sm font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md transition-colors flex items-center gap-1"
+            className="text-base font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-4 py-2 rounded-md transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap"
           >
             <Shield className="h-4 w-4" />
             Admin

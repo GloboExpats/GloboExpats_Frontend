@@ -61,14 +61,15 @@ export async function attemptBuyerProfileFix(): Promise<BuyerProfileFixResult> {
     console.log('🔄 [BuyerProfileFixer] Attempting to trigger profile creation...')
 
     try {
+      // DEPRECATED: Cart is now client-side only, this endpoint no longer used
       // Try to access cart endpoint - this might trigger auto-creation
       // Using fetch directly since ApiClient.request is private
-      const token = localStorage.getItem('auth_token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cart/User`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      // const token = localStorage.getItem('auth_token')
+      // await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/cart/User`, {
+      //   headers: {
+      //     Authorization: `Bearer ${token}`,
+      //   },
+      // })
 
       // If we got here without error, the profile now exists!
       console.log('✅ [BuyerProfileFixer] Buyer profile created successfully!')

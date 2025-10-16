@@ -7,6 +7,7 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 ## 📚 Documentation Index
 
 ### 1. **Platform Audit Report** ([PLATFORM_AUDIT_REPORT.md](./PLATFORM_AUDIT_REPORT.md))
+
 **Comprehensive platform analysis and recommendations**
 
 - Complete backend API structure from Swagger
@@ -22,6 +23,7 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 ---
 
 ### 2. **API Quick Reference** ([API_QUICK_REFERENCE.md](./API_QUICK_REFERENCE.md))
+
 **Fast lookup guide for all API endpoints**
 
 - All endpoints with examples
@@ -36,6 +38,7 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 ---
 
 ### 3. **Integration Troubleshooting** ([INTEGRATION_TROUBLESHOOTING.md](./INTEGRATION_TROUBLESHOOTING.md))
+
 **Solutions to common problems**
 
 - 401 Unauthorized errors
@@ -51,6 +54,7 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 ---
 
 ### 4. **Backend Integration Analysis** ([BACKEND_INTEGRATION_ANALYSIS.md](./BACKEND_INTEGRATION_ANALYSIS.md))
+
 **Detailed technical analysis**
 
 - API endpoint mapping
@@ -64,6 +68,7 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 ---
 
 ### 5. **Backend API Reference** ([BACKEND_API_REFERENCE.md](./BACKEND_API_REFERENCE.md))
+
 **Complete API specification**
 
 - All available endpoints
@@ -105,12 +110,14 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 ## 🔑 Key Information
 
 ### Backend Details
+
 - **Base URL:** `http://10.123.22.21:8081`
 - **API Version:** `/api/v1/`
 - **Swagger UI:** http://10.123.22.21:8081/swagger-ui/index.html#/
 - **Authentication:** JWT Bearer tokens (2-hour expiry)
 
 ### Frontend Tech Stack
+
 - **Framework:** Next.js 15.2.4 with React 19
 - **Language:** TypeScript
 - **Styling:** TailwindCSS + shadcn/ui
@@ -118,6 +125,7 @@ Welcome to the comprehensive API documentation for the GloboExpat marketplace pl
 - **API Client:** Custom fetch-based client (`/lib/api.ts`)
 
 ### Environment Configuration
+
 ```bash
 # Required environment variables
 NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
@@ -130,6 +138,7 @@ NODE_ENV=development
 ## 📋 Common Tasks
 
 ### Register a New User
+
 ```typescript
 import { apiClient } from '@/lib/api'
 
@@ -139,11 +148,12 @@ await apiClient.register({
   password: 'SecurePass123!',
   emailAddress: 'john.doe@example.com',
   agreeToTerms: true,
-  agreeToPrivacyPolicy: true
+  agreeToPrivacyPolicy: true,
 })
 ```
 
 ### Authenticate User
+
 ```typescript
 const response = await apiClient.login(email, password)
 const { token, email, role } = response
@@ -151,6 +161,7 @@ apiClient.setAuthToken(token)
 ```
 
 ### Create a Product
+
 ```typescript
 const productData = {
   productName: 'MacBook Pro 2021',
@@ -161,13 +172,14 @@ const productData = {
   currency: 'USD',
   askingPrice: 1200,
   originalPrice: 2000,
-  productWarranty: '1 year warranty'
+  productWarranty: '1 year warranty',
 }
 
 const result = await apiClient.createProduct(productData, imageFiles)
 ```
 
 ### Add to Cart
+
 ```typescript
 await apiClient.addToCart(productId, quantity)
 const cart = await apiClient.getUserCart()
@@ -205,6 +217,7 @@ const cart = await apiClient.getUserCart()
 ## 🎯 Platform Features
 
 ### ✅ Fully Implemented
+
 - User authentication (email/password + Google OAuth)
 - Product CRUD operations with image upload
 - Category management
@@ -215,12 +228,14 @@ const cart = await apiClient.getUserCart()
 - Reviews and ratings
 
 ### 🔄 In Progress
+
 - Payment integration (M-Pesa, card payments)
 - Advanced search and filtering
 - Real-time notifications
 - Analytics and reporting
 
 ### 📝 Planned
+
 - Mobile app (React Native)
 - Advanced admin dashboard
 - Seller analytics
@@ -231,6 +246,7 @@ const cart = await apiClient.getUserCart()
 ## 🛠️ Development Workflow
 
 ### 1. Setup
+
 ```bash
 # Clone repository
 git clone <repository-url>
@@ -248,6 +264,7 @@ npm run dev
 ```
 
 ### 2. Development
+
 ```bash
 # Run in dev mode with hot reload
 npm run dev
@@ -263,6 +280,7 @@ npm run test
 ```
 
 ### 3. Production Build
+
 ```bash
 # Build for production
 npm run build
@@ -276,15 +294,17 @@ npm run start
 ## 🐛 Debugging
 
 ### Enable Debug Mode
+
 ```typescript
 // In browser console
 localStorage.setItem('debug', 'true')
 
 // Or set environment variable
-NODE_ENV=development
+NODE_ENV = development
 ```
 
 ### Common Debug Commands
+
 ```javascript
 // Check authentication
 localStorage.getItem('expat_auth_token')
@@ -299,6 +319,7 @@ sessionStorage.clear()
 ```
 
 ### Network Debugging
+
 1. Open DevTools (F12)
 2. Go to Network tab
 3. Filter by "Fetch/XHR"
@@ -309,33 +330,35 @@ sessionStorage.clear()
 
 ## 📊 API Integration Status
 
-| Feature | Frontend | Backend | Status |
-|---------|----------|---------|--------|
-| Registration | ✅ | ✅ | Complete |
-| Login | ✅ | ✅ | Complete |
-| Google OAuth | ✅ | ✅ | Complete |
-| Email Verification | ✅ | ✅ | Complete |
-| Product Creation | ✅ | ✅ | Complete |
-| Product Listing | ✅ | ✅ | Complete |
-| Image Upload | ✅ | ✅ | Complete |
-| Cart Operations | ✅ | ✅ | Complete |
-| Checkout | ✅ | ⚠️ | Payment pending |
-| Orders | ✅ | ✅ | Complete |
-| Messaging | ✅ | ✅ | Complete |
-| Reviews | ✅ | ✅ | Complete |
-| Search/Filter | ✅ | ✅ | Complete |
+| Feature            | Frontend | Backend | Status          |
+| ------------------ | -------- | ------- | --------------- |
+| Registration       | ✅       | ✅      | Complete        |
+| Login              | ✅       | ✅      | Complete        |
+| Google OAuth       | ✅       | ✅      | Complete        |
+| Email Verification | ✅       | ✅      | Complete        |
+| Product Creation   | ✅       | ✅      | Complete        |
+| Product Listing    | ✅       | ✅      | Complete        |
+| Image Upload       | ✅       | ✅      | Complete        |
+| Cart Operations    | ✅       | ✅      | Complete        |
+| Checkout           | ✅       | ⚠️      | Payment pending |
+| Orders             | ✅       | ✅      | Complete        |
+| Messaging          | ✅       | ✅      | Complete        |
+| Reviews            | ✅       | ✅      | Complete        |
+| Search/Filter      | ✅       | ✅      | Complete        |
 
 ---
 
 ## 🔒 Security
 
 ### Authentication
+
 - JWT tokens with 2-hour expiry
 - Secure token storage (localStorage + httpOnly cookies)
 - Automatic token refresh on 401
 - Session restoration on page reload
 
 ### Best Practices
+
 - Always validate input client-side
 - Use HTTPS in production
 - Never expose sensitive data in console logs
@@ -348,6 +371,7 @@ sessionStorage.clear()
 ## 📈 Performance
 
 ### Current Optimizations
+
 - Image lazy loading with Next.js Image
 - API response caching
 - Debounced localStorage writes
@@ -355,6 +379,7 @@ sessionStorage.clear()
 - Code splitting and lazy loading
 
 ### Recommended Improvements
+
 - Implement request caching
 - Add optimistic UI updates
 - Use service workers for offline support
@@ -366,6 +391,7 @@ sessionStorage.clear()
 ## 🤝 Contributing
 
 ### Code Standards
+
 - Use TypeScript for all new code
 - Follow existing code style (ESLint + Prettier)
 - Write meaningful commit messages
@@ -373,6 +399,7 @@ sessionStorage.clear()
 - Update documentation
 
 ### Before Submitting PR
+
 1. Run linting: `npm run lint`
 2. Run type check: `npm run type-check`
 3. Test locally: `npm run dev`
@@ -384,12 +411,14 @@ sessionStorage.clear()
 ## 📞 Support
 
 ### Issues & Questions
+
 1. Check [Integration Troubleshooting](./INTEGRATION_TROUBLESHOOTING.md)
 2. Review [Platform Audit Report](./PLATFORM_AUDIT_REPORT.md)
 3. Consult [Swagger UI](http://10.123.22.21:8081/swagger-ui/index.html#/)
 4. Contact development team
 
 ### Useful Resources
+
 - **Swagger Documentation:** http://10.123.22.21:8081/swagger-ui/index.html#/
 - **Next.js Docs:** https://nextjs.org/docs
 - **React Docs:** https://react.dev
@@ -401,6 +430,7 @@ sessionStorage.clear()
 ## 📝 Changelog
 
 ### 2025-10-15 - v1.0
+
 - ✅ Initial comprehensive audit completed
 - ✅ Created complete API documentation
 - ✅ Added troubleshooting guide
@@ -413,12 +443,14 @@ sessionStorage.clear()
 ## 🎓 Learning Resources
 
 ### For Backend Development
+
 - Spring Boot Documentation
 - REST API Best Practices
 - JWT Authentication
 - Microservices Architecture
 
 ### For Frontend Development
+
 - Next.js 15 Features
 - React 19 Server Components
 - TypeScript Advanced Types
@@ -429,12 +461,14 @@ sessionStorage.clear()
 ## 🔮 Future Enhancements
 
 ### Short-term (1-2 months)
+
 - [ ] Implement refresh tokens
 - [ ] Add comprehensive tests
 - [ ] Improve error tracking
 - [ ] Optimize performance
 
 ### Long-term (3-6 months)
+
 - [ ] Mobile app development
 - [ ] GraphQL migration
 - [ ] Real-time features (WebSocket)

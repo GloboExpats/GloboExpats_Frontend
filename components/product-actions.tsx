@@ -52,10 +52,23 @@ export function ProductActions({
   const handleAddToCart = async () => {
     if (!checkVerification('buy')) return
 
+    // Validate productId before proceeding
+    if (!productId || typeof productId !== 'number' || productId <= 0) {
+      console.error('❌ Invalid productId:', productId)
+      toast({
+        title: 'Error',
+        description: 'Invalid product ID. Please refresh the page and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    console.log('🛒 Adding to cart - ProductId:', productId, 'Type:', typeof productId)
+
     setIsLoading(true)
     try {
       const cartItem = productToCartItem({
-        id: productId || Date.now(),
+        id: productId,
         title: productTitle,
         price: sanitizePrice(productPrice),
         image: productImage,
@@ -88,10 +101,23 @@ export function ProductActions({
   const handleBuy = async () => {
     if (!checkVerification('buy')) return
 
+    // Validate productId before proceeding
+    if (!productId || typeof productId !== 'number' || productId <= 0) {
+      console.error('❌ Invalid productId:', productId)
+      toast({
+        title: 'Error',
+        description: 'Invalid product ID. Please refresh the page and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    console.log('🛒 Buy Now - ProductId:', productId, 'Type:', typeof productId)
+
     setIsLoading(true)
     try {
       const cartItem = productToCartItem({
-        id: productId || Date.now(),
+        id: productId,
         title: productTitle,
         price: sanitizePrice(productPrice),
         image: productImage,

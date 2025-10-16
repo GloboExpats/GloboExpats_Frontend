@@ -2,12 +2,14 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Star, MapPin, ArrowRight, Tag } from 'lucide-react'
+import { Star, MapPin, ArrowRight, Tag, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { cn, parseNumericPrice } from '@/lib/utils'
 import type { FeaturedItem } from '@/lib/types'
+import PriceDisplay from '@/components/price-display'
+import { useCart } from '@/hooks/use-cart'
 
 interface ProductCardProps {
   product: FeaturedItem
@@ -23,6 +25,7 @@ export function ProductCard({
   onViewDetails,
 }: ProductCardProps) {
   const router = useRouter()
+  const { addToCart } = useCart()
 
   // Debug: Check if product contains any problematic nested objects
 
@@ -48,6 +51,27 @@ export function ProductCard({
     } else {
       router.push(`/product/${product.id}`)
     }
+  }
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    addToCart(
+      {
+        id: product.id.toString(),
+        productId: product.id,
+        title: product.title,
+        price: parseNumericPrice(product.price),
+        originalPrice: product.originalPrice ? parseNumericPrice(product.originalPrice) : undefined,
+        image: product.image || '/assets/images/products/placeholder.svg',
+        condition: 'used',
+        expatId: product.listedBy || 'unknown',
+        expatName: product.listedBy || 'Unknown Seller',
+        category: product.category || 'Uncategorized',
+        location: product.location || 'Unknown',
+        verified: false,
+      },
+      1
+    )
   }
 
   return (
@@ -106,24 +130,27 @@ export function ProductCard({
               </h3>
             </div>
 
-            {/* Price - Fixed height */}
+            {/* Price - Fixed height - Auto-converts to selected currency */}
             <div
               className="flex items-center gap-1.5 sm:gap-2 mb-2 min-h-[1.75rem]"
               aria-label="Product pricing"
             >
-              <span
-                className="text-base sm:text-lg font-bold text-brand-secondary"
-                aria-label={`Current price ${product.price}`}
-              >
-                {product.price}
-              </span>
+              <PriceDisplay
+                price={parseNumericPrice(product.price)}
+                size="lg"
+                weight="bold"
+                variant="secondary"
+                className="text-base sm:text-lg"
+                showOriginal
+              />
               {product.originalPrice && (
-                <span
-                  className="text-xs sm:text-sm text-neutral-500 line-through"
-                  aria-label={`Original price ${product.originalPrice}`}
-                >
-                  {product.originalPrice}
-                </span>
+                <PriceDisplay
+                  price={parseNumericPrice(product.originalPrice)}
+                  size="sm"
+                  weight="normal"
+                  variant="muted"
+                  className="text-xs sm:text-sm line-through"
+                />
               )}
             </div>
 
@@ -178,19 +205,28 @@ export function ProductCard({
 
             {/* Bottom Section - Pushed to bottom */}
             <div className="mt-auto pt-2">
-              <Button
-                className="w-full bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white font-semibold py-1.5 sm:py-2 rounded-full shadow-futuristic hover:shadow-xl focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-all duration-300 group/btn text-xs sm:text-sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleViewDetails()
-                }}
-                aria-label={`View details for ${product.title}`}
-              >
-                <span className="flex items-center justify-center gap-1.5 sm:gap-2">
-                  View Product
-                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:translate-x-1 transition-transform duration-200" />
-                </span>
-              </Button>
+              <div className="flex gap-3 items-center">
+                <Button
+                  className="flex-1 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white font-semibold py-1.5 sm:py-2 rounded-full shadow-futuristic hover:shadow-xl focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-all duration-300 group/btn text-xs sm:text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleViewDetails()
+                  }}
+                  aria-label={`View details for ${product.title}`}
+                >
+                  <span className="flex items-center justify-center gap-1.5 sm:gap-2">
+                    View Product
+                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:translate-x-1 transition-transform duration-200" />
+                  </span>
+                </Button>
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-shrink-0 p-2 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white rounded-full shadow-futuristic hover:shadow-xl hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+                  aria-label={`Add ${product.title} to cart`}
+                >
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

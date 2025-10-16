@@ -70,6 +70,12 @@ export const EXPAT_LOCATIONS: Location[] = [
   { value: 'dodoma', label: '🇹🇿 Dodoma, TZ', country: 'Tanzania' },
   { value: 'entebbe', label: '🇺🇬 Entebbe, UG', country: 'Uganda' },
   { value: 'stone-town', label: '🇹🇿 Stone Town, TZ', country: 'Tanzania' },
+  { value: 'mwanza', label: '🇹🇿 Mwanza, TZ', country: 'Tanzania' },
+  { value: 'kisumu', label: '🇰🇪 Kisumu, KE', country: 'Kenya' },
+  { value: 'nakuru', label: '🇰🇪 Nakuru, KE', country: 'Kenya' },
+  { value: 'gulu', label: '🇺🇬 Gulu, UG', country: 'Uganda' },
+  { value: 'mbarara', label: '🇺🇬 Mbarara, UG', country: 'Uganda' },
+  { value: 'jinja', label: '🇺🇬 Jinja, UG', country: 'Uganda' },
 ] as const
 
 // ============================================================================

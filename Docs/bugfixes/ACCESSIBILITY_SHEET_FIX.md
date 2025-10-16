@@ -11,6 +11,7 @@ Error: `DialogContent` requires a `DialogTitle` for the component to be accessib
 ## Root Cause
 
 The Radix UI accessibility checker requires that all Dialog/Sheet components have:
+
 1. A `SheetTitle` component as a descendant
 2. A `SheetDescription` component (can be visually hidden with `sr-only` class)
 
@@ -19,19 +20,19 @@ These must be properly structured within `SheetHeader` for Radix to detect them 
 ## Files Fixed
 
 ### 1. `/components/mobile-sidebar-toggle.tsx`
+
 **Issue**: Missing `SheetTitle` and `SheetDescription`  
 **Fix**: Added proper `SheetHeader` structure with title and description
 
 ```tsx
 <SheetHeader className="p-4 border-b flex-shrink-0">
   <SheetTitle className="text-lg font-semibold text-slate-900">Categories</SheetTitle>
-  <SheetDescription className="sr-only">
-    Browse products by category
-  </SheetDescription>
+  <SheetDescription className="sr-only">Browse products by category</SheetDescription>
 </SheetHeader>
 ```
 
 ### 2. `/components/cart-sidepanel.tsx`
+
 **Issue**: `SheetTitle` wrapped in extra div layers  
 **Fix**: Restructured to have `SheetHeader` as direct child of `SheetContent`
 
@@ -39,19 +40,20 @@ These must be properly structured within `SheetHeader` for Radix to detect them 
 <SheetHeader className="px-6 pt-6 pb-4 border-b border-neutral-200">
   <div className="flex items-center justify-between">
     <div className="flex-1">
-      <SheetTitle className="text-xl font-semibold text-neutral-900">
-        Shopping Cart
-      </SheetTitle>
+      <SheetTitle className="text-xl font-semibold text-neutral-900">Shopping Cart</SheetTitle>
       <SheetDescription className="text-sm text-neutral-600 mt-1">
         {isEmpty ? 'Your cart is empty' : `${itemCount} items in your cart`}
       </SheetDescription>
     </div>
-    <Badge variant="secondary" className="h-8 px-3">{itemCount}</Badge>
+    <Badge variant="secondary" className="h-8 px-3">
+      {itemCount}
+    </Badge>
   </div>
 </SheetHeader>
 ```
 
 ### 3. `/components/header/mobile-menu.tsx`
+
 **Issue**: Missing `SheetDescription` components  
 **Fix**: Added descriptions to both search and navigation sheets
 
@@ -82,11 +84,9 @@ When using Sheet/Dialog components, always follow this pattern:
       {/* Title is required */}
       <SheetTitle>Title Here</SheetTitle>
       {/* Description is required (can be visually hidden) */}
-      <SheetDescription className="sr-only">
-        Description for screen readers
-      </SheetDescription>
+      <SheetDescription className="sr-only">Description for screen readers</SheetDescription>
     </SheetHeader>
-    
+
     {/* Rest of content */}
   </SheetContent>
 </Sheet>
@@ -102,10 +102,12 @@ When using Sheet/Dialog components, always follow this pattern:
 ## Testing
 
 ### Before Fix
+
 - Console showed accessibility errors
 - Screen readers couldn't properly announce dialog content
 
 ### After Fix
+
 - No accessibility errors in console
 - Screen readers properly announce dialog title and description
 - All Sheet components pass WCAG 2.1 AA standards
@@ -113,6 +115,7 @@ When using Sheet/Dialog components, always follow this pattern:
 ## Verification
 
 Run the application and open any Sheet component:
+
 ```bash
 npm run dev
 ```

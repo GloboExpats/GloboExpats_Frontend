@@ -21,6 +21,7 @@ const user = await apiClient.getUserDetails()
 ## Authentication
 
 ### Register New User
+
 ```typescript
 POST /api/v1/auth/register
 
@@ -42,6 +43,7 @@ await apiClient.register(userData)
 ```
 
 ### Login
+
 ```typescript
 POST /api/v1/auth/login
 
@@ -63,6 +65,7 @@ await apiClient.login(email, password)
 ```
 
 ### Google OAuth
+
 ```typescript
 // Step 1: Redirect to Google
 GET /api/v1/oauth2/login/google
@@ -85,6 +88,7 @@ await apiClient.exchangeOAuthCode(authCode)
 ```
 
 ### Logout
+
 ```typescript
 POST /api/v1/auth/logout
 Authorization: Bearer {token}
@@ -101,6 +105,7 @@ await apiClient.logout()
 ## User Management
 
 ### Get Current User Details
+
 ```typescript
 GET /api/v1/userManagement/user-details
 Authorization: Bearer {token}
@@ -132,6 +137,7 @@ const user = await apiClient.getUserDetails()
 ```
 
 ### Update User Profile
+
 ```typescript
 PUT /api/v1/userManagement/update-user
 Authorization: Bearer {token}
@@ -154,6 +160,7 @@ await apiClient.updateUser(userId, updates)
 ```
 
 ### Change Password
+
 ```typescript
 POST /api/v1/userManagement/change-password
 Authorization: Bearer {token}
@@ -174,6 +181,7 @@ Authorization: Bearer {token}
 ## Email Verification (OTP)
 
 ### Send OTP
+
 ```typescript
 POST /api/v1/email/sendOTP?organizationalEmail={email}
 Authorization: Bearer {token}
@@ -189,6 +197,7 @@ await apiClient.sendEmailOtp('john.doe@company.com')
 ```
 
 ### Verify OTP
+
 ```typescript
 POST /api/v1/email/verifyOTP?organizationalEmail={email}&otp={code}&userRoles={role}
 Authorization: Bearer {token}
@@ -208,6 +217,7 @@ await apiClient.verifyEmailOtp('john.doe@company.com', '123456', 'SELLER')
 ## Products
 
 ### Create Product
+
 ```typescript
 POST /api/v1/products/post-product
 Authorization: Bearer {token}
@@ -238,6 +248,7 @@ await apiClient.createProduct(productData, imageFiles)
 ```
 
 ### Get All Products (Paginated)
+
 ```typescript
 GET /api/v1/products/get-all-products?page={n}&size={m}
 
@@ -283,6 +294,7 @@ await apiClient.getAllProducts(pageNumber)
 ```
 
 ### Get Product Details
+
 ```typescript
 GET /api/v1/displayItem/itemDetails/{productId}
 
@@ -335,6 +347,7 @@ await apiClient.getProductDetails(productId)
 ```
 
 ### Update Product
+
 ```typescript
 PATCH /api/v1/products/update/{productId}
 Authorization: Bearer {token}
@@ -362,6 +375,7 @@ await apiClient.updateProduct(productId, updates, newImages, imageIdsToRemove)
 ```
 
 ### Delete Product
+
 ```typescript
 DELETE /api/v1/products/delete/{productId}
 Authorization: Bearer {token}
@@ -374,26 +388,30 @@ await apiClient.deleteProduct(productId)
 ```
 
 ### Get Categories
-```typescript
-GET /api/v1/products/categories
 
-// Response: 200 OK
-[
-  { "categoryId": 1, "categoryName": "Automotive" },
-  { "categoryId": 2, "categoryName": "Home & Furniture" },
-  { "categoryId": 3, "categoryName": "Electronics & Tech" },
-  { "categoryId": 4, "categoryName": "Games & Toys" },
-  { "categoryId": 5, "categoryName": "Fashion & Style" },
-  { "categoryId": 6, "categoryName": "Fitness & Sports" },
-  { "categoryId": 7, "categoryName": "Books & Media" },
-  { "categoryId": 8, "categoryName": "Arts & Crafts" }
-]
+```typescript
+GET /
+  api /
+  v1 /
+  products /
+  categories[
+    // Response: 200 OK
+    ({ categoryId: 1, categoryName: 'Automotive' },
+    { categoryId: 2, categoryName: 'Home & Furniture' },
+    { categoryId: 3, categoryName: 'Electronics & Tech' },
+    { categoryId: 4, categoryName: 'Games & Toys' },
+    { categoryId: 5, categoryName: 'Fashion & Style' },
+    { categoryId: 6, categoryName: 'Fitness & Sports' },
+    { categoryId: 7, categoryName: 'Books & Media' },
+    { categoryId: 8, categoryName: 'Arts & Crafts' })
+  ]
 
 // Frontend Usage
 const categories = await apiClient.getCategories()
 ```
 
 ### Filter Products
+
 ```typescript
 POST /api/v1/displayItem/filter?{query_params}
 
@@ -423,6 +441,7 @@ await apiClient.filterProducts({
 ```
 
 ### Get Top Picks (Featured)
+
 ```typescript
 GET /api/v1/displayItem/top-picks?page={n}&size={m}
 
@@ -436,6 +455,7 @@ await apiClient.getTopPicks(0, 12)
 ```
 
 ### Get Newest Listings
+
 ```typescript
 GET /api/v1/displayItem/newest?page={n}&size={m}
 
@@ -453,6 +473,7 @@ await apiClient.getNewestListings(0, 12)
 ## Reviews & Ratings
 
 ### Post Review
+
 ```typescript
 POST /api/v1/post-review
 Authorization: Bearer {token}
@@ -469,6 +490,7 @@ Authorization: Bearer {token}
 ```
 
 ### Edit Review
+
 ```typescript
 PUT /api/v1/edit-review/{productId}
 Authorization: Bearer {token}
@@ -484,6 +506,7 @@ Authorization: Bearer {token}
 ```
 
 ### Rate Product
+
 ```typescript
 POST /api/v1/rate
 Authorization: Bearer {token}
@@ -503,6 +526,7 @@ Authorization: Bearer {token}
 ## Cart Management
 
 ### Add to Cart
+
 ```typescript
 POST /api/v1/cart/add
 Authorization: Bearer {token}
@@ -524,6 +548,7 @@ await apiClient.addToCart(productId, quantity)
 ```
 
 ### Get User Cart
+
 ```typescript
 GET /api/v1/cart/User
 Authorization: Bearer {token}
@@ -556,6 +581,7 @@ const cart = await apiClient.getUserCart()
 ```
 
 ### Update Cart Item
+
 ```typescript
 PUT /api/v1/cart/item/{cartItemId}
 Authorization: Bearer {token}
@@ -574,6 +600,7 @@ await apiClient.updateCartItem(cartItemId, productId, newQuantity)
 ```
 
 ### Remove from Cart
+
 ```typescript
 DELETE /api/v1/cart/item/{cartItemId}
 Authorization: Bearer {token}
@@ -586,6 +613,7 @@ await apiClient.removeFromCart(cartItemId)
 ```
 
 ### Clear Cart
+
 ```typescript
 DELETE /api/v1/cart/clear
 Authorization: Bearer {token}
@@ -602,6 +630,7 @@ await apiClient.clearCart()
 ## Order Management
 
 ### Create Order
+
 ```typescript
 POST /api/v1/order/save
 Authorization: Bearer {token}
@@ -637,6 +666,7 @@ await apiClient.createOrder(orderData)
 ```
 
 ### Review Order Before Checkout
+
 ```typescript
 GET /api/v1/order/review
 Authorization: Bearer {token}
@@ -652,6 +682,7 @@ Authorization: Bearer {token}
 ```
 
 ### Complete Checkout
+
 ```typescript
 POST /api/v1/order/checkOut
 Authorization: Bearer {token}
@@ -675,6 +706,7 @@ Authorization: Bearer {token}
 ```
 
 ### Get User Orders
+
 ```typescript
 GET /api/v1/order/get-orders
 Authorization: Bearer {token}
@@ -700,6 +732,7 @@ const orders = await apiClient.getOrders()
 ## Messaging
 
 ### List Conversations
+
 ```typescript
 GET /api/v1/messages/conversations
 Authorization: Bearer {token}
@@ -727,6 +760,7 @@ const conversations = await apiClient.getConversations()
 ```
 
 ### Get Conversation Messages
+
 ```typescript
 GET /api/v1/messages/conversations/{conversationId}
 Authorization: Bearer {token}
@@ -757,6 +791,7 @@ const messages = await apiClient.getMessages(conversationId)
 ```
 
 ### Send Message
+
 ```typescript
 POST /api/v1/messages/conversations/{conversationId}
 Authorization: Bearer {token}
@@ -778,6 +813,7 @@ await apiClient.sendMessage(conversationId, messageContent)
 ```
 
 ### Create Conversation
+
 ```typescript
 POST /api/v1/messages/conversations
 Authorization: Bearer {token}
@@ -803,6 +839,7 @@ await apiClient.createConversation(recipientId, initialMessage)
 ## Error Responses
 
 ### Standard Error Format
+
 ```json
 {
   "message": "Error message",
@@ -812,6 +849,7 @@ await apiClient.createConversation(recipientId, initialMessage)
 ```
 
 ### Common HTTP Status Codes
+
 - `200` - Success
 - `201` - Created
 - `400` - Bad Request (validation error)
@@ -822,6 +860,7 @@ await apiClient.createConversation(recipientId, initialMessage)
 - `500` - Internal Server Error
 
 ### Frontend Error Handling
+
 ```typescript
 try {
   await apiClient.someMethod()
@@ -841,6 +880,7 @@ try {
 ## Frontend Integration Examples
 
 ### Complete Registration Flow
+
 ```typescript
 // 1. Register user
 try {
@@ -850,9 +890,9 @@ try {
     password: 'SecurePass123!',
     emailAddress: 'john.doe@example.com',
     agreeToTerms: true,
-    agreeToPrivacyPolicy: true
+    agreeToPrivacyPolicy: true,
   })
-  
+
   // 2. Redirect to login
   router.push('/login')
 } catch (error) {
@@ -861,6 +901,7 @@ try {
 ```
 
 ### Complete Login & Fetch User
+
 ```typescript
 // 1. Login
 const response = await apiClient.login(email, password)
@@ -877,6 +918,7 @@ setUser(user)
 ```
 
 ### Create Product with Images
+
 ```typescript
 const productData = {
   productName: 'MacBook Pro 2021',
@@ -887,7 +929,7 @@ const productData = {
   currency: 'USD',
   askingPrice: 1200,
   originalPrice: 2000,
-  productWarranty: '1 year warranty'
+  productWarranty: '1 year warranty',
 }
 
 const imageFiles = [file1, file2, file3] // From <input type="file">
@@ -902,6 +944,7 @@ try {
 ```
 
 ### Complete Checkout Flow
+
 ```typescript
 // 1. Get cart
 const cart = await apiClient.getUserCart()
@@ -913,7 +956,7 @@ const orderReview = await apiClient.reviewOrder()
 const order = await apiClient.createOrder({
   items: cart.items,
   shippingAddress: userAddress,
-  paymentMethod: 'MPESA'
+  paymentMethod: 'MPESA',
 })
 
 // 4. Complete checkout
@@ -921,8 +964,8 @@ await apiClient.checkOut({
   orderId: order.orderId,
   paymentDetails: {
     method: 'MPESA',
-    phoneNumber: '+255123456789'
-  }
+    phoneNumber: '+255123456789',
+  },
 })
 
 // 5. Clear cart
@@ -937,6 +980,7 @@ router.push(`/orders/${order.orderId}`)
 ## Best Practices
 
 ### 1. Always Handle Errors
+
 ```typescript
 try {
   const data = await apiClient.someMethod()
@@ -949,6 +993,7 @@ try {
 ```
 
 ### 2. Show Loading States
+
 ```typescript
 const [isLoading, setIsLoading] = useState(false)
 
@@ -963,6 +1008,7 @@ const handleSubmit = async () => {
 ```
 
 ### 3. Validate Before Sending
+
 ```typescript
 if (!email || !password) {
   setError('Please fill in all fields')
@@ -978,6 +1024,7 @@ await apiClient.login(email, password)
 ```
 
 ### 4. Use TypeScript Types
+
 ```typescript
 interface Product {
   productId: number
@@ -994,6 +1041,7 @@ const product: Product = await apiClient.getProduct(id)
 ## Testing API Endpoints
 
 ### Using cURL
+
 ```bash
 # Register
 curl -X POST http://10.123.22.21:8081/api/v1/auth/register \

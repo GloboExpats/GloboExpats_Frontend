@@ -39,8 +39,8 @@ import {
 } from '@/components/ui/sheet'
 import { ShoppingCart, Trash2, Plus, Minus, X, ArrowRight } from 'lucide-react'
 import { useCart } from '@/hooks/use-cart'
-import { formatPrice } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import PriceDisplay from '@/components/price-display'
 
 interface CartSidePanelProps {
   open: boolean
@@ -95,7 +95,7 @@ const CartItemRow: React.FC<{
             {item.title}
           </h3>
           <p className="text-sm font-semibold text-neutral-900 mt-1">
-            {formatPrice(item.price, item.currency || 'TZS')}
+            <PriceDisplay price={item.price} size="sm" weight="bold" />
           </p>
         </div>
 
@@ -143,8 +143,12 @@ const EmptyCartState = React.memo<{ onClose: () => void }>(({ onClose }) => (
     </div>
     <h3 className="text-neutral-700 text-base sm:text-lg font-semibold">Your cart is empty</h3>
     <p className="text-neutral-400 text-xs sm:text-sm mt-2 mb-6">Add some items to get started!</p>
-    <Button onClick={onClose} className="w-full max-w-[200px] bg-neutral-900 hover:bg-neutral-800">
-      Continue Shopping
+    <Button
+      asChild
+      onClick={onClose}
+      className="w-full max-w-[200px] bg-neutral-900 hover:bg-neutral-800"
+    >
+      <Link href="/browse">Continue Shopping</Link>
     </Button>
   </div>
 ))
@@ -167,9 +171,9 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
   } = useCart()
 
   const [isClearingCart, setIsClearingCart] = useState(false)
+  const [headerOffset, setHeaderOffset] = useState(0)
 
   const handleClearCart = async () => {
-    if (!window.confirm('Are you sure you want to clear your cart?')) return
     setIsClearingCart(true)
     try {
       await clearCart()
@@ -188,20 +192,53 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
     // Navigation handled by Link component
   }
 
-  // Get primary currency from first item
-  const currency = items[0]?.currency || 'TZS'
+  // Get primary currency from first item (currently unused but available for future currency display)
+  // const currency = items[0]?.currency || 'TZS'
+
+  // Measure actual header height so the panel starts exactly below it
+  useEffect(() => {
+    const measure = () => {
+      const headerEl = document.querySelector('header[role="banner"]') as HTMLElement | null
+      let topOffset = 0
+      if (headerEl) {
+        const rect = headerEl.getBoundingClientRect()
+        topOffset = Math.round(rect.bottom)
+      }
+      if (!topOffset) {
+        const varVal = getComputedStyle(document.documentElement)
+          .getPropertyValue('--site-header-height')
+          .trim()
+        const parsed = parseInt(varVal || '0', 10)
+        topOffset = Number.isFinite(parsed) && parsed > 0 ? parsed : 64
+      }
+      setHeaderOffset(topOffset)
+    }
+    measure()
+    const headerEl = document.querySelector('header[role="banner"]') as HTMLElement | null
+    let ro: ResizeObserver | undefined
+    if (headerEl && 'ResizeObserver' in window) {
+      ro = new ResizeObserver(() => measure())
+      ro.observe(headerEl)
+    }
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      if (ro && headerEl) ro.unobserve(headerEl)
+    }
+  }, [open])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[280px] sm:w-[320px] flex flex-col p-0 !right-0 !left-auto top-[64px] bottom-0 md:h-[calc(100vh-64px)]"
+        className="w-[280px] sm:w-[320px] flex flex-col p-0 !right-0 !left-auto overflow-hidden"
+        style={{ top: headerOffset, bottom: 'auto', height: `calc(100dvh - ${headerOffset}px)` }}
         aria-label="Shopping cart panel"
         hideOverlay={true}
         hideClose={true}
       >
         {/* Header - Title and Description must be direct children for accessibility */}
-        <SheetHeader className="px-4 sm:px-5 pt-5 pb-4 border-b border-neutral-200">
+        <SheetHeader className="flex-shrink-0 px-4 sm:px-5 pt-3 pb-3 border-b border-neutral-200">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <SheetTitle className="text-lg sm:text-xl font-semibold text-neutral-900">
@@ -221,15 +258,13 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
 
         {/* Cart Content */}
         {isEmpty ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="-translate-y-24 sm:-translate-y-28 md:-translate-y-32">
-              <EmptyCartState onClose={() => onOpenChange(false)} />
-            </div>
+          <div className="flex-1 flex items-center justify-center px-4 py-6">
+            <EmptyCartState onClose={() => onOpenChange(false)} />
           </div>
         ) : (
           <>
             {/* Items List */}
-            <ScrollArea className="flex-1 px-3 sm:px-4">
+            <ScrollArea className="flex-1 min-h-0 px-3 sm:px-4 overflow-y-auto">
               <div role="list" aria-label="Cart items" className="space-y-3 py-4">
                 {items.map((item) => (
                   <CartItemRow
@@ -259,7 +294,7 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
             </ScrollArea>
 
             {/* Footer with Summary and Actions */}
-            <div className="border-t border-neutral-200 bg-white px-3 sm:px-4 py-3 sm:py-4 space-y-3">
+            <div className="flex-shrink-0 border-t border-neutral-200 bg-white px-3 sm:px-4 pt-3 sm:pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] space-y-3">
               {/* Subtotal */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -267,7 +302,7 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
                     Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})
                   </span>
                   <span className="font-bold text-base sm:text-lg text-neutral-900 text-right">
-                    {formatPrice(subtotal, currency)}
+                    <PriceDisplay price={subtotal} size="lg" weight="bold" />
                   </span>
                 </div>
                 <p className="text-xs text-neutral-500 text-center sm:text-left">
@@ -276,7 +311,7 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
+              <div className="space-y-2">
                 <Button
                   asChild
                   className="w-full bg-neutral-900 hover:bg-neutral-800 text-white h-11 sm:h-12 text-sm sm:text-base font-semibold"
@@ -300,16 +335,17 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
                 </Button>
 
                 <Button
+                  asChild
                   variant="ghost"
                   className="w-full h-10 sm:h-11 text-sm sm:text-base text-neutral-700 hover:text-neutral-900"
                   onClick={() => onOpenChange(false)}
                 >
-                  Continue Shopping
+                  <Link href="/browse">Continue Shopping</Link>
                 </Button>
               </div>
 
               {/* Security Badge */}
-              <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 pt-1">
+              <div className="flex items-center justify-center gap-2 text-xs text-neutral-500 pt-1 pb-2">
                 <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                 <span className="text-center">Secure checkout guaranteed</span>
               </div>

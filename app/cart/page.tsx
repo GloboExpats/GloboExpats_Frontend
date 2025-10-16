@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -19,10 +18,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useCart } from '@/hooks/use-cart'
 import { cleanLocationString } from '@/lib/image-utils'
+import PriceDisplay from '@/components/price-display'
 
 export default function CartPage() {
   const {
@@ -34,38 +33,13 @@ export default function CartPage() {
     clearCart,
     selectedItems,
     selectedSubtotal,
-    selectedSavings,
     toggleItemSelection,
     selectAllItems,
     deselectAllItems,
   } = useCart()
 
-  const [promoCode, setPromoCode] = useState('')
-  const [promoDiscount, setPromoDiscount] = useState(0)
-
-  // Apply promo code (mock functionality)
-  const applyPromoCode = () => {
-    const validPromoCodes: Record<string, number> = {
-      expat10: 0.1,
-      welcome5: 0.05,
-      eastafrica15: 0.15,
-      kenya20: 0.2,
-    }
-
-    const discount = validPromoCodes[promoCode.toLowerCase()]
-    if (discount) {
-      setPromoDiscount(selectedSubtotal * discount)
-    } else {
-      setPromoDiscount(0)
-    }
-  }
-
-  const finalTotal = selectedSubtotal - promoDiscount
-
-  // Currency formatter for East African currencies
-  const formatCurrency = (amount: number) => {
-    return `KES ${amount.toLocaleString()}`
-  }
+  // Final total is simply the selected subtotal (using asking price only)
+  const finalTotal = selectedSubtotal
 
   // Handle item selection for bulk operations
   const handleItemSelection = (itemId: string, _checked: boolean) => {
@@ -126,71 +100,166 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-neutral-50 pt-16 md:pt-20">
+      <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-4 md:py-6 pb-20 sm:pb-24">
         <div className="max-w-6xl mx-auto">
           {/* Clean Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-semibold text-neutral-900">Shopping Cart</h1>
-              <div className="flex items-center gap-4">
-                <Badge className="px-3 py-1 text-sm bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                  {itemCount} {itemCount === 1 ? 'item' : 'items'}
-                </Badge>
-              </div>
+          <div className="mb-2.5 sm:mb-3 md:mb-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-base sm:text-lg md:text-xl font-semibold text-neutral-900">
+                Shopping Cart
+              </h1>
+              <Badge className="px-2 sm:px-3 py-0.5 sm:py-1 text-xs bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                {itemCount} {itemCount === 1 ? 'item' : 'items'}
+              </Badge>
             </div>
           </div>
 
           {/* Cart Content */}
-          <div className="flex flex-col lg:flex-row gap-12">
+          <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 lg:gap-6">
             <div className="flex-1">
               {/* Cart Actions */}
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <Badge
-                    variant="secondary"
-                    className="px-4 py-2 text-sm font-medium bg-brand-primary/10 text-brand-primary border-brand-primary/20"
-                  >
-                    {selectedItems.length} of {items.length} selected
-                  </Badge>
+              <div className="flex items-center justify-between mb-2 sm:mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedItems.length === items.length}
+                    onCheckedChange={handleSelectAll}
+                    className="data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
+                  />
+                  <span className="text-xs sm:text-sm font-medium text-neutral-700">
+                    Select All ({selectedItems.length} of {items.length})
+                  </span>
                 </div>
                 {items.length > 1 && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => clearCart()}
-                    className="text-status-error hover:text-status-error hover:bg-status-error/5 border-status-error/20 hover:border-status-error/40 transition-all duration-200"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 text-xs sm:text-sm h-8"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Clear All
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                    <span className="hidden sm:inline">Clear All</span>
+                    <span className="sm:hidden">Clear</span>
                   </Button>
                 )}
               </div>
 
-              {/* Select All */}
-              <div className="bg-surface-elevated rounded-2xl p-6 mb-6 border border-neutral-200 shadow-card-modern">
-                <div className="flex items-center gap-4">
-                  <Checkbox
-                    checked={selectedItems.length === items.length}
-                    onCheckedChange={handleSelectAll}
-                    className="data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
-                  />
-                  <span className="font-medium text-neutral-900">
-                    Select All ({selectedItems.length} of {items.length} selected)
-                  </span>
-                </div>
-              </div>
-
               {/* Cart Items */}
-              <div className="space-y-6">
+              <div className="space-y-2 sm:space-y-2.5 lg:space-y-3">
                 {items.map((item) => (
                   <Card
                     key={item.id}
-                    className="shadow-card-modern hover:shadow-futuristic transition-all duration-300 border border-neutral-200 hover:border-brand-primary/20 rounded-2xl overflow-hidden"
+                    className="shadow-sm border border-neutral-200 rounded-lg overflow-hidden"
                   >
-                    <CardContent className="p-8">
-                      <div className="flex items-start gap-6">
-                        {/* Selection Checkbox */}
+                    <CardContent className="p-2 sm:p-2.5 md:p-4 lg:p-6">
+                      {/* Mobile Layout (< md) */}
+                      <div className="md:hidden">
+                        {/* Top Row: Checkbox, Image, Title & Price */}
+                        <div className="flex items-start gap-2">
+                          <Checkbox
+                            checked={selectedItems.includes(item.id)}
+                            onCheckedChange={(checked) =>
+                              handleItemSelection(item.id, checked as boolean)
+                            }
+                            className="mt-0.5 data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
+                          />
+
+                          <div className="relative w-16 h-16 bg-neutral-100 rounded-md overflow-hidden flex-shrink-0">
+                            <Image
+                              src={item.image}
+                              alt={item.title}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-xs leading-tight text-neutral-900 line-clamp-2 mb-1">
+                              {item.title}
+                            </h3>
+                            <div className="text-sm font-bold text-neutral-900 mb-1">
+                              <PriceDisplay
+                                price={item.price}
+                                size="sm"
+                                weight="bold"
+                                showOriginal
+                              />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] border-neutral-300 text-neutral-600 px-1 py-0 h-4"
+                              >
+                                {item.condition}
+                              </Badge>
+                              {item.verified && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] border-green-200 text-green-700 bg-green-50 px-1 py-0 h-4"
+                                >
+                                  <Shield className="w-2 h-2 mr-0.5" />
+                                  Verified
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Second Row: Location & Contact */}
+                        <div className="mt-1.5 flex items-center justify-between pl-[30px]">
+                          <div className="flex items-center text-[10px] text-neutral-600">
+                            <MapPin className="w-2.5 h-2.5 mr-0.5" />
+                            {cleanLocationString(item.location)}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-brand-primary hover:bg-brand-primary/5 px-1.5 h-6 text-[10px]"
+                          >
+                            <MessageCircle className="w-2.5 h-2.5 mr-0.5" />
+                            Contact
+                          </Button>
+                        </div>
+
+                        {/* Third Row: Quantity & Remove */}
+                        <div className="mt-1.5 flex items-center justify-between pl-[30px]">
+                          <div className="flex items-center gap-0.5 bg-neutral-100 rounded-md p-0.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                updateQuantity(item.id, Math.max(1, item.quantity - 1))
+                              }
+                              className="w-6 h-6 p-0 hover:bg-neutral-200"
+                            >
+                              <Minus className="w-2.5 h-2.5" />
+                            </Button>
+                            <span className="w-6 text-center text-xs font-medium">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-6 h-6 p-0 hover:bg-neutral-200"
+                            >
+                              <Plus className="w-2.5 h-2.5" />
+                            </Button>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 px-1.5 text-[10px]"
+                          >
+                            <Trash2 className="w-3 h-3 mr-0.5" />
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Tablet & Desktop Layout (>= md) */}
+                      <div className="hidden md:flex items-start gap-3 lg:gap-6">
                         <Checkbox
                           checked={selectedItems.includes(item.id)}
                           onCheckedChange={(checked) =>
@@ -199,71 +268,63 @@ export default function CartPage() {
                           className="mt-2 data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                         />
 
-                        {/* Product Image */}
-                        <div className="relative w-32 h-32 bg-neutral-100 rounded-2xl overflow-hidden flex-shrink-0 shadow-card">
+                        <div className="relative w-20 h-20 lg:w-24 lg:h-24 bg-neutral-100 rounded-lg overflow-hidden flex-shrink-0">
                           <Image src={item.image} alt={item.title} fill className="object-cover" />
                         </div>
 
-                        {/* Product Details */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                          <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-display font-semibold text-xl text-neutral-900 line-clamp-2 mb-3">
+                              <h3 className="font-semibold text-base lg:text-lg text-neutral-900 line-clamp-2 mb-2">
                                 {item.title}
                               </h3>
 
-                              <div className="flex flex-wrap items-center gap-3 mb-4">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <Badge
                                   variant="outline"
-                                  className="text-sm border-neutral-300 text-neutral-700"
+                                  className="text-xs border-neutral-300 text-neutral-600"
                                 >
                                   {item.condition}
                                 </Badge>
                                 <Badge
                                   variant="outline"
-                                  className="text-sm border-brand-primary/20 text-brand-primary bg-brand-primary/5"
+                                  className="text-xs border-neutral-300 text-neutral-600"
                                 >
                                   <MapPin className="w-3 h-3 mr-1" />
                                   {cleanLocationString(item.location)}
                                 </Badge>
-                              </div>
-
-                              <div className="flex items-center gap-4 mb-4">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center">
-                                    <Shield className="w-4 h-4 text-brand-primary" />
-                                  </div>
-                                  <span className="text-sm text-neutral-600">Verified Seller</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="border-brand-primary/20 text-brand-primary hover:bg-brand-primary/5"
-                                >
-                                  <MessageCircle className="w-4 h-4 mr-2" />
-                                  Contact Seller
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Price and Actions */}
-                            <div className="flex flex-col items-end gap-4">
-                              <div className="text-right">
-                                <div className="text-2xl font-bold text-neutral-900">
-                                  {formatCurrency(item.price)}
-                                </div>
-                                {item.originalPrice && item.originalPrice > item.price && (
-                                  <div className="text-sm text-neutral-500 line-through">
-                                    {formatCurrency(item.originalPrice)}
-                                  </div>
+                                {item.verified && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs border-green-200 text-green-700 bg-green-50"
+                                  >
+                                    <Shield className="w-3 h-3 mr-1" />
+                                    Verified
+                                  </Badge>
                                 )}
                               </div>
 
-                              {/* Quantity Controls */}
-                              <div className="flex items-center gap-3 bg-neutral-100 rounded-xl p-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-brand-primary hover:bg-brand-primary/5 px-0 text-sm h-auto py-1"
+                              >
+                                <MessageCircle className="w-4 h-4 mr-2" />
+                                Contact Seller
+                              </Button>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-3">
+                              <div className="text-lg lg:text-xl font-bold text-neutral-900">
+                                <PriceDisplay
+                                  price={item.price}
+                                  size="lg"
+                                  weight="bold"
+                                  showOriginal
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-2 bg-neutral-100 rounded-lg p-1">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -272,16 +333,18 @@ export default function CartPage() {
                                   }
                                   className="w-8 h-8 p-0 hover:bg-neutral-200"
                                 >
-                                  <Minus className="w-4 h-4" />
+                                  <Minus className="w-3 h-3" />
                                 </Button>
-                                <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                <span className="w-8 text-center text-sm font-medium">
+                                  {item.quantity}
+                                </span>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                   className="w-8 h-8 p-0 hover:bg-neutral-200"
                                 >
-                                  <Plus className="w-4 h-4" />
+                                  <Plus className="w-3 h-3" />
                                 </Button>
                               </div>
 
@@ -289,9 +352,9 @@ export default function CartPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => removeFromCart(item.id)}
-                                className="text-status-error hover:text-status-error hover:bg-status-error/5"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 text-sm h-auto py-1 px-2"
                               >
-                                <Trash2 className="w-4 h-4 mr-2" />
+                                <Trash2 className="w-4 h-4 mr-1" />
                                 Remove
                               </Button>
                             </div>
@@ -304,79 +367,57 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Modern Checkout Sidebar */}
-            <div className="lg:w-96">
-              <Card className="sticky top-8 shadow-futuristic border border-neutral-200 rounded-3xl overflow-hidden">
-                <CardHeader className="bg-neutral-50 border-b border-neutral-200 text-neutral-900 p-8">
-                  <CardTitle className="text-2xl font-display font-bold">Order Summary</CardTitle>
+            {/* Checkout Sidebar */}
+            <div className="lg:w-80">
+              <Card className="sticky top-16 sm:top-20 shadow-sm border border-neutral-200 rounded-lg overflow-hidden">
+                <CardHeader className="bg-neutral-50 border-b border-neutral-200 p-3 sm:p-4">
+                  <CardTitle className="text-base sm:text-lg font-semibold text-neutral-900">
+                    Order Summary
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="p-8 space-y-6">
-                  {/* Promo Code */}
-                  <div className="space-y-3">
-                    <label htmlFor="promo-code" className="text-sm font-medium text-neutral-700">
-                      Promo Code
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="promo-code"
-                        placeholder="Enter code"
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value)}
-                        className="rounded-xl border-neutral-300 focus:border-brand-primary focus:ring-brand-primary/20"
-                      />
-                      <Button
-                        onClick={applyPromoCode}
-                        variant="outline"
-                        className="rounded-xl border-brand-primary/20 text-brand-primary hover:bg-brand-primary/5"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Separator className="bg-neutral-200" />
-
+                <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
                   {/* Order Details */}
-                  <div className="space-y-4">
-                    <div className="flex justify-between text-neutral-600">
-                      <span>Subtotal ({selectedItems.length} items)</span>
-                      <span>{formatCurrency(selectedSubtotal)}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-neutral-600">
+                        Subtotal ({selectedItems.length})
+                      </span>
+                      <span className="text-sm font-semibold text-neutral-900">
+                        <PriceDisplay price={selectedSubtotal} size="sm" />
+                      </span>
                     </div>
-                    {selectedSavings > 0 && (
-                      <div className="flex justify-between text-status-success">
-                        <span>Savings</span>
-                        <span>-{formatCurrency(selectedSavings)}</span>
-                      </div>
-                    )}
-                    {promoDiscount > 0 && (
-                      <div className="flex justify-between text-status-success">
-                        <span>Promo Discount</span>
-                        <span>-{formatCurrency(promoDiscount)}</span>
-                      </div>
-                    )}
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-neutral-600">Delivery</span>
+                      <span className="text-xs text-neutral-600">At checkout</span>
+                    </div>
                   </div>
 
                   <Separator className="bg-neutral-200" />
 
-                  <div className="flex justify-between text-xl font-bold text-neutral-900">
-                    <span>Total</span>
-                    <span>{formatCurrency(finalTotal)}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm sm:text-base font-semibold text-neutral-900">
+                      Total
+                    </span>
+                    <span className="text-base sm:text-lg font-bold text-neutral-900">
+                      <PriceDisplay price={finalTotal} size="lg" weight="bold" />
+                    </span>
                   </div>
 
                   <Link href="/checkout">
                     <Button
                       size="lg"
-                      className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-semibold py-4 rounded-2xl shadow-futuristic hover:shadow-card-hover transition-all duration-300 transform hover:scale-105 border-0"
+                      className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white font-semibold py-2.5 rounded-lg text-sm"
                       disabled={selectedItems.length === 0}
                     >
-                      <ArrowRight className="mr-2 h-5 w-5" />
                       Proceed to Checkout
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
 
-                  <div className="text-center text-sm text-neutral-500">
+                  <p className="text-center text-[10px] text-neutral-500">
                     Secure checkout with buyer protection
-                  </div>
+                  </p>
                 </CardContent>
               </Card>
             </div>

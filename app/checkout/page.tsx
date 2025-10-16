@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CreditCard, AlertCircle, Truck, CheckCircle2, Shield } from 'lucide-react'
+import { ArrowLeft, CreditCard, AlertCircle, Truck, CheckCircle2, Shield, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useCart } from '@/hooks/use-cart'
 import { useAuth } from '@/hooks/use-auth'
 import { useVerification } from '@/hooks/use-verification'
+import { apiClient } from '@/lib/api'
+import PriceDisplay from '@/components/price-display'
 
 interface ShippingAddress {
   firstName: string
@@ -26,7 +28,6 @@ interface ShippingAddress {
   address: string
   city: string
   country: string
-  postalCode: string
   instructions?: string
 }
 
@@ -45,8 +46,8 @@ const paymentMethods: PaymentMethod[] = [
     id: 'mpesa',
     type: 'mobile',
     name: 'M-Pesa',
-    description: 'Most popular mobile money in Kenya',
-    icon: '📱',
+    description: 'Mobile money payment',
+    icon: 'CreditCard',
     popular: true,
   },
   {
@@ -54,36 +55,56 @@ const paymentMethods: PaymentMethod[] = [
     type: 'mobile',
     name: 'Airtel Money',
     description: 'Airtel mobile money service',
-    icon: '💰',
+    icon: 'CreditCard',
   },
   {
     id: 'mixx',
     type: 'mobile',
     name: 'Mixx By Yas',
-    description: 'Yas mobile payment solution',
-    icon: '🔥',
+    description: 'Mobile payment solution',
+    icon: 'CreditCard',
   },
   {
     id: 'card',
     type: 'card',
     name: 'Credit/Debit Card',
     description: 'Visa, Mastercard, and local cards',
-    icon: '💳',
+    icon: 'CreditCard',
   },
 ]
 
-// Simplified East African countries for startup launch
+// Simplified East African countries for delivery with flags
 const eastAfricanCountries = [
-  { code: 'KE', name: 'Kenya', currency: 'KES', flag: '🇰🇪', phoneCode: '+254' },
-  { code: 'TZ', name: 'Tanzania', currency: 'TZS', flag: '🇹🇿', phoneCode: '+255' },
-  { code: 'UG', name: 'Uganda', currency: 'UGX', flag: '🇺🇬', phoneCode: '+256' },
+  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', currency: 'TZS', phoneCode: '+255' },
+  { code: 'KE', name: 'Kenya', flag: '🇰🇪', currency: 'KES', phoneCode: '+254' },
+  { code: 'UG', name: 'Uganda', flag: '🇺🇬', currency: 'UGX', phoneCode: '+256' },
+  { code: 'RW', name: 'Rwanda', flag: '🇷🇼', currency: 'RWF', phoneCode: '+250' },
 ]
 
-// Major cities for simplified selection
+// Major cities for simplified selection with flags
 const majorCities = {
-  KE: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru'],
-  TZ: ['Dar es Salaam', 'Dodoma', 'Mwanza', 'Arusha'],
-  UG: ['Kampala', 'Gulu', 'Mbarara', 'Jinja'],
+  TZ: [
+    { name: 'Dar es Salaam', flag: '🇹🇿' },
+    { name: 'Dodoma', flag: '🇹🇿' },
+    { name: 'Mwanza', flag: '🇹🇿' },
+    { name: 'Arusha', flag: '🇹🇿' },
+    { name: 'Zanzibar', flag: '🇹🇿' },
+    { name: 'Stone Town', flag: '🇹🇿' },
+  ],
+  KE: [
+    { name: 'Nairobi', flag: '🇰🇪' },
+    { name: 'Mombasa', flag: '🇰🇪' },
+    { name: 'Kisumu', flag: '🇰🇪' },
+    { name: 'Nakuru', flag: '🇰🇪' },
+  ],
+  UG: [
+    { name: 'Kampala', flag: '🇺🇬' },
+    { name: 'Gulu', flag: '🇺🇬' },
+    { name: 'Mbarara', flag: '🇺🇬' },
+    { name: 'Jinja', flag: '🇺🇬' },
+    { name: 'Entebbe', flag: '🇺🇬' },
+  ],
+  RW: [{ name: 'Kigali', flag: '🇷🇼' }],
 }
 
 export default function CheckoutPage() {
@@ -97,7 +118,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
-  const [selectedCountry, setSelectedCountry] = useState('KE') // Default to Kenya
+  const [selectedCountry, setSelectedCountry] = useState('TZ') // Default to Tanzania
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     firstName: user?.name.split(' ')[0] || '',
@@ -106,8 +127,7 @@ export default function CheckoutPage() {
     phone: '',
     address: '',
     city: '',
-    country: 'Kenya',
-    postalCode: '',
+    country: 'Tanzania',
     instructions: '',
   })
 
@@ -127,38 +147,79 @@ export default function CheckoutPage() {
   // Use selected items for checkout calculations
   const checkoutItems = selectedItemsData.length > 0 ? selectedItemsData : items
   const checkoutSubtotal = selectedItemsData.length > 0 ? selectedSubtotal : subtotal
-  const selectedCountryData = eastAfricanCountries.find((c) => c.code === selectedCountry)
-  const availableCities = majorCities[selectedCountry as keyof typeof majorCities] || []
+  const selectedCountryData = useMemo(
+    () => eastAfricanCountries.find((c) => c.code === selectedCountry),
+    [selectedCountry]
+  )
+  const availableCities = useMemo(
+    () => majorCities[selectedCountry as keyof typeof majorCities] || [],
+    [selectedCountry]
+  )
 
-  // Simplified shipping for local startup
-  const shippingOptions = [
-    {
-      id: 'delivery',
-      name: 'Local Delivery',
-      time: '1-2 days',
-      price: 500,
-      description: 'Within city delivery',
-      icon: '🚚',
-    },
-    {
-      id: 'pickup',
-      name: 'Meet Seller',
-      time: 'Same day',
-      price: 0,
-      description: 'Meet at agreed location',
-      icon: '🤝',
-    },
-  ]
+  // Delivery options with Global Expat branding - memoized for performance
+  const shippingOptions = useMemo(
+    () => [
+      {
+        id: 'delivery',
+        name: 'Arrange with Us',
+        time: '1-2 days',
+        price: 0, // Price varies based on location and will be determined later
+        description: 'Within city delivery',
+        isGloboExpat: true,
+        priceDisplay: 'Varies',
+      },
+      {
+        id: 'pickup',
+        name: 'Arrange with Seller',
+        time: 'Same day',
+        price: 0,
+        description: 'Meet at agreed location',
+        isGloboExpat: false,
+        priceDisplay: 'Free',
+      },
+    ],
+    []
+  )
 
-  const selectedShippingOption = shippingOptions.find((opt) => opt.id === shippingMethod)
-  const shippingCost = selectedShippingOption?.price || 0
-  const totalAmount = checkoutSubtotal + shippingCost
+  const selectedShippingOption = useMemo(
+    () => shippingOptions.find((opt) => opt.id === shippingMethod),
+    [shippingOptions, shippingMethod]
+  )
+  // Delivery cost will be determined separately (currently not charged)
+  // const shippingCost = 0
+  const totalAmount = checkoutSubtotal // No shipping cost added to checkout total
 
   // Format currency based on selected country
   const formatPrice = (amount: number) => {
-    const currency = selectedCountryData?.currency || 'KES'
+    const currency = selectedCountryData?.currency || 'TZS'
     return `${currency} ${amount.toLocaleString()}`
   }
+
+  // Handler functions - defined before any early returns (Rules of Hooks)
+  const handleAddressChange = useCallback((field: keyof ShippingAddress, value: string) => {
+    setShippingAddress((prev) => ({ ...prev, [field]: value }))
+  }, [])
+
+  const handleCountryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const countryCode = e.target.value
+    const country = eastAfricanCountries.find((c) => c.code === countryCode)
+
+    // Batch all state updates together for better performance
+    setSelectedCountry(countryCode)
+    if (country) {
+      setShippingAddress((prev) => ({
+        ...prev,
+        country: country.name,
+        city: '', // Reset city when country changes
+      }))
+    }
+    // Note: Currency display updates automatically via selectedCountryData
+    // but doesn't affect cart prices or any stored values
+  }, [])
+
+  const handleCityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setShippingAddress((prev) => ({ ...prev, city: e.target.value }))
+  }, [])
 
   // Comprehensive authentication and verification checks
   useEffect(() => {
@@ -186,6 +247,11 @@ export default function CheckoutPage() {
     }
   }, [authLoading, isLoggedIn, items.length, selectedItems.length, router, checkVerification])
 
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentStep])
+
   // Show loading state while checking authentication
   if (authLoading || !authChecked) {
     return (
@@ -202,17 +268,6 @@ export default function CheckoutPage() {
   // Don't render if user doesn't have access
   if (!isLoggedIn || items.length === 0 || selectedItems.length === 0) {
     return null
-  }
-
-  const handleAddressChange = (field: keyof ShippingAddress, value: string) => {
-    setShippingAddress((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleCountryChange = (countryCode: string) => {
-    setSelectedCountry(countryCode)
-    const country = eastAfricanCountries.find((c) => c.code === countryCode)
-    handleAddressChange('country', country?.name || '')
-    handleAddressChange('city', '') // Reset city when country changes
   }
 
   const validateStep = (step: number) => {
@@ -269,47 +324,58 @@ export default function CheckoutPage() {
     setOrderError(null)
 
     try {
-      const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-
-      const orderData = {
-        id: orderId,
-        status: 'confirmed',
-        date: new Date().toISOString(),
-        estimatedDelivery: shippingMethod === 'pickup' ? 'Same day pickup' : '1-2 business days',
-        total: totalAmount,
-        currency: selectedCountryData?.currency || 'KES',
-        paymentMethod: paymentMethods.find((p) => p.id === selectedPayment)?.name || 'Unknown',
+      // Prepare order data for backend API
+      const orderPayload = {
         items: checkoutItems.map((item) => ({
-          id: item.id,
-          title: item.title,
-          price: item.price * item.quantity,
+          productId: item.productId,
           quantity: item.quantity,
-          image: item.image,
-          seller: item.expatName,
-          sellerVerified: item.verified,
+          price: item.price,
         })),
         shippingAddress: {
-          name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+          firstName: shippingAddress.firstName,
+          lastName: shippingAddress.lastName,
+          email: shippingAddress.email,
+          phone: shippingAddress.phone,
           address: shippingAddress.address,
           city: shippingAddress.city,
           country: shippingAddress.country,
+          instructions: shippingAddress.instructions,
         },
-        tracking: {
-          enabled: shippingMethod === 'delivery',
-          number: shippingMethod === 'delivery' ? `TRK${Date.now()}` : undefined,
-        },
-        shippingMethod,
-        shippingCost,
+        paymentMethod: selectedPayment,
+        shippingMethod: shippingMethod,
+        totalAmount: totalAmount,
+        currency: selectedCountryData?.currency || 'TZS',
       }
 
-      localStorage.setItem(`order_${orderId}`, JSON.stringify(orderData))
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Call backend API to create order
+      const response = await apiClient.createOrder(orderPayload)
 
+      // Extract order ID from response (backend can return various formats)
+      const responseData = response as {
+        data?: { orderId?: string; id?: string }
+        orderId?: string
+        id?: string
+      }
+      const orderId =
+        responseData?.data?.orderId ||
+        responseData?.orderId ||
+        responseData?.data?.id ||
+        responseData?.id
+
+      if (!orderId) {
+        throw new Error('Order created but no ID returned from server')
+      }
+
+      // Clear cart after successful order
       clearCart()
+
+      // Redirect to success page with backend order ID
       router.push(`/checkout/success?orderId=${orderId}`)
     } catch (error) {
       console.error('Order failed:', error)
-      setOrderError('Failed to process order. Please try again.')
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to process order. Please try again.'
+      setOrderError(errorMessage)
     } finally {
       setIsProcessing(false)
     }
@@ -317,63 +383,69 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <div className="container mx-auto px-4 py-12 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Modern Header */}
-        <div className="bg-surface-elevated rounded-3xl shadow-futuristic border border-neutral-200 p-10 mb-12">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <Link href="/cart">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-2 border-neutral-300 hover:border-brand-primary hover:bg-brand-primary/5 text-neutral-700 hover:text-brand-primary rounded-2xl px-6 py-3 font-semibold transition-all duration-300"
-                >
-                  <ArrowLeft className="w-5 h-5 mr-2" />
-                  Back to Cart
-                </Button>
-              </Link>
-            </div>
-            <div className="flex justify-center mb-6">
-              <div className="flex items-center space-x-6">
-                {[1, 2, 3].map((step) => (
-                  <div key={step} className="flex items-center">
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center font-semibold transition-all duration-200 ${
-                        step <= currentStep
-                          ? 'bg-brand-primary text-white'
-                          : 'bg-neutral-200 text-neutral-500'
-                      }`}
-                    >
-                      {step}
-                    </div>
-                    {step < 3 && (
-                      <div
-                        className={`w-12 h-1 mx-3 rounded-full transition-all duration-200 ${
-                          step < currentStep ? 'bg-brand-primary' : 'bg-neutral-200'
-                        }`}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <Link href="/cart">
+              <Button
+                variant="outline"
+                size="default"
+                className="border border-neutral-300 hover:border-brand-primary hover:bg-neutral-50 text-neutral-700"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Cart
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-semibold text-neutral-900">Checkout</h1>
+            <div className="w-24"></div> {/* Spacer for centering */}
           </div>
 
-          <div className="flex justify-center mt-8 space-x-24 text-lg">
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center space-x-4">
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="flex items-center">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all ${
+                    step <= currentStep
+                      ? 'bg-brand-primary text-white'
+                      : 'bg-neutral-200 text-neutral-500'
+                  }`}
+                >
+                  {step}
+                </div>
+                {step < 3 && (
+                  <div
+                    className={`w-16 h-0.5 mx-2 ${
+                      step < currentStep ? 'bg-brand-primary' : 'bg-neutral-200'
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-center mt-4 space-x-12 text-sm">
             <span
-              className={`font-display font-bold transition-all duration-300 ${currentStep >= 1 ? 'text-brand-primary text-xl' : 'text-neutral-500'}`}
+              className={`font-medium transition-colors ${
+                currentStep >= 1 ? 'text-brand-primary' : 'text-neutral-500'
+              }`}
             >
-              🚚 Shipping Details
+              Delivery
             </span>
             <span
-              className={`font-display font-bold transition-all duration-300 ${currentStep >= 2 ? 'text-brand-primary text-xl' : 'text-neutral-500'}`}
+              className={`font-medium transition-colors ${
+                currentStep >= 2 ? 'text-brand-primary' : 'text-neutral-500'
+              }`}
             >
-              💳 Payment Method
+              Payment
             </span>
             <span
-              className={`font-display font-bold transition-all duration-300 ${currentStep >= 3 ? 'text-brand-primary text-xl' : 'text-neutral-500'}`}
+              className={`font-medium transition-colors ${
+                currentStep >= 3 ? 'text-brand-primary' : 'text-neutral-500'
+              }`}
             >
-              ✅ Confirm Order
+              Review
             </span>
           </div>
         </div>
@@ -391,22 +463,22 @@ export default function CheckoutPage() {
 
             {/* Step 1: Shipping Address */}
             {currentStep === 1 && (
-              <Card className="shadow-futuristic border border-neutral-200 rounded-3xl overflow-hidden">
-                <CardHeader className="bg-neutral-50 border-b border-neutral-200 text-neutral-900 p-8">
-                  <CardTitle className="flex items-center gap-4 text-3xl font-display font-bold">
-                    <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center">
-                      <Truck className="w-7 h-7 text-brand-primary" />
+              <Card className="shadow-sm border border-neutral-200 rounded-xl overflow-hidden">
+                <CardHeader className="bg-neutral-50 border-b border-neutral-200 p-6">
+                  <CardTitle className="flex items-center gap-3 text-xl font-semibold">
+                    <div className="p-2 bg-neutral-100 rounded-lg flex items-center justify-center">
+                      <Truck className="w-5 h-5 text-brand-primary" />
                     </div>
-                    Shipping Address
+                    Delivery Address
                   </CardTitle>
-                  <p className="text-neutral-600 mt-3 text-lg">
+                  <p className="text-neutral-600 mt-2 text-sm">
                     Where should we deliver your items?
                   </p>
                 </CardHeader>
-                <CardContent className="space-y-10 p-10">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <Label htmlFor="firstName" className="text-lg font-semibold text-neutral-800">
+                <CardContent className="space-y-6 p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName" className="text-sm font-medium text-neutral-700">
                         First Name *
                       </Label>
                       <Input
@@ -414,11 +486,11 @@ export default function CheckoutPage() {
                         value={shippingAddress.firstName}
                         onChange={(e) => handleAddressChange('firstName', e.target.value)}
                         placeholder="Enter first name"
-                        className="h-14 text-lg border-2 border-neutral-300 rounded-2xl focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all duration-300 bg-surface-elevated"
+                        className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary"
                       />
                     </div>
-                    <div className="space-y-4">
-                      <Label htmlFor="lastName" className="text-lg font-semibold text-neutral-800">
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="text-sm font-medium text-neutral-700">
                         Last Name *
                       </Label>
                       <Input
@@ -426,7 +498,7 @@ export default function CheckoutPage() {
                         value={shippingAddress.lastName}
                         onChange={(e) => handleAddressChange('lastName', e.target.value)}
                         placeholder="Enter last name"
-                        className="h-14 text-lg border-2 border-neutral-300 rounded-2xl focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all duration-300 bg-surface-elevated"
+                        className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary"
                       />
                     </div>
                   </div>
@@ -449,11 +521,11 @@ export default function CheckoutPage() {
                         id="phone"
                         value={shippingAddress.phone}
                         onChange={(e) => handleAddressChange('phone', e.target.value)}
-                        placeholder="+254 700 123 456"
+                        placeholder="+255 700 123 456"
                         className="border-2 focus:border-brand-primary"
                       />
                       <p className="text-xs text-neutral-500">
-                        Include country code (e.g., +254 for Kenya, +255 for Tanzania)
+                        Include country code (e.g., +255 for Tanzania, +254 for Kenya)
                       </p>
                     </div>
                   </div>
@@ -469,14 +541,21 @@ export default function CheckoutPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="country">Country *</Label>
                       <select
                         id="country"
                         value={selectedCountry}
-                        onChange={(e) => handleCountryChange(e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-neutral-200 rounded-md focus:border-brand-primary focus:outline-none"
+                        onChange={handleCountryChange}
+                        className="w-full h-11 px-3 py-2 border-2 border-neutral-200 rounded-md focus:border-brand-primary focus:outline-none bg-white appearance-none cursor-pointer transition-colors"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                          backgroundPosition: 'right 0.5rem center',
+                          backgroundRepeat: 'no-repeat',
+                          backgroundSize: '1.5em 1.5em',
+                          paddingRight: '2.5rem',
+                        }}
                       >
                         {eastAfricanCountries.map((country) => (
                           <option key={country.code} value={country.code}>
@@ -490,26 +569,23 @@ export default function CheckoutPage() {
                       <select
                         id="city"
                         value={shippingAddress.city}
-                        onChange={(e) => handleAddressChange('city', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-neutral-200 rounded-md focus:border-brand-primary focus:outline-none"
+                        onChange={handleCityChange}
+                        className="w-full h-11 px-3 py-2 border-2 border-neutral-200 rounded-md focus:border-brand-primary focus:outline-none bg-white appearance-none cursor-pointer transition-colors"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                          backgroundPosition: 'right 0.5rem center',
+                          backgroundRepeat: 'no-repeat',
+                          backgroundSize: '1.5em 1.5em',
+                          paddingRight: '2.5rem',
+                        }}
                       >
                         <option value="">Select a city</option>
                         {availableCities.map((city) => (
-                          <option key={city} value={city}>
-                            {city}
+                          <option key={city.name} value={city.name}>
+                            {city.flag} {city.name}
                           </option>
                         ))}
                       </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="postalCode">Postal Code</Label>
-                      <Input
-                        id="postalCode"
-                        value={shippingAddress.postalCode}
-                        onChange={(e) => handleAddressChange('postalCode', e.target.value)}
-                        placeholder="00100"
-                        className="border-2 focus:border-brand-primary"
-                      />
                     </div>
                   </div>
 
@@ -529,25 +605,39 @@ export default function CheckoutPage() {
                     <Label className="text-base font-medium">Delivery Method</Label>
                     <RadioGroup value={shippingMethod} onValueChange={setShippingMethod}>
                       {shippingOptions.map((option) => (
-                        <div
+                        <label
                           key={option.id}
-                          className="flex items-start space-x-3 p-4 border-2 rounded-lg hover:bg-neutral-50 hover:border-brand-primary/50 transition-all duration-200"
+                          htmlFor={option.id}
+                          className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-neutral-50 hover:border-brand-primary/50 transition-all duration-200 ${
+                            option.isGloboExpat
+                              ? 'bg-gradient-to-r from-brand-primary/5 to-brand-secondary/5 border-brand-primary/30'
+                              : ''
+                          } ${
+                            shippingMethod === option.id
+                              ? 'border-brand-primary bg-brand-primary/5'
+                              : 'border-neutral-200'
+                          }`}
                         >
                           <RadioGroupItem value={option.id} id={option.id} className="mt-1" />
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
-                              <Label
-                                htmlFor={option.id}
-                                className="font-medium cursor-pointer flex items-center gap-2"
+                              <div
+                                className={`font-medium flex items-center gap-2 ${
+                                  option.isGloboExpat ? 'text-brand-primary' : ''
+                                }`}
                               >
-                                <span className="text-xl">{option.icon}</span>
+                                {option.isGloboExpat && (
+                                  <span className="inline-flex items-center text-xs font-bold bg-brand-primary text-white px-2 py-0.5 rounded">
+                                    Globo<span className="text-brand-secondary">expat</span>
+                                  </span>
+                                )}
                                 {option.name}
-                              </Label>
+                              </div>
                               <div className="text-right">
-                                <span className="font-semibold text-lg">
-                                  {option.price === 0
-                                    ? 'Free'
-                                    : `${selectedCountryData?.currency || 'KES'} ${option.price.toLocaleString()}`}
+                                <span
+                                  className={`font-semibold text-lg ${option.isGloboExpat ? 'text-brand-primary' : 'text-neutral-600'}`}
+                                >
+                                  {option.priceDisplay || 'Varies'}
                                 </span>
                               </div>
                             </div>
@@ -556,7 +646,7 @@ export default function CheckoutPage() {
                               <p className="text-sm text-neutral-600">{option.description}</p>
                             </div>
                           </div>
-                        </div>
+                        </label>
                       ))}
                     </RadioGroup>
                   </div>
@@ -566,17 +656,19 @@ export default function CheckoutPage() {
 
             {/* Step 2: Payment Method */}
             {currentStep === 2 && (
-              <Card className="shadow-futuristic border border-neutral-200 rounded-3xl overflow-hidden">
-                <CardHeader className="bg-neutral-50 border-b border-neutral-200 pb-6">
-                  <CardTitle className="flex items-center gap-3 text-2xl">
+              <Card className="shadow-sm border border-neutral-200 rounded-xl overflow-hidden">
+                <CardHeader className="bg-neutral-50 border-b border-neutral-200 p-6">
+                  <CardTitle className="flex items-center gap-3 text-xl font-semibold">
                     <div className="p-2 bg-neutral-100 rounded-lg">
-                      <CreditCard className="w-6 h-6 text-brand-primary" />
+                      <CreditCard className="w-5 h-5 text-brand-primary" />
                     </div>
                     Payment Method
                   </CardTitle>
-                  <p className="text-neutral-600 mt-2">Choose your preferred payment option</p>
+                  <p className="text-neutral-600 mt-2 text-sm">
+                    Choose your preferred payment option
+                  </p>
                 </CardHeader>
-                <CardContent className="space-y-8 p-8">
+                <CardContent className="space-y-6 p-6">
                   <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
                     {paymentMethods.map((method) => (
                       <div
@@ -593,8 +685,10 @@ export default function CheckoutPage() {
                           className="w-5 h-5 border-2"
                         />
                         <div className="flex-1">
-                          <div className="flex items-center gap-4">
-                            <div className="text-3xl flex-shrink-0">{method.icon}</div>
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-neutral-100 rounded-lg">
+                              <CreditCard className="w-5 h-5 text-brand-primary" />
+                            </div>
                             <div className="min-w-0">
                               <Label
                                 htmlFor={method.id}
@@ -620,8 +714,8 @@ export default function CheckoutPage() {
                     selectedPayment === 'airtel' ||
                     selectedPayment === 'mixx') && (
                     <div className="p-6 bg-neutral-50 rounded-2xl border border-neutral-200 mt-6">
-                      <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                        📱 Mobile Money Details
+                      <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+                        Mobile Money Details
                       </h3>
                       <div className="space-y-4">
                         <div>
@@ -642,16 +736,16 @@ export default function CheckoutPage() {
                               }))
                             }
                             placeholder={selectedCountryData?.phoneCode + ' 700 123 456'}
-                            className="h-12 text-lg border-2 border-neutral-300 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all duration-200 mt-2"
+                            className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary mt-2"
                           />
                           <p className="text-sm text-neutral-700 mt-2">
-                            📞 Enter the mobile number registered with{' '}
+                            Enter the mobile number registered with{' '}
                             {paymentMethods.find((p) => p.id === selectedPayment)?.name}
                           </p>
                         </div>
                         <div className="bg-white p-4 rounded-xl border-2 border-neutral-200">
                           <h4 className="font-semibold text-neutral-900 mb-2">
-                            💡 Payment Instructions:
+                            Payment Instructions
                           </h4>
                           <ul className="space-y-1 text-sm text-neutral-700">
                             <li>• You'll receive a payment prompt on your phone</li>
@@ -666,9 +760,7 @@ export default function CheckoutPage() {
                   {/* Credit/Debit Card Payment Details */}
                   {selectedPayment === 'card' && (
                     <div className="p-6 bg-neutral-50 rounded-2xl border border-neutral-200 mt-6">
-                      <h3 className="text-xl font-bold text-neutral-900 mb-4 flex items-center gap-2">
-                        💳 Card Details
-                      </h3>
+                      <h3 className="text-lg font-semibold text-neutral-900 mb-4">Card Details</h3>
                       <div className="space-y-4">
                         <div>
                           <Label
@@ -687,7 +779,7 @@ export default function CheckoutPage() {
                               }))
                             }
                             placeholder="John Doe"
-                            className="h-12 text-lg border-2 border-neutral-300 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all duration-200 mt-2"
+                            className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary mt-2"
                           />
                         </div>
                         <div>
@@ -704,7 +796,7 @@ export default function CheckoutPage() {
                               setPaymentDetails((prev) => ({ ...prev, cardNumber: e.target.value }))
                             }
                             placeholder="1234 5678 9012 3456"
-                            className="h-12 text-lg border-2 border-neutral-300 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all duration-200 mt-2"
+                            className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary mt-2"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -725,7 +817,7 @@ export default function CheckoutPage() {
                                 }))
                               }
                               placeholder="MM/YY"
-                              className="h-12 text-lg border-2 border-neutral-300 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all duration-200 mt-2"
+                              className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary mt-2"
                             />
                           </div>
                           <div>
@@ -739,14 +831,12 @@ export default function CheckoutPage() {
                                 setPaymentDetails((prev) => ({ ...prev, cvv: e.target.value }))
                               }
                               placeholder="123"
-                              className="h-12 text-lg border-2 border-neutral-300 rounded-xl focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all duration-200 mt-2"
+                              className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary mt-2"
                             />
                           </div>
                         </div>
                         <div className="bg-white p-4 rounded-xl border-2 border-neutral-200">
-                          <h4 className="font-semibold text-neutral-900 mb-2">
-                            🔒 Secure Payment:
-                          </h4>
+                          <h4 className="font-semibold text-neutral-900 mb-2">Secure Payment</h4>
                           <ul className="space-y-1 text-sm text-neutral-700">
                             <li>• Your card details are encrypted and secure</li>
                             <li>• We accept Visa, Mastercard, and local bank cards</li>
@@ -809,8 +899,7 @@ export default function CheckoutPage() {
                       </p>
                       <p>{shippingAddress.address}</p>
                       <p>
-                        {shippingAddress.city}, {shippingAddress.country}{' '}
-                        {shippingAddress.postalCode}
+                        {shippingAddress.city}, {shippingAddress.country}
                       </p>
                       <p>{shippingAddress.phone}</p>
                     </div>
@@ -897,8 +986,8 @@ export default function CheckoutPage() {
                     </>
                   ) : (
                     <>
-                      🎉 Complete Purchase
-                      <CheckCircle2 className="w-6 h-6 ml-3" />
+                      Complete Purchase
+                      <CheckCircle2 className="w-5 h-5 ml-2" />
                     </>
                   )}
                 </Button>
@@ -909,42 +998,44 @@ export default function CheckoutPage() {
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky top-6">
-              <Card className="shadow-futuristic border border-neutral-200 rounded-3xl overflow-hidden">
+              <Card className="shadow-sm border border-neutral-200 rounded-xl overflow-hidden">
                 <CardHeader className="bg-neutral-50 border-b border-neutral-200 p-6">
-                  <CardTitle className="flex items-center gap-3 text-2xl">
-                    <div className="p-2 bg-neutral-100 rounded-full">
-                      <span className="text-2xl">🛒</span>
-                    </div>
+                  <CardTitle className="text-2xl font-semibold text-neutral-900">
                     Order Summary
                   </CardTitle>
                   <div className="flex items-center gap-2 mt-3">
-                    <div className="bg-white px-3 py-1 rounded-full border-2 border-neutral-200">
-                      <span className="text-sm font-bold text-neutral-700">
-                        {checkoutItems.length} item{checkoutItems.length !== 1 ? 's' : ''}
+                    <div className="bg-white px-3 py-1 rounded-full border border-neutral-200">
+                      <span className="text-sm font-medium text-neutral-700">
+                        {checkoutItems.length} {checkoutItems.length === 1 ? 'item' : 'items'}
                       </span>
                     </div>
-                    <div className="bg-white px-3 py-1 rounded-full border-2 border-neutral-200">
-                      <span className="text-sm font-bold text-neutral-700">
-                        {selectedCountryData?.flag} {selectedCountryData?.name}
+                    <div className="bg-white px-3 py-1 rounded-full border border-neutral-200">
+                      <span className="text-sm font-medium text-neutral-700">
+                        {selectedCountryData?.name}
                       </span>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-8 space-y-6">
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-sm text-blue-800">
+                      Prices shown in your selected currency. Payment processed in{' '}
+                      <strong>TZS (Tanzanian Shilling)</strong> at checkout.
+                    </AlertDescription>
+                  </Alert>
+
                   <div className="space-y-4">
                     <div className="flex justify-between text-lg p-3 bg-gray-50 rounded-xl">
                       <span className="font-medium">Subtotal ({checkoutItems.length} items)</span>
                       <span className="font-bold text-neutral-900">
-                        {formatPrice(checkoutSubtotal)}
+                        <PriceDisplay price={checkoutSubtotal} size="lg" weight="bold" />
                       </span>
                     </div>
                     <div className="flex justify-between text-lg p-3 bg-gray-50 rounded-xl">
-                      <span className="flex items-center gap-2 font-medium">
-                        <span className="text-xl">{selectedShippingOption?.icon}</span>
-                        Shipping ({selectedShippingOption?.name})
-                      </span>
-                      <span className="font-bold text-neutral-900">
-                        {shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}
+                      <span className="font-medium">Delivery ({selectedShippingOption?.name})</span>
+                      <span className="font-semibold text-neutral-600">
+                        {selectedShippingOption?.priceDisplay || 'Varies'}
                       </span>
                     </div>
                   </div>
@@ -955,16 +1046,16 @@ export default function CheckoutPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-bold text-gray-800">Total</span>
                       <span className="text-3xl font-bold text-brand-primary">
-                        {formatPrice(totalAmount)}
+                        <PriceDisplay price={totalAmount} size="xl" weight="bold" showOriginal />
                       </span>
                     </div>
                   </div>
 
                   {/* Security Info */}
                   <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
-                    <h4 className="font-bold text-neutral-900 mb-4 text-lg flex items-center gap-2">
+                    <h4 className="font-semibold text-neutral-900 mb-3 flex items-center gap-2">
                       <Shield className="w-5 h-5" />
-                      🔐 Secure Payment
+                      Secure Payment
                     </h4>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3 text-neutral-700">

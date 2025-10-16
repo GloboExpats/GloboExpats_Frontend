@@ -11,25 +11,29 @@ Both the header and Sheet components were using the same z-index (`z-50`), causi
 ## Solution
 
 ### 1. Increased Header Z-Index
+
 **File**: `/components/header.tsx`
 
 ```tsx
 // Before
-className="... sticky top-0 z-50"
+className = '... sticky top-0 z-50'
 
 // After
-className="... sticky top-0 z-[60]"
+className = '... sticky top-0 z-[60]'
 ```
 
 **Changes**:
+
 - Header now uses `z-[60]` instead of `z-50`
 - Applied to both `Header` component and `HeaderSkeleton`
 - Ensures header is always above all Sheet components (which use `z-50`)
 
 ### 2. Positioned Sheet Content Below Header
+
 Applied to all Sheet components to start 64px below the top (header height):
 
 #### A. Cart Side Panel
+
 **File**: `/components/cart-sidepanel.tsx`
 
 ```tsx
@@ -41,6 +45,7 @@ Applied to all Sheet components to start 64px below the top (header height):
 ```
 
 #### B. Mobile Search
+
 **File**: `/components/header/mobile-menu.tsx`
 
 ```tsx
@@ -52,6 +57,7 @@ Applied to all Sheet components to start 64px below the top (header height):
 ```
 
 #### C. Mobile Navigation Menu
+
 **File**: `/components/header/mobile-menu.tsx`
 
 ```tsx
@@ -63,11 +69,12 @@ Applied to all Sheet components to start 64px below the top (header height):
 ```
 
 #### D. Category Sidebar
+
 **File**: `/components/mobile-sidebar-toggle.tsx`
 
 ```tsx
-<SheetContent 
-  side="left" 
+<SheetContent
+  side="left"
   className="w-[280px] sm:w-80 p-0 flex flex-col top-[64px] h-[calc(100vh-64px)]"
 >
 ```
@@ -75,16 +82,19 @@ Applied to all Sheet components to start 64px below the top (header height):
 ## Key CSS Properties Used
 
 ### `top-[64px]`
+
 - Positions Sheet content to start 64px from the top
 - 64px = height of header (`h-16` = 4rem = 64px)
 - Ensures content doesn't overlap the header
 
 ### `h-[calc(100vh-64px)]`
+
 - Sets height to full viewport minus header height
 - Prevents Sheet content from extending below viewport
 - Ensures proper scrolling within the Sheet
 
 ### `z-[60]`
+
 - Custom z-index above the default `z-50` used by Sheet components
 - Ensures header always renders on top
 - Uses bracket notation for arbitrary values in Tailwind
@@ -107,21 +117,25 @@ Applied to all Sheet components to start 64px below the top (header height):
 ## Benefits
 
 ### ✅ User Experience
+
 - Header remains visible and accessible at all times
 - Users can always close sheets or navigate away
 - Brand consistency maintained
 
 ### ✅ Mobile First
+
 - Search functionality no longer covered on mobile
 - Navigation menu properly positioned
 - Cart panel doesn't hide header actions
 
 ### ✅ Accessibility
+
 - Navigation always accessible
 - Keyboard users can always reach header controls
 - Screen readers can always access header elements
 
 ### ✅ Responsive Design
+
 - Works consistently across all viewport sizes
 - Proper spacing on mobile and desktop
 - No content cutoff or overflow issues

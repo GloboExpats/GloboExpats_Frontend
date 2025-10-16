@@ -8,11 +8,10 @@ import {
   Shield,
   Bell,
   MessageCircle,
-  ChevronDown,
   ShoppingCart,
   User as UserIcon,
   Settings,
-  Search,
+  Store as StoreIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,23 +22,15 @@ import {
   SheetHeader,
   SheetDescription,
 } from '@/components/ui/sheet'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import type { User, Currency } from '@/lib/types'
+import type { User } from '@/lib/types'
 import { useCart } from '@/hooks/use-cart'
+import { CurrencyToggle } from '@/components/currency-toggle'
 
 interface MobileMenuProps {
   isLoggedIn: boolean
   isAdmin: boolean
   isAuthPage: boolean
   user: User | null
-  currency: string
-  currencies: readonly Currency[]
-  setCurrency: (currency: string) => void
   handleLogout: () => void
 }
 
@@ -68,16 +59,7 @@ const CartMenuItem = React.memo(() => {
 CartMenuItem.displayName = 'CartMenuItem'
 
 export const MobileMenu = React.memo<MobileMenuProps>(
-  ({
-    isLoggedIn,
-    isAdmin,
-    isAuthPage: _isAuthPage,
-    user: _user,
-    currency,
-    currencies,
-    setCurrency,
-    handleLogout,
-  }) => {
+  ({ isLoggedIn, isAdmin, isAuthPage: _isAuthPage, user: _user, handleLogout }) => {
     return (
       <div className="flex items-center gap-1">
         {/* Mobile Menu */}
@@ -112,19 +94,18 @@ export const MobileMenu = React.memo<MobileMenuProps>(
                   href="/browse"
                   className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2"
                 >
-                  <Search className="h-4 w-4" /> Browse
+                  <StoreIcon className="h-4 w-4" /> Store
                 </Link>
-
                 <CartMenuItem />
 
                 {isLoggedIn ? (
                   <>
                     <Link
-                      href="/expat/dashboard"
+                      href="/account/listings"
                       className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2"
                     >
                       <Package className="h-4 w-4" />
-                      My Listings
+                      My Space
                     </Link>
                     <Link
                       href="/notifications"
@@ -177,43 +158,10 @@ export const MobileMenu = React.memo<MobileMenuProps>(
               <div className="mt-auto pt-6 border-t border-neutral-700 space-y-3">
                 {/* Mobile Currency Selector */}
                 <div className="space-y-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between rounded-full border-2 border-white/60 text-white bg-transparent hover:bg-white hover:text-slate-900 hover:border-white px-4 py-2 h-auto"
-                        aria-label="Select currency"
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="text-xs font-medium uppercase tracking-wide">
-                            CURRENCY:
-                          </span>
-                          {currencies.find((c) => c.code === currency)?.flag} {currency}
-                        </span>
-                        <ChevronDown className="ml-1 h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-56 bg-white border border-slate-200 shadow-lg rounded-lg z-[100]"
-                      align="center"
-                      side="top"
-                      sideOffset={8}
-                    >
-                      {currencies.map((curr) => (
-                        <DropdownMenuItem
-                          key={curr.code}
-                          onClick={() => setCurrency(curr.code)}
-                          className="text-slate-900 hover:bg-slate-100 hover:text-slate-900 cursor-pointer focus:bg-slate-100 focus:text-slate-900 flex items-center gap-2 px-3 py-2"
-                          aria-label={`Switch to ${curr.code} currency`}
-                        >
-                          <span aria-hidden="true" className="text-base">
-                            {curr.flag}
-                          </span>
-                          <span className="font-medium">{curr.code}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="text-xs font-medium uppercase tracking-wide text-white/70 mb-2">
+                    CURRENCY:
+                  </div>
+                  <CurrencyToggle variant="default" showRates size="lg" className="w-full" />
                 </div>
 
                 {isLoggedIn && (

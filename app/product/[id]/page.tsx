@@ -28,6 +28,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
 import { transformBackendProduct } from '@/lib/image-utils'
 import type { FeaturedItem } from '@/lib/types'
+import PriceDisplay from '@/components/price-display'
+import { parseNumericPrice } from '@/lib/utils'
 
 export default function ProductPage() {
   const params = useParams()
@@ -359,10 +361,23 @@ export default function ProductPage() {
                 {/* Price */}
                 <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 mb-6">
                   <div className="flex items-baseline gap-3 mb-2">
-                    <span className="text-3xl font-bold text-blue-600">{product.price}</span>
+                    <span className="text-3xl font-bold">
+                      <PriceDisplay
+                        price={parseNumericPrice(product.price)}
+                        size="xl"
+                        weight="bold"
+                        variant="secondary"
+                        showOriginal
+                      />
+                    </span>
                     {product.originalPrice && (
-                      <span className="text-lg text-gray-400 line-through">
-                        {product.originalPrice}
+                      <span className="text-lg">
+                        <PriceDisplay
+                          price={parseNumericPrice(product.originalPrice)}
+                          size="md"
+                          variant="muted"
+                          className="line-through"
+                        />
                       </span>
                     )}
                   </div>
@@ -374,14 +389,26 @@ export default function ProductPage() {
 
                 {/* Action Buttons */}
                 <div className="space-y-4 mb-6">
+                  {/* Debug: Log productId */}
+                  {(() => {
+                    console.log('🔍 Product Page Debug:', {
+                      rawProductId: rawProductData?.productId,
+                      productId: product.id,
+                      urlId: id,
+                      rawProductDataKeys: rawProductData ? Object.keys(rawProductData) : [],
+                    })
+                    return null
+                  })()}
                   <ProductActions
+                    productId={rawProductData?.productId as number}
                     sellerName={product.listedBy}
                     productTitle={product.title}
                     productPrice={product.price}
                     productImage={product.image}
-                    productCondition={'new'}
+                    productCondition={(rawProductData?.productCondition as string) || 'new'}
                     productLocation={product.location}
                     verifiedSeller={product.isVerified}
+                    currency="TZS"
                   />
 
                   <div className="grid grid-cols-2 gap-3">
@@ -536,12 +563,22 @@ export default function ProductPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-baseline gap-2">
-                        <span className="font-bold text-blue-600 text-lg">
-                          {similarProduct.price}
+                        <span className="font-bold text-lg">
+                          <PriceDisplay
+                            price={parseNumericPrice(similarProduct.price)}
+                            size="lg"
+                            weight="bold"
+                            variant="secondary"
+                          />
                         </span>
                         {similarProduct.originalPrice && (
-                          <span className="text-xs text-gray-400 line-through">
-                            {similarProduct.originalPrice}
+                          <span className="text-xs">
+                            <PriceDisplay
+                              price={parseNumericPrice(similarProduct.originalPrice)}
+                              size="sm"
+                              variant="muted"
+                              className="line-through"
+                            />
                           </span>
                         )}
                       </div>

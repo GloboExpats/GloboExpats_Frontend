@@ -7,6 +7,7 @@ import ErrorBoundary from '@/components/error-boundary'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/providers/auth-provider'
 import { CartProvider } from '@/providers/cart-provider'
+import { CurrencyProvider } from '@/providers/currency-provider'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -25,6 +26,10 @@ export const metadata: Metadata = {
   title: 'Globoexpat - Marketplace for Expats',
   description:
     'Connect with verified sellers worldwide. Buy and sell quality items in the global expat community.',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/apple-icon.svg',
+  },
 }
 
 export const viewport: Viewport = {
@@ -41,14 +46,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={`${inter.variable} ${lexend.variable}`}>
       <body className="font-sans antialiased min-h-screen bg-background">
-        <AuthProvider>
-          <CartProvider>
-            <ErrorBoundary level="page" name="Application">
-              <LayoutContent>{children}</LayoutContent>
-              <Toaster />
-            </ErrorBoundary>
-          </CartProvider>
-        </AuthProvider>
+        <CurrencyProvider enableAutoRefresh>
+          <AuthProvider>
+            <CartProvider>
+              <ErrorBoundary level="page" name="Application">
+                <LayoutContent>{children}</LayoutContent>
+                <Toaster />
+              </ErrorBoundary>
+            </CartProvider>
+          </AuthProvider>
+        </CurrencyProvider>
       </body>
     </html>
   )

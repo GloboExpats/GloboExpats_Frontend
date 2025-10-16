@@ -216,6 +216,34 @@ export function validatePhone(phone: string): boolean {
  */
 
 /**
+ * Extracts numeric price value from formatted price strings
+ * Removes currency symbols, commas, and other non-numeric characters
+ *
+ * @param price - Price as string or number
+ * @returns Numeric price value (in TZS from database)
+ *
+ * @example
+ * parseNumericPrice('TSh 2,500') // 2500
+ * parseNumericPrice('$1.50') // 1.50
+ * parseNumericPrice(1234) // 1234
+ */
+export function parseNumericPrice(price: string | number): number {
+  if (typeof price === 'number') {
+    return price
+  }
+
+  if (!price || typeof price !== 'string') {
+    return 0
+  }
+
+  // Remove all non-numeric characters except decimal point and minus sign
+  const cleaned = price.replace(/[^0-9.-]/g, '')
+  const parsed = parseFloat(cleaned)
+
+  return isNaN(parsed) ? 0 : parsed
+}
+
+/**
  * Formats price with proper currency handling and localization
  *
  * @param price - Price as string or number

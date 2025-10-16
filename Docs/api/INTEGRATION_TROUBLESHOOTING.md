@@ -9,12 +9,14 @@ Common issues and solutions when working with the GloboExpat API.
 ### 1. 401 Unauthorized Errors
 
 #### **Symptom**
+
 ```
 Error: HTTP error! status: 401
 Authentication failed. Please check your credentials.
 ```
 
 #### **Causes**
+
 1. Token expired (2-hour expiry)
 2. Token not set in ApiClient
 3. Token cleared from localStorage
@@ -23,6 +25,7 @@ Authentication failed. Please check your credentials.
 #### **Solutions**
 
 **A. Check if token is set:**
+
 ```typescript
 import { getAuthToken } from '@/lib/auth-service'
 
@@ -34,6 +37,7 @@ if (!token) {
 ```
 
 **B. Verify token in localStorage:**
+
 ```typescript
 // Open browser console
 localStorage.getItem('expat_auth_token')
@@ -41,6 +45,7 @@ localStorage.getItem('expat_auth_token_expiry')
 ```
 
 **C. Force token rehydration:**
+
 ```typescript
 import { apiClient } from '@/lib/api'
 import { getAuthToken } from '@/lib/auth-service'
@@ -52,6 +57,7 @@ if (token) {
 ```
 
 **D. The ApiClient has automatic retry:**
+
 ```typescript
 // This is already implemented in /lib/api.ts
 // On 401 error, it automatically:
@@ -65,12 +71,14 @@ if (token) {
 ### 2. CORS Errors
 
 #### **Symptom**
+
 ```
-Access to fetch at 'http://10.123.22.21:8081/api/v1/...' from origin 'http://localhost:3000' 
+Access to fetch at 'http://10.123.22.21:8081/api/v1/...' from origin 'http://localhost:3000'
 has been blocked by CORS policy
 ```
 
 #### **Causes**
+
 1. Backend CORS not configured for your origin
 2. Preflight OPTIONS request failing
 3. Missing credentials in request
@@ -78,6 +86,7 @@ has been blocked by CORS policy
 #### **Solutions**
 
 **A. Check environment variables:**
+
 ```bash
 # .env.local
 NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
@@ -85,33 +94,29 @@ NEXT_PUBLIC_BACKEND_URL=http://10.123.22.21:8081
 ```
 
 **B. Use Next.js API routes as proxy:**
+
 ```typescript
 // For problematic endpoints, create proxy:
 // /app/api/products/[id]/route.ts
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const body = await request.json()
   const token = request.headers.get('authorization')
-  
-  const response = await fetch(
-    `http://10.123.22.21:8081/api/v1/products/update/${params.id}`,
-    {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token || ''
-      },
-      body: JSON.stringify(body)
-    }
-  )
-  
+
+  const response = await fetch(`http://10.123.22.21:8081/api/v1/products/update/${params.id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token || '',
+    },
+    body: JSON.stringify(body),
+  })
+
   return response
 }
 ```
 
 **C. Verify backend CORS settings:**
+
 ```java
 // Backend should have:
 @CrossOrigin(origins = {"http://localhost:3000", "http://10.123.22.21:3000"})
@@ -124,12 +129,14 @@ export async function PATCH(
 ### 3. Image Upload Failures
 
 #### **Symptom**
+
 ```
 Failed to upload product images
 Error: Request failed with status 400
 ```
 
 #### **Causes**
+
 1. File size exceeds limit (5MB)
 2. Invalid file format
 3. Missing FormData structure
@@ -138,23 +145,24 @@ Error: Request failed with status 400
 #### **Solutions**
 
 **A. Validate files before upload:**
+
 ```typescript
 const validateImage = (file: File) => {
   // Check file type
   if (!file.type.startsWith('image/')) {
     throw new Error('File must be an image')
   }
-  
+
   // Check file size (5MB limit)
   if (file.size > 5 * 1024 * 1024) {
     throw new Error('Image must be less than 5MB')
   }
-  
+
   return true
 }
 
 // Use in upload handler
-files.forEach(file => {
+files.forEach((file) => {
   try {
     validateImage(file)
     validFiles.push(file)
@@ -165,19 +173,23 @@ files.forEach(file => {
 ```
 
 **B. Correct FormData structure:**
+
 ```typescript
 const formData = new FormData()
 
 // 1. Add product data as JSON string
-formData.append('product', JSON.stringify({
-  productName: 'MacBook Pro',
-  categoryId: 3,
-  askingPrice: 1200
-  // ... other fields
-}))
+formData.append(
+  'product',
+  JSON.stringify({
+    productName: 'MacBook Pro',
+    categoryId: 3,
+    askingPrice: 1200,
+    // ... other fields
+  })
+)
 
 // 2. Add images (use 'images' key for multiple files)
-imageFiles.forEach(file => {
+imageFiles.forEach((file) => {
   formData.append('images', file)
 })
 
@@ -185,14 +197,15 @@ imageFiles.forEach(file => {
 const response = await fetch(url, {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
     // DO NOT add 'Content-Type': 'multipart/form-data'
   },
-  body: formData
+  body: formData,
 })
 ```
 
 **C. Debug FormData content:**
+
 ```typescript
 // Log what's being sent
 for (let pair of formData.entries()) {
@@ -205,12 +218,14 @@ for (let pair of formData.entries()) {
 ### 4. Product Category Issues
 
 #### **Symptom**
+
 ```
 Error: Please select a valid category
 Category not found
 ```
 
 #### **Causes**
+
 1. Using category name instead of categoryId
 2. Category list not loaded from backend
 3. Hardcoded category IDs that don't match backend
@@ -218,6 +233,7 @@ Category not found
 #### **Solutions**
 
 **A. Always fetch categories from backend:**
+
 ```typescript
 const [categories, setCategories] = useState<Category[]>([])
 
@@ -235,9 +251,10 @@ useEffect(() => {
 ```
 
 **B. Map category name to ID:**
+
 ```typescript
 const selectedCategory = categories.find(
-  cat => cat.categoryName.toLowerCase() === formData.category.toLowerCase()
+  (cat) => cat.categoryName.toLowerCase() === formData.category.toLowerCase()
 )
 
 if (!selectedCategory) {
@@ -248,16 +265,17 @@ const categoryId = selectedCategory.categoryId
 ```
 
 **C. Backend categories (as of this audit):**
+
 ```typescript
 // Current categories from backend:
 1 - Automotive
-2 - Home & Furniture
-3 - Electronics & Tech
-4 - Games & Toys
-5 - Fashion & Style
-6 - Fitness & Sports
-7 - Books & Media
-8 - Arts & Crafts
+;(2 - Home) & Furniture
+;(3 - Electronics) & Tech
+;(4 - Games) & Toys
+;(5 - Fashion) & Style
+;(6 - Fitness) & Sports
+;(7 - Books) & Media
+;(8 - Arts) & Crafts
 
 // Always fetch dynamically - these may change!
 ```
@@ -267,6 +285,7 @@ const categoryId = selectedCategory.categoryId
 ### 5. Email Verification Failures
 
 #### **Symptom**
+
 ```
 OTP verification failed
 Email already verified
@@ -274,6 +293,7 @@ Buyer profile not found
 ```
 
 #### **Causes**
+
 1. Invalid OTP code
 2. OTP expired (typically 10-15 minutes)
 3. User already verified
@@ -282,6 +302,7 @@ Buyer profile not found
 #### **Solutions**
 
 **A. Ensure user is logged in:**
+
 ```typescript
 const { isLoggedIn } = useAuth()
 
@@ -293,6 +314,7 @@ if (!isLoggedIn) {
 ```
 
 **B. Request OTP with proper format:**
+
 ```typescript
 // Ensure token is set
 const token = getAuthToken()
@@ -305,15 +327,17 @@ await apiClient.sendEmailOtp('john.doe@company.com')
 ```
 
 **C. Verify with correct parameters:**
+
 ```typescript
 await apiClient.verifyEmailOtp(
-  'john.doe@company.com',  // organizational email
-  '123456',                 // 6-digit OTP
-  'SELLER'                  // role: 'SELLER' or 'USER'
+  'john.doe@company.com', // organizational email
+  '123456', // 6-digit OTP
+  'SELLER' // role: 'SELLER' or 'USER'
 )
 ```
 
 **D. Handle verification errors:**
+
 ```typescript
 try {
   await verifyOrganizationEmail(email, otp, role)
@@ -334,6 +358,7 @@ try {
 ### 6. Cart & Checkout Issues
 
 #### **Symptom**
+
 ```
 Account verification required
 Buyer profile not found
@@ -341,6 +366,7 @@ Cannot add items to cart
 ```
 
 #### **Causes**
+
 1. User not verified (email verification required)
 2. Buyer profile not created
 3. Missing authentication
@@ -348,6 +374,7 @@ Cannot add items to cart
 #### **Solutions**
 
 **A. Check verification status:**
+
 ```typescript
 const { isVerifiedBuyer, canBuy } = useAuth()
 
@@ -359,10 +386,11 @@ if (!canBuy) {
 ```
 
 **B. Verify buyer profile exists:**
+
 ```typescript
 try {
   const user = await apiClient.getUserDetails()
-  
+
   // Check if user has completed verification
   if (user.verificationStatus !== 'VERIFIED') {
     toast.warning('Please complete email verification')
@@ -377,6 +405,7 @@ try {
 ```
 
 **C. Complete verification flow:**
+
 ```typescript
 // 1. User logs in
 await login(email, password)
@@ -396,6 +425,7 @@ await apiClient.addToCart(productId, quantity)
 ### 7. Registration Issues
 
 #### **Symptom**
+
 ```
 User already exists
 Email already registered
@@ -404,6 +434,7 @@ Password requirements not met
 ```
 
 #### **Causes**
+
 1. Email already in system
 2. Invalid email format
 3. Weak password
@@ -412,6 +443,7 @@ Password requirements not met
 #### **Solutions**
 
 **A. Validate email format:**
+
 ```typescript
 const validateEmail = (email: string) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -425,6 +457,7 @@ if (!validateEmail(formData.email)) {
 ```
 
 **B. Validate password strength:**
+
 ```typescript
 const validatePassword = (password: string) => {
   if (password.length < 8) {
@@ -450,6 +483,7 @@ if (passwordError) {
 ```
 
 **C. Handle "user already exists" error:**
+
 ```typescript
 try {
   await apiClient.register(userData)
@@ -465,6 +499,7 @@ try {
 ```
 
 **D. Ensure terms are accepted:**
+
 ```typescript
 if (!formData.agreeToTerms || !formData.agreeToPrivacyPolicy) {
   setError('Please accept the Terms of Service and Privacy Policy')
@@ -477,6 +512,7 @@ if (!formData.agreeToTerms || !formData.agreeToPrivacyPolicy) {
 ### 8. Token Expiry Issues
 
 #### **Symptom**
+
 ```
 Session expired
 Please login again
@@ -484,6 +520,7 @@ Unauthorized access
 ```
 
 #### **Causes**
+
 1. Token expired (2-hour limit)
 2. User inactive for extended period
 3. Token manually cleared
@@ -491,11 +528,12 @@ Unauthorized access
 #### **Solutions**
 
 **A. Check token expiry:**
+
 ```typescript
 const isTokenValid = () => {
   const expiryTime = localStorage.getItem('expat_auth_token_expiry')
   if (!expiryTime) return false
-  
+
   const now = Date.now()
   return now < parseInt(expiryTime)
 }
@@ -507,6 +545,7 @@ if (!isTokenValid()) {
 ```
 
 **B. Implement auto-refresh (recommended):**
+
 ```typescript
 // In auth-service.ts - already implemented
 // Auto-logout timer triggers after 2 hours
@@ -516,20 +555,21 @@ useEffect(() => {
     toast.warning('Session expired')
     router.push('/login')
   }
-  
+
   window.addEventListener('authTokenExpired', handleExpiry)
   return () => window.removeEventListener('authTokenExpired', handleExpiry)
 }, [])
 ```
 
 **C. Extend session before expiry:**
+
 ```typescript
 // Refresh token before expiry (implement if backend supports)
 const refreshToken = async () => {
   try {
     const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${oldToken}` }
+      headers: { Authorization: `Bearer ${oldToken}` },
     })
     const { token } = await response.json()
     setAuthToken(token)
@@ -545,6 +585,7 @@ const refreshToken = async () => {
 ### 9. Environment Configuration Issues
 
 #### **Symptom**
+
 ```
 Cannot connect to API
 Network error
@@ -552,6 +593,7 @@ API endpoint not found
 ```
 
 #### **Causes**
+
 1. Missing environment variables
 2. Incorrect API URL
 3. Backend not running
@@ -559,6 +601,7 @@ API endpoint not found
 #### **Solutions**
 
 **A. Verify environment variables:**
+
 ```bash
 # Check .env.local exists
 cat .env.local
@@ -569,6 +612,7 @@ NEXT_PUBLIC_BACKEND_URL=http://10.123.22.21:8081
 ```
 
 **B. Test backend connectivity:**
+
 ```bash
 # Test if backend is accessible
 curl http://10.123.22.21:8081/api/v1/products/categories
@@ -577,6 +621,7 @@ curl http://10.123.22.21:8081/api/v1/products/categories
 ```
 
 **C. Restart Next.js after env changes:**
+
 ```bash
 # Environment variables are loaded at build time
 # Must restart dev server after changing .env files
@@ -584,6 +629,7 @@ npm run dev
 ```
 
 **D. Verify API_BASE_URL in code:**
+
 ```typescript
 // lib/api.ts
 console.log('API Base URL:', process.env.NEXT_PUBLIC_API_URL)
@@ -595,6 +641,7 @@ console.log('API Base URL:', process.env.NEXT_PUBLIC_API_URL)
 ### 10. Multipart Form Data Issues
 
 #### **Symptom**
+
 ```
 Missing form data
 Invalid multipart boundary
@@ -602,6 +649,7 @@ File upload failed
 ```
 
 #### **Causes**
+
 1. Incorrect Content-Type header
 2. Wrong FormData structure
 3. Missing boundary in multipart request
@@ -609,15 +657,16 @@ File upload failed
 #### **Solutions**
 
 **A. Never set Content-Type for FormData:**
+
 ```typescript
 // ❌ WRONG
 const response = await fetch(url, {
   method: 'POST',
   headers: {
     'Content-Type': 'multipart/form-data', // DON'T DO THIS!
-    'Authorization': `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   },
-  body: formData
+  body: formData,
 })
 
 // ✅ CORRECT
@@ -625,22 +674,23 @@ const response = await fetch(url, {
   method: 'POST',
   headers: {
     // Only include Authorization, browser sets Content-Type automatically
-    'Authorization': `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   },
-  body: formData
+  body: formData,
 })
 ```
 
 **B. Check FormData in ApiClient:**
+
 ```typescript
 // In lib/api.ts - already handled correctly
 private async request(endpoint: string, options: RequestInit = {}) {
   const isFormData = options.body instanceof FormData
-  
+
   const headers = isFormData
     ? { Authorization: this.headers.Authorization } // Only auth header
     : this.headers // Full headers including Content-Type
-  
+
   return fetch(url, { headers, ...options })
 }
 ```
@@ -652,6 +702,7 @@ private async request(endpoint: string, options: RequestInit = {}) {
 ### 1. Browser DevTools Network Tab
 
 **Check request details:**
+
 ```
 1. Open DevTools (F12)
 2. Navigate to Network tab
@@ -667,6 +718,7 @@ private async request(endpoint: string, options: RequestInit = {}) {
 ### 2. Console Logging
 
 **Add debug logs:**
+
 ```typescript
 // In api.ts
 private async request<T>(endpoint: string, options: RequestInit = {}) {
@@ -676,9 +728,9 @@ private async request<T>(endpoint: string, options: RequestInit = {}) {
   console.log('Headers:', headers)
   console.log('Body:', options.body)
   console.groupEnd()
-  
+
   // ... existing code
-  
+
   console.group('🟢 API Response')
   console.log('Status:', response.status)
   console.log('Data:', data)
@@ -689,6 +741,7 @@ private async request<T>(endpoint: string, options: RequestInit = {}) {
 ### 3. Test API Directly
 
 **Use cURL to bypass frontend:**
+
 ```bash
 # Test registration
 curl -X POST http://10.123.22.21:8081/api/v1/auth/register \
@@ -714,6 +767,7 @@ curl -X POST http://10.123.22.21:8081/api/v1/auth/login \
 ### 4. Check localStorage
 
 **Inspect stored data:**
+
 ```javascript
 // In browser console
 console.log('Token:', localStorage.getItem('expat_auth_token'))
@@ -729,6 +783,7 @@ localStorage.clear()
 ## Prevention Best Practices
 
 ### 1. Always Validate Input
+
 ```typescript
 // Before API call
 if (!data.email || !data.password) {
@@ -737,6 +792,7 @@ if (!data.email || !data.password) {
 ```
 
 ### 2. Handle All Error Cases
+
 ```typescript
 try {
   await apiCall()
@@ -752,6 +808,7 @@ try {
 ```
 
 ### 3. Show User-Friendly Messages
+
 ```typescript
 // Don't show technical errors to users
 catch (error) {
@@ -761,6 +818,7 @@ catch (error) {
 ```
 
 ### 4. Test Edge Cases
+
 ```typescript
 // Test with:
 - Empty inputs
@@ -777,11 +835,13 @@ catch (error) {
 ## Getting Help
 
 ### Resources
+
 1. **Swagger UI:** http://10.123.22.21:8081/swagger-ui/index.html#/
 2. **Platform Audit:** `/Docs/api/PLATFORM_AUDIT_REPORT.md`
 3. **API Reference:** `/Docs/api/API_QUICK_REFERENCE.md`
 
 ### Contact
+
 - **Backend Issues:** Check Swagger documentation first
 - **Frontend Issues:** Review error logs in browser console
 - **Integration Issues:** Check this troubleshooting guide
