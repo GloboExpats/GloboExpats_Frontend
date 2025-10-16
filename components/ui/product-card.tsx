@@ -143,7 +143,7 @@ export function ProductCard({
                 className="text-base sm:text-lg"
                 showOriginal
               />
-              {product.originalPrice && (
+              {product.originalPrice && parseNumericPrice(product.originalPrice) > 0 && (
                 <PriceDisplay
                   price={parseNumericPrice(product.originalPrice)}
                   size="sm"

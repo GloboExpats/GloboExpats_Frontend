@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = [
@@ -11,6 +11,8 @@ const PUBLIC_ROUTES = [
   '/faq',
   '/help',
   '/contact',
+  '/browse',
+  '/about',
 ]
 
 export function middleware(request: NextRequest) {
@@ -23,12 +25,18 @@ export function middleware(request: NextRequest) {
   ) {
     return NextResponse.next()
   }
-  if (PUBLIC_ROUTES.includes(pathname)) {
+
+  // Check if route is public or matches public patterns
+  if (
+    PUBLIC_ROUTES.includes(pathname) ||
+    pathname.startsWith('/product/') // Allow product detail pages
+  ) {
     return NextResponse.next()
   }
+
   const token = request.cookies.get('expat_auth_token')?.value
   // Log to verify if middleware sees the cookie
-  console.log('[MIDDLEWARE] Cookie token:', token)
+  console.log('[MIDDLEWARE] Cookie token:', token ? 'EXISTS' : 'undefined')
   if (!token || token.length < 10) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('returnUrl', pathname)

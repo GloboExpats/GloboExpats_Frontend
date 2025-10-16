@@ -22,7 +22,7 @@ export const Navigation = React.memo<NavigationProps>(
 
         {isLoggedIn && (
           <Link
-            href="/account/listings"
+            href="/expat/dashboard"
             className="text-base font-medium text-neutral-200 hover:text-white hover:bg-white/10 px-4 py-2 rounded-md transition-colors flex items-center gap-2 flex-shrink-0 whitespace-nowrap"
           >
             <Package className="h-4 w-4" />

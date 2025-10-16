@@ -91,13 +91,15 @@ const nextConfig = {
       { protocol: 'http', hostname: '10.123.22.21', port: '8081' }, // Backend API with port
       { protocol: 'http', hostname: '10.123.22.21' }, // Backend API without port
     ],
-    // Disable optimization in development for faster builds
-    unoptimized: process.env.NODE_ENV === 'development',
-    // Optimize image formats
+    // Optimize image formats - WebP for best compression, AVIF for even better quality
     formats: ['image/webp', 'image/avif'],
-    // Define image sizes for responsive images
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    // Define image sizes for responsive images (optimized for common device widths)
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Cache optimized images for 60 days
+    minimumCacheTTL: 5184000,
+    // Disable optimization only in dev for faster reloads (enable for production)
+    unoptimized: process.env.NODE_ENV === 'development',
   },
 
   /**

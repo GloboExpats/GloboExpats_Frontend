@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { apiClient } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 import { ITEM_CONDITIONS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
+import { CURRENCIES as CURRENCY_CONFIG } from '@/lib/currency-converter'
 import { getFullImageUrl } from '@/lib/image-utils'
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
 
@@ -134,15 +135,35 @@ function EditListingContent() {
     try {
       setSaving(true)
 
+      // Convert prices from selected currency to TZS (base currency)
+      const enteredCurrency = formData.currency as 'TZS' | 'USD' | 'KES' | 'UGX'
+      const conversionRate = CURRENCY_CONFIG[enteredCurrency].exchangeRate
+
+      // If user entered in USD/KES/UGX, divide by exchange rate to get TZS
+      // If already in TZS, no conversion needed (rate = 1)
+      const askingPriceInTZS = parseFloat(formData.askingPrice) / conversionRate
+      const originalPriceInTZS = formData.originalPrice
+        ? parseFloat(formData.originalPrice) / conversionRate
+        : 0
+
+      console.log('💱 Currency Conversion:', {
+        enteredCurrency,
+        conversionRate,
+        enteredAskingPrice: formData.askingPrice,
+        convertedAskingPrice: askingPriceInTZS,
+        enteredOriginalPrice: formData.originalPrice,
+        convertedOriginalPrice: originalPriceInTZS,
+      })
+
       const updateData = {
         productName: formData.productName.trim(),
         categoryId: formData.categoryId,
         condition: formData.condition,
         location: formData.location,
         productDescription: formData.productDescription.trim(),
-        currency: formData.currency,
-        askingPrice: parseFloat(formData.askingPrice),
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : 0,
+        currency: 'TZS', // Always store as TZS in backend
+        askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
+        originalPrice: Math.round(originalPriceInTZS),
         productWarranty: formData.productWarranty,
       }
 
@@ -396,29 +417,74 @@ function EditListingContent() {
               </div>
 
               <div>
-                <Label htmlFor="askingPrice">Asking Price</Label>
-                <Input
-                  id="askingPrice"
-                  type="number"
-                  value={formData.askingPrice}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, askingPrice: e.target.value }))
-                  }
-                  placeholder="Enter asking price"
-                />
+                <Label htmlFor="askingPrice">Asking Price ({formData.currency})</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-neutral-500">
+                    {formData.currency === 'TZS'
+                      ? 'TSh'
+                      : formData.currency === 'USD'
+                        ? '$'
+                        : formData.currency === 'KES'
+                          ? 'KSh'
+                          : 'USh'}
+                  </span>
+                  <Input
+                    id="askingPrice"
+                    type="number"
+                    value={formData.askingPrice}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, askingPrice: e.target.value }))
+                    }
+                    placeholder={
+                      formData.currency === 'TZS'
+                        ? '2,500,000'
+                        : formData.currency === 'USD'
+                          ? '1,000'
+                          : formData.currency === 'KES'
+                            ? '131,250'
+                            : '3,700,000'
+                    }
+                    className="pl-14"
+                  />
+                </div>
               </div>
 
               <div>
-                <Label htmlFor="originalPrice">Original Price (Optional)</Label>
-                <Input
-                  id="originalPrice"
-                  type="number"
-                  value={formData.originalPrice}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, originalPrice: e.target.value }))
-                  }
-                  placeholder="Enter original price"
-                />
+                <Label htmlFor="originalPrice">
+                  Original Price{' '}
+                  <span className="text-sm font-normal text-neutral-500">
+                    (Optional - can be left blank)
+                  </span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-neutral-500">
+                    {formData.currency === 'TZS'
+                      ? 'TSh'
+                      : formData.currency === 'USD'
+                        ? '$'
+                        : formData.currency === 'KES'
+                          ? 'KSh'
+                          : 'USh'}
+                  </span>
+                  <Input
+                    id="originalPrice"
+                    type="number"
+                    value={formData.originalPrice}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, originalPrice: e.target.value }))
+                    }
+                    placeholder={
+                      formData.currency === 'TZS'
+                        ? '3,000,000'
+                        : formData.currency === 'USD'
+                          ? '1,200'
+                          : formData.currency === 'KES'
+                            ? '157,500'
+                            : '4,440,000'
+                    }
+                    className="pl-14"
+                  />
+                </div>
               </div>
 
               <div>

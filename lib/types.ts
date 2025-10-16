@@ -197,6 +197,7 @@ export interface FeaturedItem {
   originalPrice?: string
   image: string
   images?: string[]
+  description?: string
   listedBy: string
   rating: number
   reviews: number

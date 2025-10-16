@@ -60,52 +60,83 @@ export default function ProductPage() {
         setLoading(true)
         setError(null)
 
-        console.log('🔥 PRODUCT PAGE: Fetching product details for ID:', id, '- NO DUMMY DATA!')
+        console.log('🔥 PRODUCT PAGE: Fetching product for ID:', id)
 
-        // Fetch product details and all products in parallel
-        const [productResponse, allProductsResponse] = await Promise.all([
-          apiClient.getProductDetails(Number(id)),
-          apiClient.getAllProducts(0),
-        ])
+        let allProducts: unknown[] = []
+        let productData: Record<string, unknown> | undefined
+        let currentPage = 0
+        let hasMorePages = true
 
-        console.log('🚀 PRODUCT PAGE: Backend responses:')
-        console.log('Product Details:', productResponse)
-        console.log('All Products:', allProductsResponse)
+        // Fetch pages until we find the product or run out of pages
+        while (hasMorePages && !productData) {
+          const response = await apiClient.getAllProducts(currentPage)
+          console.log(`📄 PRODUCT PAGE: Fetched page ${currentPage}:`, response)
 
-        // Process product details
-        const productResp = productResponse as
-          | { data?: Record<string, unknown> }
-          | Record<string, unknown>
-        const productData =
-          (productResp as { data?: Record<string, unknown> }).data ||
-          (productResp as Record<string, unknown>)
-        if (productData && productData.productId) {
-          console.log('📦 PRODUCT PAGE: Raw product data:', productData)
-          console.log('📦 PRODUCT PAGE: Category:', productData.category)
-          console.log('📦 PRODUCT PAGE: Condition:', productData.productCondition)
+          // Extract products from response
+          const respData = response as {
+            data?: { content?: unknown[]; last?: boolean } | unknown[]
+            content?: unknown[]
+            last?: boolean
+          }
+
+          const pageProducts =
+            (respData.data as { content?: unknown[] })?.content ||
+            (respData as { content?: unknown[] })?.content ||
+            (respData.data as unknown[]) ||
+            []
+
+          const isLastPage =
+            (respData.data as { last?: boolean })?.last ??
+            (respData as { last?: boolean })?.last ??
+            true
+
+          // Add products to our collection
+          allProducts = [...allProducts, ...pageProducts]
+
+          // Try to find the product in current batch
+          productData = pageProducts.find((item) => {
+            const product = item as Record<string, unknown>
+            return (
+              product.productId === Number(id) ||
+              product.id === Number(id) ||
+              String(product.productId) === id ||
+              String(product.id) === id
+            )
+          }) as Record<string, unknown> | undefined
+
+          // Check if we should continue fetching
+          hasMorePages = !isLastPage && !productData
+          currentPage++
+
+          // Safety limit to prevent infinite loops
+          if (currentPage > 10) {
+            console.warn('⚠️ Reached page limit, stopping search')
+            break
+          }
+        }
+
+        if (productData && (productData.productId || productData.id)) {
+          console.log('📦 PRODUCT PAGE: Found product:', productData)
           setRawProductData(productData)
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
+
+          // Get similar products (exclude current product)
+          const similar = allProducts
+            .filter((item) => {
+              const product = item as Record<string, unknown>
+              return (
+                (product.productId || product.id) !== Number(id) &&
+                String(product.productId) !== id &&
+                String(product.id) !== id
+              )
+            })
+            .slice(0, 4)
+            .map((item) => transformToFeaturedItem(item as Record<string, unknown>))
+          setSimilarProducts(similar)
         } else {
           throw new Error('Product not found')
         }
-
-        // Process similar products (exclude current product)
-        const allProductsResp = allProductsResponse as {
-          data?: { content?: unknown[] } | unknown[]
-        }
-        const allProducts =
-          (allProductsResp.data as { content?: unknown[] })?.content ||
-          (allProductsResp.data as unknown[]) ||
-          []
-        const similar = allProducts
-          .filter((item) => {
-            const product = item as Record<string, unknown>
-            return (product.productId || product.id) !== Number(id)
-          })
-          .slice(0, 4)
-          .map((item) => transformToFeaturedItem(item as Record<string, unknown>))
-        setSimilarProducts(similar)
       } catch (err) {
         console.error('Error fetching product:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch product')
@@ -161,73 +192,80 @@ export default function ProductPage() {
 
   return (
     <div className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-      <div className="container mx-auto px-4 pt-6 pb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-8 sm:pb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
           {/* Image Gallery */}
           <div className="lg:col-span-3">
-            <Card className="bg-white shadow-lg rounded-2xl border-0 overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex gap-4">
-                  {/* Thumbnail Images - Left Side */}
-                  <div className="flex flex-col gap-3 w-20 flex-shrink-0">
+            <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0 overflow-hidden">
+              <CardContent className="p-3 sm:p-6">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  {/* Thumbnail Images - Bottom on mobile, Left on desktop with scrolling */}
+                  <div className="flex sm:flex-col justify-start gap-3 w-full sm:w-28 flex-shrink-0 order-2 sm:order-1 overflow-x-auto sm:overflow-x-hidden sm:overflow-y-scroll pb-2 sm:pb-0 sm:max-h-[480px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {productImages.map((image, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentImage(index)}
-                        className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-200 flex-shrink-0 ${
+                        className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border-2 transition-all duration-200 flex-shrink-0 bg-gray-100 ${
                           index === currentImage
-                            ? 'border-blue-500 scale-105 shadow-md'
-                            : 'border-gray-200 hover:border-gray-300 hover:scale-102'
+                            ? 'border-brand-primary shadow-md'
+                            : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
                         <Image
                           src={image || '/placeholder.svg'}
                           alt={`Thumbnail ${index + 1}`}
-                          width={80}
-                          height={80}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="(max-width: 640px) 96px, 112px"
+                          className="object-cover"
+                          loading={index < 3 ? 'eager' : 'lazy'}
+                          placeholder="blur"
+                          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                         />
                       </button>
                     ))}
                   </div>
 
                   {/* Main Image */}
-                  <div className="flex-1 relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 min-h-[400px]">
-                    <div className="flex items-center justify-center p-8 h-full">
+                  <div className="flex-1 relative overflow-hidden rounded-lg sm:rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 min-h-[300px] sm:min-h-[400px] order-1 sm:order-2">
+                    <div className="flex items-center justify-center p-4 sm:p-8 h-full">
                       <Image
                         src={productImages[currentImage]}
                         alt={`Product image ${currentImage + 1}`}
                         width={640}
                         height={640}
-                        className="max-w-full max-h-96 object-contain"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 70vw, 640px"
+                        className="max-w-full max-h-64 sm:max-h-96 object-contain"
                         priority={currentImage === 0}
+                        placeholder="blur"
+                        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                        quality={90}
                       />
                     </div>
 
-                    {/* Navigation Arrows */}
+                    {/* Navigation Arrows - Now visible on mobile too */}
                     {productImages.length > 1 && (
                       <>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105"
+                          className="flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 w-8 h-8 sm:w-10 sm:h-10"
                           onClick={prevImage}
                         >
-                          <ChevronLeft className="h-5 w-5 text-gray-700" />
+                          <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105"
+                          className="flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 w-8 h-8 sm:w-10 sm:h-10"
                           onClick={nextImage}
                         >
-                          <ChevronRight className="h-5 w-5 text-gray-700" />
+                          <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
                         </Button>
                       </>
                     )}
 
                     {/* Image Counter */}
-                    <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                    <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 bg-black/70 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
                       {currentImage + 1} / {productImages.length}
                     </div>
                   </div>
@@ -236,54 +274,55 @@ export default function ProductPage() {
             </Card>
 
             {/* Product Details Tabs - MOVED UP */}
-            <div className="mt-6">
-              <Card className="bg-white shadow-lg rounded-2xl border-0">
-                <CardContent className="p-6">
+            <div className="mt-4 sm:mt-6">
+              <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0">
+                <CardContent className="p-4 sm:p-6">
                   <Tabs defaultValue="description" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 rounded-xl bg-gray-100 p-1 h-12">
+                    <TabsList className="grid w-full grid-cols-3 rounded-lg sm:rounded-xl bg-gray-100 p-1 h-11 sm:h-12 gap-1">
                       <TabsTrigger
                         value="description"
-                        className="rounded-lg font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        className="rounded-md sm:rounded-lg text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm px-2 sm:px-4"
                       >
                         Description
                       </TabsTrigger>
                       <TabsTrigger
                         value="specifications"
-                        className="rounded-lg font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        className="rounded-md sm:rounded-lg text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm px-2 sm:px-4"
                       >
-                        Specifications
+                        <span className="hidden sm:inline">Specifications</span>
+                        <span className="inline sm:hidden">Specs</span>
                       </TabsTrigger>
                       <TabsTrigger
                         value="reviews"
-                        className="rounded-lg font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        className="rounded-md sm:rounded-lg text-xs sm:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm px-2 sm:px-4"
                       >
-                        Reviews ({product.reviews})
+                        <span className="hidden sm:inline">Reviews ({product.reviews})</span>
+                        <span className="inline sm:hidden">Reviews</span>
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="description" className="mt-8">
+                    <TabsContent value="description" className="mt-4 sm:mt-8">
                       <div className="prose max-w-none text-gray-700">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">
                           Product Description
                         </h3>
-                        <div className="bg-gray-50 rounded-xl p-6">
-                          <p className="text-gray-600 leading-relaxed">
-                            This premium product offers exceptional quality and performance. Perfect
-                            for professionals and enthusiasts alike, it combines cutting-edge
-                            technology with reliable build quality. Each item is carefully inspected
-                            to ensure it meets our high standards.
+                        <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                          <p className="text-sm sm:text-base text-gray-600 leading-relaxed whitespace-pre-wrap">
+                            {product.description ||
+                              rawProductData?.productDescription ||
+                              'No description available for this product.'}
                           </p>
                         </div>
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="specifications" className="mt-8">
+                    <TabsContent value="specifications" className="mt-4 sm:mt-8">
                       <div className="prose max-w-none text-gray-700">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-6">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">
                           Technical Specifications
                         </h3>
-                        <div className="bg-gray-50 rounded-xl p-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                             <div className="space-y-4">
                               <div className="bg-white rounded-lg p-4">
                                 <div className="flex justify-between items-center">
@@ -314,10 +353,10 @@ export default function ProductPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="reviews" className="mt-8">
-                      <div className="space-y-6">
+                    <TabsContent value="reviews" className="mt-4 sm:mt-8">
+                      <div className="space-y-4 sm:space-y-6">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-xl font-semibold text-gray-800">
+                          <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
                             Buyer Reviews ({product.reviews})
                           </h3>
                           <div className="flex items-center gap-2">
@@ -345,23 +384,23 @@ export default function ProductPage() {
           </div>
 
           {/* Product Details */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="bg-white shadow-lg rounded-2xl border-0">
-              <CardContent className="p-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 px-3 py-1 font-medium">
                     Featured
                   </Badge>
                 </div>
 
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 leading-tight">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-3 sm:mb-4 leading-tight">
                   {product.title}
                 </h1>
 
                 {/* Price */}
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 mb-6">
-                  <div className="flex items-baseline gap-3 mb-2">
-                    <span className="text-3xl font-bold">
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                  <div className="flex items-baseline gap-2 sm:gap-3 mb-2">
+                    <span className="text-2xl sm:text-3xl font-bold">
                       <PriceDisplay
                         price={parseNumericPrice(product.price)}
                         size="xl"
@@ -370,7 +409,7 @@ export default function ProductPage() {
                         showOriginal
                       />
                     </span>
-                    {product.originalPrice && (
+                    {product.originalPrice && parseNumericPrice(product.originalPrice) > 0 && (
                       <span className="text-lg">
                         <PriceDisplay
                           price={parseNumericPrice(product.originalPrice)}
@@ -381,14 +420,14 @@ export default function ProductPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-green-600 font-medium">
                     <TrendingUp className="h-4 w-4" />
                     <span>Great value compared to market price</span>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="space-y-4 mb-6">
+                <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                   {/* Debug: Log productId */}
                   {(() => {
                     console.log('🔍 Product Page Debug:', {
@@ -411,15 +450,15 @@ export default function ProductPage() {
                     currency="TZS"
                   />
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     <Button
                       variant="outline"
                       size="lg"
-                      className="w-full border-gray-200 hover:bg-gray-50 transition-all duration-200"
+                      className="w-full border-gray-200 hover:bg-gray-50 transition-all duration-200 h-11 sm:h-12 text-sm sm:text-base"
                       onClick={() => setIsSaved(!isSaved)}
                     >
                       <Heart
-                        className={`w-5 h-5 mr-2 transition-all duration-200 ${
+                        className={`w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 transition-all duration-200 ${
                           isSaved ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-500'
                         }`}
                       />
@@ -428,13 +467,13 @@ export default function ProductPage() {
                     <Button
                       variant="outline"
                       size="lg"
-                      className="w-full border-gray-200 hover:bg-gray-50 transition-all duration-200"
+                      className="w-full border-gray-200 hover:bg-gray-50 transition-all duration-200 h-11 sm:h-12 text-sm sm:text-base"
                       asChild
                     >
                       <Link
                         href={`/messages?seller=${encodeURIComponent(product.listedBy)}&product=${encodeURIComponent(product.title)}`}
                       >
-                        <MessageCircle className="w-5 h-5 mr-2" />
+                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
                         Message
                       </Link>
                     </Button>
@@ -444,25 +483,25 @@ export default function ProductPage() {
             </Card>
 
             {/* Seller Info */}
-            <Card className="bg-white shadow-lg rounded-2xl border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <Avatar className="w-16 h-16 border-2 border-blue-100 shadow-lg">
+            <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                  <Avatar className="w-12 h-12 sm:w-16 sm:h-16 border-2 border-blue-100 shadow-lg flex-shrink-0">
                     <AvatarImage src="/placeholder.svg" alt={product.listedBy} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold">
                       {product.listedBy?.slice(0, 2) || 'UN'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg text-gray-800 truncate">
+                    <h3 className="font-semibold text-base sm:text-lg text-gray-800 truncate">
                       {product.listedBy || 'Unknown Seller'}
                     </h3>
-                    <div className="flex items-center gap-1 text-sm mb-1">
+                    <div className="flex items-center gap-1 text-xs sm:text-sm mb-1">
                       <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                       <span className="font-medium text-gray-700">{product.rating}</span>
                       <span className="text-gray-500">({product.reviews} reviews)</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                       <MapPin className="w-4 h-4 text-gray-400" />
                       <span className="text-gray-600 truncate">{product.location}</span>
                     </div>
@@ -470,12 +509,12 @@ export default function ProductPage() {
                 </div>
 
                 {product.isVerified && (
-                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                  <div className="bg-green-50 rounded-lg p-3 sm:p-3 border border-green-200">
                     <div className="flex items-center gap-2">
                       <Shield className="w-5 h-5 text-green-600" />
                       <span className="font-medium text-green-700">Verified Seller</span>
                     </div>
-                    <p className="text-sm text-green-600 mt-1">
+                    <p className="text-xs sm:text-sm text-green-600 mt-1">
                       This seller has been verified by our security team
                     </p>
                   </div>
@@ -484,35 +523,47 @@ export default function ProductPage() {
             </Card>
 
             {/* Trust Indicators */}
-            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg rounded-2xl border-0">
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-gray-800 mb-4">Purchase Protection</h3>
+            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg rounded-xl sm:rounded-2xl border-0">
+              <CardContent className="p-4 sm:p-6">
+                <h3 className="font-semibold text-base sm:text-lg text-gray-800 mb-3 sm:mb-4">
+                  Purchase Protection
+                </h3>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-gray-700">
+                  <div className="flex items-center gap-2.5 sm:gap-3 text-gray-700">
                     <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
-                      <RotateCcw className="w-5 h-5 text-blue-600" />
+                      <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                     </div>
                     <div className="min-w-0">
-                      <span className="font-medium block">7-day return policy</span>
-                      <span className="text-sm text-gray-500">Full refund guarantee</span>
+                      <span className="font-medium text-sm sm:text-base block">
+                        7-day return policy
+                      </span>
+                      <span className="text-xs sm:text-sm text-gray-500">
+                        Full refund guarantee
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-700">
+                  <div className="flex items-center gap-2.5 sm:gap-3 text-gray-700">
                     <div className="bg-green-100 p-2 rounded-lg flex-shrink-0">
-                      <CreditCard className="w-5 h-5 text-green-600" />
+                      <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     </div>
                     <div className="min-w-0">
-                      <span className="font-medium block">Secure payments</span>
-                      <span className="text-sm text-gray-500">Your payment is protected</span>
+                      <span className="font-medium text-sm sm:text-base block">
+                        Secure payments
+                      </span>
+                      <span className="text-xs sm:text-sm text-gray-500">
+                        Your payment is protected
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-700">
+                  <div className="flex items-center gap-2.5 sm:gap-3 text-gray-700">
                     <div className="bg-purple-100 p-2 rounded-lg flex-shrink-0">
-                      <Truck className="w-5 h-5 text-purple-600" />
+                      <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                     </div>
                     <div className="min-w-0">
-                      <span className="font-medium block">Fast shipping</span>
-                      <span className="text-sm text-gray-500">Quick and reliable delivery</span>
+                      <span className="font-medium text-sm sm:text-base block">Fast shipping</span>
+                      <span className="text-xs sm:text-sm text-gray-500">
+                        Quick and reliable delivery
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -522,9 +573,9 @@ export default function ProductPage() {
         </div>
 
         {/* Similar Products */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-gray-800">You Might Also Like</h2>
+        <div className="mt-8 sm:mt-12">
+          <div className="flex items-center justify-between mb-4 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">You Might Also Like</h2>
             <Button variant="outline" asChild className="hidden md:flex">
               <Link href="/browse">
                 View All
@@ -533,37 +584,41 @@ export default function ProductPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
             {similarProducts.map((similarProduct) => (
               <Link
                 key={similarProduct.id}
                 href={`/product/${similarProduct.id}`}
                 className="group block"
               >
-                <Card className="bg-white shadow-lg hover:shadow-xl transition-all duration-300 border-0 rounded-2xl overflow-hidden group-hover:scale-105">
-                  <CardContent className="p-4">
-                    <div className="relative mb-4 overflow-hidden rounded-xl bg-gradient-to-br from-gray-100 to-gray-200">
+                <Card className="bg-white shadow-lg hover:shadow-xl transition-all duration-300 border-0 rounded-xl sm:rounded-2xl overflow-hidden group-hover:scale-105">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-lg sm:rounded-xl bg-gradient-to-br from-gray-100 to-gray-200">
                       <Image
                         src={similarProduct.image}
                         alt={similarProduct.title}
                         width={200}
                         height={200}
-                        className="w-full h-40 object-contain p-4 group-hover:scale-110 transition-transform duration-300"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+                        className="w-full h-32 sm:h-40 object-contain p-3 sm:p-4 group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
+                        placeholder="blur"
+                        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                       />
                       {similarProduct.isPremium && (
-                        <Badge className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 text-xs">
+                        <Badge className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
                           Premium
                         </Badge>
                       )}
                     </div>
 
-                    <h3 className="font-semibold text-gray-800 text-sm mb-3 group-hover:text-blue-600 transition-colors">
+                    <h3 className="font-semibold text-gray-800 text-xs sm:text-sm mb-2 sm:mb-3 group-hover:text-blue-600 transition-colors">
                       <span className="block truncate">{similarProduct.title}</span>
                     </h3>
 
-                    <div className="space-y-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-bold text-lg">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-baseline gap-1.5 sm:gap-2">
+                        <span className="font-bold text-sm sm:text-lg">
                           <PriceDisplay
                             price={parseNumericPrice(similarProduct.price)}
                             size="lg"
@@ -571,32 +626,37 @@ export default function ProductPage() {
                             variant="secondary"
                           />
                         </span>
-                        {similarProduct.originalPrice && (
-                          <span className="text-xs">
-                            <PriceDisplay
-                              price={parseNumericPrice(similarProduct.originalPrice)}
-                              size="sm"
-                              variant="muted"
-                              className="line-through"
-                            />
-                          </span>
-                        )}
+                        {similarProduct.originalPrice &&
+                          parseNumericPrice(similarProduct.originalPrice) > 0 && (
+                            <span className="text-[10px] sm:text-xs">
+                              <PriceDisplay
+                                price={parseNumericPrice(similarProduct.originalPrice)}
+                                size="sm"
+                                variant="muted"
+                                className="line-through"
+                              />
+                            </span>
+                          )}
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                          <span className="text-sm text-gray-600 font-medium">
+                        <div className="flex items-center gap-0.5 sm:gap-1">
+                          <Star className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400 fill-amber-400" />
+                          <span className="text-xs sm:text-sm text-gray-600 font-medium">
                             {similarProduct.rating}
                           </span>
-                          <span className="text-xs text-gray-400">({similarProduct.reviews})</span>
+                          <span className="text-[10px] sm:text-xs text-gray-400">
+                            ({similarProduct.reviews})
+                          </span>
                         </div>
 
-                        {similarProduct.isVerified && <Shield className="w-4 h-4 text-green-500" />}
+                        {similarProduct.isVerified && (
+                          <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <MapPin className="w-3 h-3" />
+                      <div className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-gray-500">
+                        <MapPin className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">{similarProduct.location}</span>
                       </div>
                     </div>

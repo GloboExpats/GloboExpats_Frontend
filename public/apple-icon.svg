@@ -1,6 +1,6 @@
 <svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
   <rect width="180" height="180" fill="#1e40af" rx="20"/>
-  <text x="50%" y="50%" text-anchor="middle" dy=".35em" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold">
-    GE
+  <text x="50%" y="50%" text-anchor="middle" dy=".35em" font-family="system-ui, -apple-system, sans-serif" font-size="100" font-weight="bold">
+    <tspan fill="white">G</tspan><tspan fill="#fbbf24">E</tspan>
   </text>
 </svg>

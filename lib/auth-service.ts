@@ -15,6 +15,18 @@ export function setAuthToken(token: string) {
     const expiryTime = Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
     localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString())
 
+    // Set cookie (conditionally use Secure flag for production only)
+    if (typeof document !== 'undefined') {
+      const expires = new Date(expiryTime).toUTCString()
+      const isProduction = window.location.protocol === 'https:'
+      const secureFlag = isProduction ? '; Secure' : ''
+      document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; expires=${expires}; path=/; SameSite=Lax${secureFlag}`
+      console.log(
+        '[AUTH] Token cookie set:',
+        document.cookie.includes(TOKEN_KEY) ? 'SUCCESS' : 'FAILED'
+      )
+    }
+
     // Set up auto logout timer
     setupAutoLogout()
   } catch (error) {
@@ -106,14 +118,7 @@ export async function loginUser(payload: { email?: string; password: string; use
 
   // ...existing code...
   if (token) {
-    setAuthToken(token)
-    // Also set token as a cookie (expires in 2 hours, secure, sameSite=lax)
-    if (typeof document !== 'undefined') {
-      const expires = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000).toUTCString()
-      document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; expires=${expires}; path=/; SameSite=Lax; Secure`
-      // Log to verify cookie is set
-      console.log('[AUTH] Set cookie:', document.cookie)
-    }
+    setAuthToken(token) // This now handles cookie setting internally
   } else {
     throw new Error('No token received from server')
   }
@@ -172,13 +177,7 @@ export async function exchangeAuthCode(authCode: string) {
     const { token, firstName, lastName, email, profileImageUrl } = data
 
     if (token) {
-      setAuthToken(token)
-      // Also set token as a cookie (expires in 2 hours)
-      if (typeof document !== 'undefined') {
-        const expires = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000).toUTCString()
-        document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; expires=${expires}; path=/; SameSite=Lax; Secure`
-        console.log('[AUTH] Google OAuth token set in cookie:', document.cookie)
-      }
+      setAuthToken(token) // This now handles cookie setting internally
     } else {
       throw new Error('No token received from server')
     }

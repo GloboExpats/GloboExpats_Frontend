@@ -83,7 +83,10 @@ export const transformBackendProduct = (item: Record<string, unknown>) => {
     image: productImages?.[0]?.imageUrl
       ? getFullImageUrl(productImages[0].imageUrl)
       : '/assets/images/products/placeholder.svg',
-    images: productImages?.map((img) => getFullImageUrl(img.imageUrl)) || [],
+    // images array should NOT include the first image (which is already in 'image')
+    // to prevent duplication when displaying thumbnails
+    images: productImages?.slice(1).map((img) => getFullImageUrl(img.imageUrl)) || [],
+    description: String(item.productDescription || item.description || ''),
     listedBy: String(
       item.sellerName ||
         (typeof listedBy === 'object' ? listedBy?.name : listedBy) ||

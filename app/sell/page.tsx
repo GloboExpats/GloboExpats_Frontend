@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus, DollarSign, AlertCircle } from 'lucide-react'
+import { X, Plus, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +20,8 @@ import { RouteGuard } from '@/components/route-guard'
 import { useAuth } from '@/hooks/use-auth'
 import { apiClient } from '@/lib/api'
 import { ITEM_CONDITIONS, SELLING_TIPS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
+import { CURRENCIES as CURRENCY_CONFIG } from '@/lib/currency-converter'
+import { useToast } from '@/components/ui/use-toast'
 import Image from 'next/image'
 
 interface FormData {
@@ -68,6 +70,7 @@ export default function SellPage() {
 
 function SellPageContent() {
   const { user, isLoggedIn } = useAuth()
+  const { toast } = useToast()
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<string[]>([])
@@ -260,16 +263,54 @@ function SellPageContent() {
 
       const categoryId = selectedCategory.categoryId
 
+      // Find the main image index
+      const mainImageIndex = formData.mainImage ? formData.imageUrls.indexOf(formData.mainImage) : 0
+
+      console.log('🖼️ Main image info:', {
+        mainImageUrl: formData.mainImage,
+        mainImageIndex: mainImageIndex,
+        totalImages: formData.images.length,
+      })
+
+      // Reorder images array to put main image first
+      const reorderedImages = [...formData.images]
+      if (mainImageIndex > 0 && mainImageIndex < reorderedImages.length) {
+        const [mainImage] = reorderedImages.splice(mainImageIndex, 1)
+        reorderedImages.unshift(mainImage)
+        console.log('✅ Reordered images - main image now at index 0')
+      }
+
+      // Convert prices from selected currency to TZS (base currency)
+      const enteredCurrency = formData.currency as 'TZS' | 'USD' | 'KES' | 'UGX'
+      const conversionRate = CURRENCY_CONFIG[enteredCurrency].exchangeRate
+
+      // If user entered in USD/KES/UGX, divide by exchange rate to get TZS
+      // If already in TZS, no conversion needed (rate = 1)
+      const askingPriceInTZS = parseFloat(formData.price) / conversionRate
+      const originalPriceInTZS = formData.originalPrice
+        ? parseFloat(formData.originalPrice) / conversionRate
+        : 0
+
+      console.log('💱 Currency Conversion:', {
+        enteredCurrency,
+        conversionRate,
+        enteredAskingPrice: formData.price,
+        convertedAskingPrice: askingPriceInTZS,
+        enteredOriginalPrice: formData.originalPrice,
+        convertedOriginalPrice: originalPriceInTZS,
+      })
+
       // Transform form data to match backend expectations
+      // Always store in TZS (base currency)
       const productData = {
         productName: formData.title.trim(),
         categoryId: categoryId,
         condition: formData.condition,
         location: formData.location,
         productDescription: formData.description.trim(),
-        currency: formData.currency,
-        askingPrice: parseFloat(formData.price),
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : 0,
+        currency: 'TZS', // Always store as TZS in backend
+        askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
+        originalPrice: Math.round(originalPriceInTZS),
         productWarranty: '1 year manufacturer warranty', // Default warranty
       }
 
@@ -277,11 +318,12 @@ function SellPageContent() {
       console.log('🖼️ Images to upload:', formData.images.length, 'files')
 
       // Log individual image details
-      formData.images.forEach((file, index) => {
+      reorderedImages.forEach((file, index) => {
         console.log(`📸 Image ${index + 1}:`, {
           name: file.name,
           size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
           type: file.type,
+          isMain: index === 0 ? '⭐ MAIN IMAGE' : '',
         })
       })
 
@@ -290,16 +332,16 @@ function SellPageContent() {
       console.log('- Product Data:', JSON.stringify(productData, null, 2))
       console.log(
         '- Image Files:',
-        formData.images.map((f) => f.name)
+        reorderedImages.map((f, idx) => `${idx === 0 ? '⭐' : ''} ${f.name}`)
       )
       console.log('- Form Data Structure:', {
         product: JSON.stringify(productData),
-        images: formData.images.length + ' files',
+        images: reorderedImages.length + ' files (first is main)',
       })
 
-      // Call the backend API
+      // Call the backend API with reordered images (main image first)
       console.log('📤 Sending product creation request...')
-      const result = await apiClient.createProduct(productData, formData.images)
+      const result = await apiClient.createProduct(productData, reorderedImages)
 
       console.log('✅ Product created successfully!')
       console.log('📋 FULL Product creation response:', JSON.stringify(result, null, 2))
@@ -318,10 +360,27 @@ function SellPageContent() {
       // Store the product ID for verification
       if (result.productId) {
         console.log('🎉 Product successfully created with ID:', result.productId)
-        // Wait a moment for backend to process
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Show success toast
+        toast({
+          title: '✅ Listing Published!',
+          description: `Your item "${formData.title}" has been successfully listed on the marketplace.`,
+          variant: 'default',
+        })
+
+        // Wait a moment for user to see the toast
+        await new Promise((resolve) => setTimeout(resolve, 1500))
       } else {
         console.warn('⚠️ Warning: No productId in response. Product may need approval.')
+
+        // Show warning toast
+        toast({
+          title: '⚠️ Listing Submitted',
+          description: 'Your listing has been submitted and is pending review.',
+          variant: 'default',
+        })
+
+        await new Promise((resolve) => setTimeout(resolve, 1500))
       }
 
       // Redirect to dashboard with My Listings tab
@@ -333,9 +392,17 @@ function SellPageContent() {
       setCurrentStep(1)
     } catch (error) {
       console.error('❌ Failed to publish listing:', error)
-      setErrors([
-        error instanceof Error ? error.message : 'Failed to publish listing. Please try again.',
-      ])
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to publish listing. Please try again.'
+
+      setErrors([errorMessage])
+
+      // Show error toast
+      toast({
+        title: '❌ Publishing Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
     }
   }
 
@@ -772,12 +839,28 @@ function Step3Content({
             Asking Price * ({formData.currency})
           </Label>
           <div className="relative">
-            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-neutral-500">
+              {formData.currency === 'TZS'
+                ? 'TSh'
+                : formData.currency === 'USD'
+                  ? '$'
+                  : formData.currency === 'KES'
+                    ? 'KSh'
+                    : 'USh'}
+            </span>
             <Input
               id="price"
               type="number"
-              placeholder="2500000"
-              className="pl-12 h-12 sm:h-14 text-base sm:text-lg border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
+              placeholder={
+                formData.currency === 'TZS'
+                  ? '2,500,000'
+                  : formData.currency === 'USD'
+                    ? '1,000'
+                    : formData.currency === 'KES'
+                      ? '131,250'
+                      : '3,700,000'
+              }
+              className="pl-16 h-12 sm:h-14 text-base sm:text-lg border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
               value={formData.price}
               onChange={(e) => updateFormData({ price: e.target.value })}
             />
@@ -786,15 +869,34 @@ function Step3Content({
 
         <div className="space-y-3">
           <Label htmlFor="originalPrice" className="text-base font-semibold text-neutral-800">
-            Original Price
+            Original Price{' '}
+            <span className="text-sm font-normal text-neutral-500">
+              (Optional - can be left blank)
+            </span>
           </Label>
           <div className="relative">
-            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-neutral-500">
+              {formData.currency === 'TZS'
+                ? 'TSh'
+                : formData.currency === 'USD'
+                  ? '$'
+                  : formData.currency === 'KES'
+                    ? 'KSh'
+                    : 'USh'}
+            </span>
             <Input
               id="originalPrice"
               type="number"
-              placeholder="3000000"
-              className="pl-12 h-12 sm:h-14 text-base sm:text-lg border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
+              placeholder={
+                formData.currency === 'TZS'
+                  ? '3,000,000'
+                  : formData.currency === 'USD'
+                    ? '1,200'
+                    : formData.currency === 'KES'
+                      ? '157,500'
+                      : '4,440,000'
+              }
+              className="pl-16 h-12 sm:h-14 text-base sm:text-lg border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
               value={formData.originalPrice}
               onChange={(e) => updateFormData({ originalPrice: e.target.value })}
             />

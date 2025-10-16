@@ -148,20 +148,14 @@ export function ProductActions({
     }
   }
 
-  const handleContact = () => {
-    if (checkVerification('contact')) {
-      const encodedSeller = encodeURIComponent(sellerName)
-      const encodedProduct = encodeURIComponent(productTitle)
-      router.push(`/messages?seller=${encodedSeller}&product=${encodedProduct}`)
-    }
-  }
+  // Removed Contact Seller in favor of dedicated Message button on product page
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 sm:space-y-3">
       <Button
         onClick={handleAddToCart}
         disabled={isLoading}
-        className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white rounded-full"
+        className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white rounded-full h-11 sm:h-12 text-sm sm:text-base font-medium"
       >
         {isLoading ? 'Adding...' : 'Add to Cart'}
       </Button>
@@ -169,14 +163,10 @@ export function ProductActions({
         onClick={handleBuy}
         disabled={isLoading}
         variant="secondary"
-        className="w-full bg-amber-600 hover:bg-amber-700 text-black rounded-full"
+        className="w-full bg-amber-600 hover:bg-amber-700 text-black rounded-full h-11 sm:h-12 text-sm sm:text-base font-medium"
       >
         {isLoading ? 'Processing...' : 'Buy Now'}
       </Button>
-      <Button onClick={handleContact} variant="outline" className="w-full">
-        Contact Seller
-      </Button>
-
       <VerificationPopup
         isOpen={isVerificationPopupOpen}
         onClose={closeVerificationPopup}

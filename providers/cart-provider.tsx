@@ -471,9 +471,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async (item: Omit<CartItem, 'quantity'>, quantity = 1) => {
       if (!isLoggedIn) {
         toast({
-          title: 'Login required',
-          description: 'Please login to add items to your cart.',
-          variant: 'destructive',
+          title: 'Join the Expat Community!',
+          description:
+            'Login to start shopping or create an account to unlock full marketplace access!',
+          variant: 'default',
         })
         return
       }
@@ -492,7 +493,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           const existingItemIndex = prev.items.findIndex((i) => i.id === item.id)
 
           let updatedItems: CartItem[]
-          let updatedSelectedItems = [...prev.selectedItems]
+          const updatedSelectedItems = [...prev.selectedItems]
 
           if (existingItemIndex >= 0) {
             // Item already exists - update quantity
@@ -543,9 +544,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async (id: string) => {
       if (!isLoggedIn) {
         toast({
-          title: 'Login required',
-          description: 'Please login to modify your cart.',
-          variant: 'destructive',
+          title: '🎉 Join the Expat Community!',
+          description:
+            'Login to manage your cart or register now to start your expat marketplace journey!',
+          variant: 'default',
         })
         return
       }
@@ -596,9 +598,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async (itemId: string, quantity: number) => {
       if (!isLoggedIn) {
         toast({
-          title: 'Login required',
-          description: 'Please login to modify your cart.',
-          variant: 'destructive',
+          title: '🎉 Join the Expat Community!',
+          description:
+            'Login to manage your cart or register now to start your expat marketplace journey!',
+          variant: 'default',
         })
         return
       }

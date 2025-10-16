@@ -635,7 +635,7 @@ export default function BrowsePage() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <header className="bg-white shadow-sm sticky top-16 z-30 border-b border-gray-200">
+      <header className="bg-white shadow-sm md:sticky md:top-16 z-30 border-b border-gray-200">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="w-full md:w-auto md:flex-1">

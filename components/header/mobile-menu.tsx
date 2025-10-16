@@ -101,7 +101,7 @@ export const MobileMenu = React.memo<MobileMenuProps>(
                 {isLoggedIn ? (
                   <>
                     <Link
-                      href="/account/listings"
+                      href="/expat/dashboard"
                       className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 py-2"
                     >
                       <Package className="h-4 w-4" />

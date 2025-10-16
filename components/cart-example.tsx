@@ -40,9 +40,10 @@ export function CartExample() {
   const handleAddToCart = async () => {
     if (!isLoggedIn) {
       toast({
-        title: 'Login Required',
-        description: 'Please login to add items to your cart.',
-        variant: 'destructive',
+        title: '🎉 Join the Expat Community!',
+        description:
+          'Login to start shopping or create an account to unlock full marketplace access!',
+        variant: 'default',
       })
       return
     }

@@ -7,7 +7,7 @@ interface LogoProps {
 }
 
 const sizeClasses = {
-  sm: 'text-lg',
+  sm: 'text-xl sm:text-2xl',
   md: 'text-2xl',
   lg: 'text-3xl',
 }
