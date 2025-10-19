@@ -458,8 +458,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Real backend login - returns { email, token, role }
         const response = await loginUser({
-          email: userData.email,
-          username: userData.name,
+          email: userData.email || '',
           password: userData.password || '',
         })
 

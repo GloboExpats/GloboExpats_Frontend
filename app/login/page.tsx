@@ -155,7 +155,7 @@ function LoginContent() {
     setIsSubmitting(true)
 
     try {
-      await login({ name: email.split('@')[0], email, password })
+      await login({ email, password })
 
       // Store remember me preference
       if (rememberMe) {
@@ -225,11 +225,24 @@ function LoginContent() {
 
   const handleGoogleLogin = async () => {
     setSocialLoading('google')
-
     try {
-      // Redirect to Google OAuth
-      window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
-    } catch {
+      // Determine nextPath: use returnUrl from query string if present, else '/'
+      const nextPath = searchParams.get('returnUrl') || '/'
+      const res = await fetch(
+        `/api/v1/oauth2/login/google?nextPath=${encodeURIComponent(nextPath)}`,
+        {
+          method: 'GET',
+          headers: { accept: '*/*' },
+        }
+      )
+      if (!res.ok) throw new Error('Failed to initiate Google login')
+      const data = await res.json()
+      if (data && data.authUrl) {
+        window.location.href = data.authUrl
+      } else {
+        throw new Error('No authUrl returned from server')
+      }
+    } catch (err) {
       toast({
         title: 'Google Connection Issue',
         description:

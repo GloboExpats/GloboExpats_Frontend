@@ -22,10 +22,7 @@
 // ============================================================================
 
 /** Base API URL from environment or fallback */
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081').replace(
-  /\/$/,
-  ''
-)
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || ' ').replace(/\/$/, '')
 
 /**
  * Standard API response wrapper
@@ -630,7 +627,6 @@ class ApiClient {
    * @returns Promise resolving to authentication data
    */
   async login(email: string, password: string): Promise<ApiResponse<unknown>> {
-    // Backend expects { email, password, username? }, map email accordingly
     return this.request('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),

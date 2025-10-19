@@ -6,7 +6,7 @@
  */
 
 /** Backend base URL for image serving */
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ' '
 
 /**
  * Converts backend image paths to full URLs

@@ -12,7 +12,7 @@ const rl = readline.createInterface({
   output: process.stdout,
 })
 
-const API_BASE = process.env.BACKEND_URL || 'http://10.123.22.21:8081'
+const API_BASE = process.env.BACKEND_URL || ' '
 
 async function checkUserVerification(email, token) {
   console.log('\n🔍 Checking verification status for:', email)
