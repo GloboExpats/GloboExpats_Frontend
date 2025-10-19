@@ -228,8 +228,9 @@ function LoginContent() {
     try {
       // Determine nextPath: use returnUrl from query string if present, else '/'
       const nextPath = searchParams.get('returnUrl') || '/'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dev.globoexpats.com'
       const res = await fetch(
-        `/api/v1/oauth2/login/google?nextPath=${encodeURIComponent(nextPath)}`,
+        `${apiUrl}/api/v1/oauth2/login/google?nextPath=${encodeURIComponent(nextPath)}`,
         {
           method: 'GET',
           headers: { accept: '*/*' },
@@ -243,6 +244,7 @@ function LoginContent() {
         throw new Error('No authUrl returned from server')
       }
     } catch (err) {
+      console.log(err)
       toast({
         title: 'Google Connection Issue',
         description:

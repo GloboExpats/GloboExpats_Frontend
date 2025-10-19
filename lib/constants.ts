@@ -53,7 +53,7 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'de', name: 'German', nativeName: 'Deutsch' },
   { code: 'es', name: 'Spanish', nativeName: 'Español' },
   { code: 'zh', name: 'Mandarin', nativeName: '中文' },
-] as const
+]
 
 /**
  * Top expat locations and markets
@@ -76,7 +76,7 @@ export const EXPAT_LOCATIONS: Location[] = [
   { value: 'gulu', label: '🇺🇬 Gulu, UG', country: 'Uganda' },
   { value: 'mbarara', label: '🇺🇬 Mbarara, UG', country: 'Uganda' },
   { value: 'jinja', label: '🇺🇬 Jinja, UG', country: 'Uganda' },
-] as const
+]
 
 // ============================================================================
 // HOMEPAGE & HERO CONTENT
@@ -250,7 +250,7 @@ export const SELLING_CATEGORIES: CategoryWithRequirements[] = [
     label: 'Beauty & Health',
     imageRequirements: ['main'],
   },
-] as const
+]
 
 // ============================================================================
 // PRODUCT CONDITIONS & SELLING GUIDANCE - SIMPLIFIED
@@ -267,7 +267,7 @@ export const ITEM_CONDITIONS: ItemCondition[] = [
   { value: 'very-good', label: 'Very Good', description: 'Used with minor signs of wear' },
   { value: 'good', label: 'Good', description: 'Used with normal signs of wear' },
   { value: 'fair', label: 'Fair', description: 'Heavily used but functional' },
-] as const
+]
 
 /**
  * Selling tips for new users
@@ -296,7 +296,7 @@ export const SELLING_TIPS: SellingTip[] = [
     description:
       'Reply to inquiries quickly. Responsive expats connect better with interested buyers.',
   },
-] as const
+]
 
 // ============================================================================
 // UI CONFIGURATION - SIMPLIFIED

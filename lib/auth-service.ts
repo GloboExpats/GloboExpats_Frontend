@@ -109,7 +109,7 @@ export async function registerUser(payload: {
   return apiClient.register(payload)
 }
 
-export async function loginUser(payload: { email: string; password: string; }) {
+export async function loginUser(payload: { email: string; password: string }) {
   const res = await apiClient.login(payload.email, payload.password)
   // Backend returns { data: { email, token, role } } or { email, token, role }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
