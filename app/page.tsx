@@ -48,7 +48,9 @@
  */
 
 import HeroCarousel from '@/components/hero-carousel'
-import FeaturedListings from '@/components/featured-listings'
+import NewListingsSlider from '@/components/sections/new-listings-slider'
+import TopPicksSlider from '@/components/sections/top-picks-slider'
+import FeaturedGrid from '@/components/sections/featured-grid'
 import CategorySidebar from '@/components/category-sidebar'
 import MobileSidebarToggle from '@/components/mobile-sidebar-toggle'
 
@@ -76,7 +78,7 @@ import MobileSidebarToggle from '@/components/mobile-sidebar-toggle'
  */
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 relative">
       {/* 
         =======================================================================
         MOBILE NAVIGATION TOGGLE
@@ -89,11 +91,11 @@ export default function HomePage() {
       */}
       <MobileSidebarToggle />
 
-      <div className="flex">
+      <div className="flex relative z-10">
         {/* 
-          =====================================================================
+          ===================================================================
           DESKTOP CATEGORY SIDEBAR
-          =====================================================================
+          ===================================================================
           Desktop-only category navigation sidebar. Provides persistent access
           to product categories and filtering options for large screens.
           
@@ -102,18 +104,18 @@ export default function HomePage() {
           Functionality: Category filtering and navigation
           Responsive: Hidden on mobile (lg:block)
         */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block flex-shrink-0">
           <CategorySidebar />
         </div>
 
         {/* 
-          =====================================================================
+          ===================================================================
           MAIN CONTENT AREA
-          =====================================================================
+          ===================================================================
           Primary content container housing all main homepage sections.
           Uses flexbox layout for responsive design and proper content flow.
         */}
-        <main className="flex-1 relative">
+        <main className="flex-1 relative min-w-0 px-4 lg:px-6 xl:px-8 pt-2 lg:pt-0">
           {/* 
             =================================================================
             FEATURED LISTINGS SECTION - PRIMARY CONVERSION POINT
@@ -127,7 +129,14 @@ export default function HomePage() {
             Features: Product cards, seller verification, pricing, images
             User Actions: View details, add to cart, contact seller
           */}
-          <FeaturedListings />
+          {/* New Listings - Horizontal slider */}
+          <NewListingsSlider />
+
+          {/* Top Picks - Engagement driven slider */}
+          <TopPicksSlider />
+
+          {/* Featured - 3 columns x up to 4 rows */}
+          <FeaturedGrid />
 
           {/* 
             =================================================================

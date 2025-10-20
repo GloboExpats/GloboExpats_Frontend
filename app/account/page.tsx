@@ -23,6 +23,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/use-auth'
+import { useAccountStats } from '@/hooks/use-account-stats'
+import { getInitials } from '@/lib/utils'
 
 const accountMenuItems = [
   {
@@ -43,10 +45,10 @@ const accountMenuItems = [
   },
   {
     id: 'settings',
-    label: 'Account Settings',
+    label: 'Settings',
     icon: Settings,
     href: '/account/settings',
-    description: 'Login & security, notifications',
+    description: 'Profile, security & notifications',
   },
   {
     id: 'verification',
@@ -90,7 +92,7 @@ const recentOrders = [
   },
 ]
 
-const accountStats = [
+const _accountStats = [
   {
     label: 'Total Orders',
     value: 12,
@@ -118,35 +120,57 @@ export default function AccountDashboard() {
   const { user, isVerifiedBuyer, isLoading: authLoading } = useAuth()
   useRouter() // Router available if needed
   const [activeTab, setActiveTab] = useState('overview')
-  const [isLoading, setIsLoading] = useState(true)
-  const [stats, setStats] = useState(accountStats)
+  const { stats: backendStats, isLoading: statsLoading, error: statsError } = useAccountStats()
   const { toast } = useToast()
 
-  // Simulate loading account data
+  // Compute dynamic stats from backend data
+  const stats = [
+    {
+      label: 'Total Orders',
+      value: backendStats?.totalOrders ?? 0,
+      href: '/account/orders',
+      icon: Package,
+      color: 'text-blue-600',
+    },
+    {
+      label: 'Wishlist Items',
+      value: backendStats?.wishlistItems ?? 0,
+      href: '/account/wishlist',
+      icon: Heart,
+      color: 'text-red-600',
+    },
+    {
+      label: 'Reviews Written',
+      value: backendStats?.reviewsWritten ?? 0,
+      href: '/account/orders?tab=reviews',
+      icon: MessageCircle,
+      color: 'text-green-600',
+    },
+  ]
+
+  // Update menu items with dynamic counts
+  const dynamicMenuItems = accountMenuItems.map((item) => {
+    if (item.id === 'orders') {
+      return { ...item, count: backendStats?.totalOrders ?? item.count }
+    }
+    if (item.id === 'wishlist') {
+      return { ...item, count: backendStats?.wishlistItems ?? item.count }
+    }
+    return item
+  })
+
+  // Show error toast if stats failed to load
   useEffect(() => {
-    const loadAccountData = async () => {
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        setStats(accountStats)
-      } catch (error) {
-        console.error('Failed to load account data:', error)
-        toast({
-          title: 'Error loading account data',
-          description: 'Some information may not be up to date.',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsLoading(false)
-      }
+    if (statsError) {
+      toast({
+        title: 'Error loading account data',
+        description: 'Some information may not be up to date.',
+        variant: 'destructive',
+      })
     }
+  }, [statsError, toast])
 
-    if (!authLoading) {
-      loadAccountData()
-    }
-  }, [authLoading, toast])
-
-  if (authLoading || isLoading) {
+  if (authLoading || statsLoading) {
     return <AccountSkeleton />
   }
 
@@ -168,8 +192,8 @@ export default function AccountDashboard() {
                 <div className="flex flex-col items-center text-center mb-6">
                   <Avatar className="w-20 h-20 mb-4">
                     <AvatarImage src={user?.avatar} alt={user?.name} />
-                    <AvatarFallback className="text-lg">
-                      {user?.name?.charAt(0) || 'U'}
+                    <AvatarFallback className="bg-brand-secondary text-brand-primary text-lg font-bold">
+                      {getInitials(user?.name || '')}
                     </AvatarFallback>
                   </Avatar>
                   <h2 className="font-semibold text-lg text-neutral-800 truncate w-full">
@@ -204,7 +228,7 @@ export default function AccountDashboard() {
 
                 {/* Navigation */}
                 <nav className="space-y-1">
-                  {accountMenuItems.map((item) => {
+                  {dynamicMenuItems.map((item) => {
                     const Icon = item.icon
                     return (
                       <Link
@@ -282,7 +306,7 @@ export default function AccountDashboard() {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {accountMenuItems.map((item) => {
+                  {dynamicMenuItems.map((item) => {
                     const Icon = item.icon
                     return (
                       <Link key={item.id} href={item.href} className="block">

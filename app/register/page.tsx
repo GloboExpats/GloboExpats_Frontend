@@ -395,7 +395,9 @@ export default function RegisterPage() {
                       </Label>
                       <Input
                         id="firstName"
+                        name="firstName"
                         placeholder="Enter your first name"
+                        autoComplete="given-name"
                         className="h-10 border-neutral-300 focus:border-brand-secondary focus:ring-brand-secondary/50"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -410,7 +412,9 @@ export default function RegisterPage() {
                       </Label>
                       <Input
                         id="lastName"
+                        name="lastName"
                         placeholder="Enter your last name"
+                        autoComplete="family-name"
                         className="h-10 border-neutral-300 focus:border-brand-secondary focus:ring-brand-secondary/50"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -426,8 +430,10 @@ export default function RegisterPage() {
                     </Label>
                     <Input
                       id="personalEmail"
+                      name="email"
                       type="email"
                       placeholder="your.email@example.com"
+                      autoComplete="email"
                       className={`h-12 border-neutral-300 focus:border-brand-secondary focus:ring-brand-secondary/50 ${
                         formData.personalEmail && !validateEmail(formData.personalEmail)
                           ? 'border-red-300 focus:border-red-500'
@@ -455,8 +461,10 @@ export default function RegisterPage() {
                     <div className="relative">
                       <Input
                         id="password"
+                        name="password"
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Create a secure password"
+                        autoComplete="new-password"
                         className="h-12 pr-12 border-neutral-300 focus:border-brand-secondary focus:ring-brand-secondary/50"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}

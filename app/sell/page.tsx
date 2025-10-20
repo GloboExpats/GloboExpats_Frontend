@@ -36,7 +36,6 @@ interface FormData {
   price: string
   originalPrice: string
   currency: string
-  isPremium: boolean
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -51,7 +50,6 @@ const INITIAL_FORM_DATA: FormData = {
   price: '',
   originalPrice: '',
   currency: 'TZS',
-  isPremium: false,
 }
 
 const STEP_TITLES = ['Basic Details', 'Photos & Description', 'Pricing & Publish']

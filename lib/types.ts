@@ -85,6 +85,7 @@ export interface User {
   loggingEmail: string
   organizationEmail?: string
   avatar?: string
+  profileImageUrl?: string // Backend returns this, avatar is the fallback
   createdAt: Date
   preferences?: UserPreferences
 
@@ -199,11 +200,12 @@ export interface FeaturedItem {
   images?: string[]
   description?: string
   listedBy: string
+  sellerId?: number // User ID of the seller (from backend)
+  sellerName?: string // Seller's display name
   rating: number
   reviews: number
   location: string
   isVerified: boolean
-  isPremium: boolean
   category?: string
   condition?: string
 }
@@ -296,7 +298,6 @@ export interface ProductListing extends LoadingState {
   category: string
   condition: string
   datePosted: string
-  premium: boolean
 }
 
 /**

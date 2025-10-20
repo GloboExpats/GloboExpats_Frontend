@@ -33,7 +33,7 @@ export const ProfileDropdown = React.memo<ProfileDropdownProps>(
           {/* Clickable profile link */}
           <Link href="/account" className="flex items-center gap-2 mr-2">
             <Avatar className="h-8 w-8 hover:ring-2 hover:ring-white/30 transition-all">
-              <AvatarImage src={user.avatar || '/placeholder.svg'} alt={user.name} />
+              <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className="bg-brand-secondary text-brand-primary text-xs font-bold">
                 {userInitials}
               </AvatarFallback>
@@ -70,7 +70,7 @@ export const ProfileDropdown = React.memo<ProfileDropdownProps>(
               className="flex items-center gap-2 hover:bg-neutral-100 rounded-md p-2 transition-colors"
             >
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user.avatar || '/placeholder.svg'} alt={user.name} />
+                <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="bg-brand-secondary text-brand-primary text-xs font-bold">
                   {userInitials}
                 </AvatarFallback>

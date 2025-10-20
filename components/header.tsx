@@ -175,7 +175,7 @@ const UserNavigation = React.memo<{
             <div className="px-3 py-2.5 border-b border-neutral-200">
               <div className="flex items-center gap-2.5">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={user?.avatar || '/placeholder.svg'} alt={user?.name} />
+                  <AvatarImage src={user?.avatar} alt={user?.name} />
                   <AvatarFallback className="bg-brand-secondary text-brand-primary text-sm font-bold">
                     {userInitials}
                   </AvatarFallback>

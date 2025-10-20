@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import {
   Bell,
   CheckCircle2,
@@ -35,111 +34,10 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { useVerification } from '@/hooks/use-verification'
 import { VerificationPopup } from '@/components/verification-popup'
 
-// Sample notifications data
-const notifications = [
-  {
-    id: 1,
-    type: 'admin_message',
-    title: 'Action Required: Update Your Listing',
-    message:
-      "Your listing 'iPhone 15 Pro Max' has been active for 14 days. Please update the status or it may be archived.",
-    timestamp: '2024-05-23T10:30:00Z',
-    isRead: false,
-    sender: {
-      name: 'Admin',
-      avatar: '/images/seller-avatar-1.jpg',
-    },
-    itemId: 1,
-    itemTitle: 'iPhone 15 Pro Max 256GB - Natural Titanium',
-    itemImage: '/images/iphone-15-pro.jpg',
-    actionUrl: '/expat/dashboard',
-  },
-  {
-    id: 2,
-    type: 'buyer_message',
-    title: 'New Message from Sarah',
-    message: "Hi, is the MacBook still available? I'm interested in buying it.",
-    timestamp: '2024-05-22T15:45:00Z',
-    isRead: true,
-    sender: {
-      name: 'Sarah Mitchell',
-      avatar: '/images/seller-avatar-2.jpg',
-    },
-    itemId: 2,
-    itemTitle: 'MacBook Air M2 13" - Space Gray',
-    itemImage: '/images/macbook-pro.jpg',
-    actionUrl: '/messages?seller=Sarah Mitchell&product=MacBook Air M2',
-  },
-  {
-    id: 3,
-    type: 'item_update',
-    title: 'Item Sold',
-    message: "Congratulations! Your item 'Herman Miller Aeron Chair' has been marked as sold.",
-    timestamp: '2024-05-21T09:15:00Z',
-    isRead: true,
-    itemId: 3,
-    itemTitle: 'Herman Miller Aeron Chair - Size B',
-    itemImage: '/images/herman-miller-chair.jpg',
-    actionUrl: '/expat/dashboard',
-  },
-  {
-    id: 4,
-    type: 'admin_message',
-    title: 'Final Notice: Update Your Listing',
-    message:
-      "This is the final notice for your listing 'BMW X5 2022'. Please update the status within 3 days or it will be archived.",
-    timestamp: '2024-05-20T14:20:00Z',
-    isRead: false,
-    sender: {
-      name: 'Admin',
-      avatar: '/images/seller-avatar-1.jpg',
-    },
-    itemId: 4,
-    itemTitle: 'BMW X5 2022 - Expat Owned',
-    itemImage: '/images/bmw-x5.jpg',
-    actionUrl: '/expat/dashboard',
-  },
-  {
-    id: 5,
-    type: 'buyer_message',
-    title: 'New Message from Ahmed',
-    message:
-      "Hello, I'd like to know more about the condition of the iPad Pro. Does it have any scratches?",
-    timestamp: '2024-05-19T11:10:00Z',
-    isRead: true,
-    sender: {
-      name: 'Ahmed Hassan',
-      avatar: '/images/seller-avatar-3.jpg',
-    },
-    itemId: 5,
-    itemTitle: 'iPad Pro 12.9" 2024 - Silver',
-    itemImage: '/images/iphone-15-pro.jpg',
-    actionUrl: '/messages?seller=Ahmed Hassan&product=iPad Pro 12.9"',
-  },
-  {
-    id: 6,
-    type: 'system',
-    title: 'Account Verified',
-    message:
-      'Your account has been verified as an expert buyer. You can now contact sellers directly.',
-    timestamp: '2024-05-18T08:30:00Z',
-    isRead: true,
-    actionUrl: '/account/verification',
-  },
-  {
-    id: 7,
-    type: 'item_update',
-    title: 'Item Archived',
-    message:
-      "Your listing 'Canon EOS R5' has been archived due to inactivity. You can restore it from your dashboard.",
-    timestamp: '2024-05-17T16:45:00Z',
-    isRead: false,
-    itemId: 6,
-    itemTitle: 'Canon EOS R5 + 24-70mm Lens Kit',
-    itemImage: '/images/canon-camera.jpg',
-    actionUrl: '/expat/dashboard',
-  },
-]
+// Notifications will be loaded from backend when available
+// For now, using empty array since notifications system is not yet implemented
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const notifications: any[] = []
 
 export default function NotificationsPage() {
   return (
@@ -337,14 +235,16 @@ function NotificationsPageContent() {
                   Settings
                 </Button>
               </Link>
-              <Button
-                className="bg-brand-secondary hover:bg-amber-500 text-brand-primary font-semibold"
-                onClick={markAllAsRead}
-                disabled={isLoading}
-              >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Mark All as Read
-              </Button>
+              {notifications.length > 0 && (
+                <Button
+                  className="bg-brand-secondary hover:bg-amber-500 text-brand-primary font-semibold"
+                  onClick={markAllAsRead}
+                  disabled={isLoading}
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Mark All as Read
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -499,13 +399,6 @@ function NotificationsPageContent() {
 
                           {notification.itemTitle && (
                             <div className="mt-3 flex items-center gap-3 bg-neutral-100/70 p-2 rounded-md">
-                              <Image
-                                src={notification.itemImage}
-                                alt={notification.itemTitle}
-                                width={40}
-                                height={40}
-                                className="w-10 h-10 rounded-md object-cover"
-                              />
                               <div className="text-sm">
                                 <span className="text-neutral-500">Related Item:</span>{' '}
                                 <Link
@@ -531,11 +424,29 @@ function NotificationsPageContent() {
                   </Card>
                 ))
               ) : (
-                <div className="text-center py-16">
-                  <Bell className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-neutral-800">No Notifications</h3>
-                  <p className="text-neutral-600">You&apos;re all caught up!</p>
-                </div>
+                <Card className="shadow-sm">
+                  <CardContent className="text-center py-16">
+                    <Bell className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-neutral-800 mb-2">
+                      No Notifications Yet
+                    </h3>
+                    <p className="text-neutral-600 max-w-md mx-auto mb-6">
+                      You&apos;ll receive notifications here when there are updates about your
+                      listings, messages from buyers, or important account information.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                      <Link href="/sell">
+                        <Button>
+                          <Package className="w-4 h-4 mr-2" />
+                          Create Listing
+                        </Button>
+                      </Link>
+                      <Link href="/browse">
+                        <Button variant="outline">Browse Items</Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           </div>

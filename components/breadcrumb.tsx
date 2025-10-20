@@ -14,9 +14,11 @@ export default function Breadcrumb() {
     return null
   }
 
-  // Remove 'seller' from breadcrumb navigation since users go directly to dashboard
-  // This changes "Home > Seller > Dashboard" to "Home > Dashboard"
-  const filteredSegments = pathSegments.filter((segment) => segment !== 'seller')
+  // Remove 'seller' and 'expat' from breadcrumb navigation since these are just URL namespaces
+  // This changes "Home > Seller > Dashboard" or "Home > Expat > Dashboard" to "Home > Dashboard"
+  const filteredSegments = pathSegments.filter(
+    (segment) => segment !== 'seller' && segment !== 'expat'
+  )
 
   return (
     <nav aria-label="Breadcrumb" className="mb-6">
@@ -32,7 +34,7 @@ export default function Breadcrumb() {
             (seg, i) =>
               pathSegments
                 .slice(0, i + 1)
-                .filter((s) => s !== 'seller')
+                .filter((s) => s !== 'seller' && s !== 'expat')
                 .join('/') === filteredSegments.slice(0, index + 1).join('/')
           )
           const href = `/${pathSegments.slice(0, originalIndex + 1).join('/')}`

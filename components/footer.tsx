@@ -6,8 +6,8 @@ import { CATEGORIES } from '@/lib/constants'
 
 export default function Footer() {
   return (
-    <footer className="bg-[#1E3A8A] text-neutral-200">
-      <div className="container mx-auto px-4 py-8 sm:py-12">
+    <footer className="bg-[#1E3A8A] text-neutral-200 w-full">
+      <div className="w-full px-4 py-8 sm:py-12 max-w-[1920px] mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 md:gap-10">
           {/* About */}
           <div className="col-span-2 md:col-span-1">

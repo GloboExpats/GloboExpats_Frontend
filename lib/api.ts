@@ -118,7 +118,13 @@ class ApiClient {
     options: RequestInit = {},
     _retry: boolean = true
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`
+    // If endpoint starts with /api/ (Next.js API routes), don't prepend backend URL
+    // This allows us to use Next.js proxy routes to avoid CORS issues
+    const isNextApiRoute = endpoint.startsWith('/api/') && !endpoint.startsWith('/api/v1/')
+    const url = isNextApiRoute ? endpoint : `${this.baseURL}${endpoint}`
+
+    // Log the request for debugging
+    console.log(`[API] ${options.method || 'GET'} ${url}`)
 
     // For FormData, don't set Content-Type (let browser set it with boundary)
     const isFormData = options.body instanceof FormData
@@ -187,11 +193,20 @@ class ApiClient {
               ) {
                 errorMessage =
                   'Account verification required. Please verify your email to access this feature. Go to Account → Verification to complete the process.'
+              } else if (errorData.message && errorData.message.includes('No endpoint')) {
+                // Backend endpoint not implemented yet - log silently
+                console.warn(`[API] Endpoint not implemented: ${url}`)
+                errorMessage = errorData.message
               } else {
                 errorMessage = errorData.message || 'Resource not found.'
               }
             } else if (response.status === 500) {
+              // Only log if there's actual error data
+              if (errorData && Object.keys(errorData).length > 0) {
+                console.error('[API] Server error 500:', errorData)
+              }
               errorMessage =
+                errorData.message ||
                 "We're experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team."
             }
           } else {
@@ -295,13 +310,21 @@ class ApiClient {
 
   /**
    * Creates a new product listing with images
-   * @param productData - Product information object
+   * @param productData - Product information object (WITHOUT sellerId - extracted from JWT)
    * @param images - Array of image files
    * @returns Promise resolving to created product with productId and imageIds
    *
+   * IMPORTANT: Backend automatically assigns sellerId from the JWT token.
+   * The productData should NOT include sellerId - it's extracted from Authorization header.
+   *
    * Backend expects multipart/form-data with:
-   * - product: JSON string with product details
+   * - product: JSON string with product details (NO sellerId)
    * - images: One or more image files
+   *
+   * Backend response includes:
+   * - productId: Unique identifier for the created product
+   * - sellerId: User ID extracted from JWT (tied to authenticated user)
+   * - sellerName: Username from the authenticated user's account
    */
   async createProduct(
     productData: Record<string, unknown>,
@@ -310,7 +333,12 @@ class ApiClient {
     const formData = new FormData()
 
     // Add product data as JSON string
+    // NOTE: Do NOT include sellerId - backend extracts it from JWT token
     formData.append('product', JSON.stringify(productData))
+
+    console.log('🔐 Creating product with JWT authentication')
+    console.log('📦 Product data:', productData)
+    console.log('🖼️ Images count:', images.length)
 
     // Add images
     images.forEach((image) => {
@@ -320,6 +348,7 @@ class ApiClient {
     const response = await fetch(`${this.baseURL}/api/v1/products/post-product`, {
       method: 'POST',
       headers: {
+        // JWT token contains user ID - backend extracts sellerId from this
         Authorization: (this.headers as Record<string, string>)['Authorization'] || '',
       },
       body: formData,
@@ -486,6 +515,9 @@ class ApiClient {
     if (!hasImages && !hasImageRemoval) {
       // Use Next.js API route proxy (server-to-server, no CORS)
       const proxyUrl = `/api/products/${id}`
+      console.log('[ApiClient] Calling proxy:', proxyUrl)
+      console.log('[ApiClient] Product data:', productData)
+
       const response = await fetch(proxyUrl, {
         method: 'PATCH',
         headers: {
@@ -495,15 +527,30 @@ class ApiClient {
         body: JSON.stringify(productData),
       })
 
+      console.log('[ApiClient] Proxy response status:', response.status)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+        let errorData
+        try {
+          const errorText = await response.text()
+          console.error('[ApiClient] Error response text:', errorText)
+          errorData = JSON.parse(errorText)
+        } catch (parseError) {
+          console.error('[ApiClient] Failed to parse error response:', parseError)
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        throw new Error(
+          errorData.message || errorData.error || `HTTP error! status: ${response.status}`
+        )
       }
 
-      return response.json()
+      const result = await response.json()
+      console.log('[ApiClient] Success:', result)
+      return result
     }
 
     // If images are involved, use multipart/form-data
+    // We need to use a proxy here too because of CORS issues with multipart
     const formData = new FormData()
     formData.append('product', JSON.stringify(productData))
 
@@ -514,17 +561,44 @@ class ApiClient {
     }
 
     // Build URL with query params for image removal
-    let url = `/api/v1/products/update/${id}`
+    let url = `/api/products/${id}`
     if (hasImageRemoval) {
       const params = new URLSearchParams()
       imageIdsToRemove.forEach((id) => params.append('imageIds', id.toString()))
       url += `?${params.toString()}`
     }
 
-    return this.request(url, {
+    console.log('[ApiClient] Updating with images, calling proxy:', url)
+    console.log('[ApiClient] Has images:', hasImages, 'Has removal:', hasImageRemoval)
+
+    // Use fetch directly for multipart (don't go through this.request which adds JSON headers)
+    const response = await fetch(url, {
       method: 'PATCH',
+      headers: {
+        Authorization: (this.headers as Record<string, string>).Authorization || '',
+      },
       body: formData,
     })
+
+    console.log('[ApiClient] Multipart response status:', response.status)
+
+    if (!response.ok) {
+      let errorData
+      try {
+        const errorText = await response.text()
+        console.error('[ApiClient] Multipart error:', errorText)
+        errorData = JSON.parse(errorText)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_parseError) {
+        console.error('[ApiClient] Failed to parse multipart error')
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      throw new Error(
+        errorData.message || errorData.error || `HTTP error! status: ${response.status}`
+      )
+    }
+
+    return response.json()
   }
 
   /**
@@ -565,6 +639,7 @@ class ApiClient {
     phoneNumber: string
     organization: string
     location: string
+    profileImageUrl?: string
     verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
     passportVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
     addressVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -584,6 +659,7 @@ class ApiClient {
       phoneNumber: string
       organization: string
       location: string
+      profileImageUrl?: string
       verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
       passportVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
       addressVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -615,6 +691,154 @@ class ApiClient {
   ): Promise<ApiResponse<unknown>> {
     return this.request(`/api/v1/users/${id}`, {
       method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Updates current user's profile using editProfile endpoint
+   * Uses Next.js API proxy to avoid CORS issues
+   * Backend expects multipart/form-data with profileInformationDTO as JSON string
+   * @param data - Profile data to update
+   * @param profileImage - Optional profile image file
+   * @returns Promise resolving to updated profile
+   */
+  async editProfile(
+    data: {
+      firstName?: string
+      lastName?: string
+      email?: string
+      phoneNumber?: string
+      location?: string
+      aboutMe?: string
+      organization?: string
+      position?: string
+    },
+    profileImage?: File
+  ): Promise<ApiResponse<unknown>> {
+    // Backend expects multipart/form-data with profileInformationDTO as a JSON string
+    const formData = new FormData()
+    formData.append('profileInformationDTO', JSON.stringify(data))
+
+    if (profileImage) {
+      formData.append('profileImage', profileImage)
+    }
+
+    // Use Next.js API proxy to avoid CORS issues
+    return this.request('/api/profile', {
+      method: 'PATCH',
+      body: formData,
+    })
+  }
+
+  /**
+   * Changes user password
+   * @param data - Current and new password
+   * @returns Promise resolving to password change confirmation
+   */
+  async changePassword(data: {
+    currentPassword: string
+    newPassword: string
+  }): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/userManagement/changePassword', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Uploads verification documents
+   * @param files - Document files to upload
+   * @returns Promise resolving to upload confirmation
+   */
+  async uploadVerificationDocuments(files: File[]): Promise<ApiResponse<unknown>> {
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+
+    return this.request('/api/v1/verification-documents/', {
+      method: 'POST',
+      body: formData,
+    })
+  }
+
+  /**
+   * Deletes a verification document
+   * @param docUrl - Document URL to delete
+   * @returns Promise resolving to deletion confirmation
+   */
+  async deleteVerificationDocument(docUrl: string): Promise<ApiResponse<unknown>> {
+    return this.request(`/api/v1/verification-documents/delete/${encodeURIComponent(docUrl)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /**
+   * Deletes user profile image
+   * @returns Promise resolving to deletion confirmation
+   */
+  async deleteProfileImage(): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/userManagement/deleteProfileImage', {
+      method: 'DELETE',
+    })
+  }
+
+  // ============================================================================
+  // REVIEW & RATING ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Posts a product review
+   * @param data - Review data including productId, rating, and comment
+   * @returns Promise resolving to posted review
+   */
+  async postReview(data: {
+    productId: number
+    rating: number
+    comment: string
+  }): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/post-review', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Edits an existing product review
+   * @param productId - Product identifier
+   * @param data - Updated review data
+   * @returns Promise resolving to updated review
+   */
+  async editReview(
+    productId: number,
+    data: { rating: number; comment: string }
+  ): Promise<ApiResponse<unknown>> {
+    return this.request(`/api/v1/edit-review/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Deletes a review
+   * @param reviewId - Review identifier
+   * @returns Promise resolving to deletion confirmation
+   */
+  async deleteReview(reviewId: number): Promise<ApiResponse<unknown>> {
+    return this.request(`/api/v1/delete-review/${reviewId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /**
+   * Rates a product
+   * @param data - Rating data including productId and rating value
+   * @returns Promise resolving to rating confirmation
+   */
+  async rateProduct(data: { productId: number; rating: number }): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/rate', {
+      method: 'POST',
       body: JSON.stringify(data),
     })
   }
@@ -865,6 +1089,39 @@ export const api = {
 
   /** Cart management operations - DEPRECATED: Now client-side only */
   // Cart operations removed - handled via localStorage in CartProvider
+
+  /** Review & Rating operations */
+  reviews: {
+    post: (data: { productId: number; rating: number; comment: string }) =>
+      apiClient.postReview(data),
+    edit: (productId: number, data: { rating: number; comment: string }) =>
+      apiClient.editReview(productId, data),
+    delete: (reviewId: number) => apiClient.deleteReview(reviewId),
+    rate: (data: { productId: number; rating: number }) => apiClient.rateProduct(data),
+  },
+
+  /** User profile operations */
+  profile: {
+    get: () => apiClient.getUserDetails(),
+    update: (
+      data: {
+        firstName?: string
+        lastName?: string
+        email?: string
+        phoneNumber?: string
+        location?: string
+        aboutMe?: string
+        organization?: string
+        position?: string
+      },
+      profileImage?: File
+    ) => apiClient.editProfile(data, profileImage),
+    changePassword: (currentPassword: string, newPassword: string) =>
+      apiClient.changePassword({ currentPassword, newPassword }),
+    uploadVerificationDocs: (files: File[]) => apiClient.uploadVerificationDocuments(files),
+    deleteVerificationDoc: (docUrl: string) => apiClient.deleteVerificationDocument(docUrl),
+    deleteProfileImage: () => apiClient.deleteProfileImage(),
+  },
 }
 
 /** Default export for backward compatibility */

@@ -238,6 +238,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /**
+   * Helper function to normalize image URLs (convert relative to absolute)
+   */
+  const normalizeImageUrl = useCallback((imageUrl: string | undefined): string | undefined => {
+    if (!imageUrl) return undefined
+    if (imageUrl.startsWith('http')) return imageUrl
+
+    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
+    const cleanUrl = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
+    return `${BACKEND_URL}/${cleanUrl}`
+  }, [])
+
+  /**
    * Restores user session from localStorage on app initialization
    */
   const restoreSession = useCallback(async () => {
@@ -250,7 +262,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (token) {
           // Attempt to fetch user to rebuild session
           try {
+            console.log('[Auth] Attempting to rebuild session from token...')
             const userDetails = await apiClient.getUserDetails()
+            console.log('[Auth] User details fetched successfully:', userDetails)
+
+            // Convert relative image URL to absolute URL
+            const imageUrl = normalizeImageUrl(userDetails.profileImageUrl)
+
             const rebuiltUser: User = {
               id: userDetails.loggingEmail,
               firstName: userDetails.firstName,
@@ -259,6 +277,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: userDetails.loggingEmail,
               loggingEmail: userDetails.loggingEmail,
               organizationEmail: userDetails.organizationalEmail,
+              avatar: imageUrl,
+              profileImageUrl: imageUrl,
               createdAt: new Date(),
               position: userDetails.position,
               aboutMe: userDetails.aboutMe,
@@ -281,9 +301,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               error: null,
               verificationStatus,
             })
+            console.log('[Auth] Session rebuilt successfully')
             return
-          } catch {
-            // token invalid; continue to mark logged out
+          } catch (error) {
+            // token invalid or backend error; continue to mark logged out
+            console.error('[Auth] Failed to rebuild session:', error)
           }
         }
         setAuthState((prev) => ({ ...prev, isLoading: false }))
@@ -298,11 +320,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { user } = sessionData
+
+      // Normalize image URLs in case they're stored as relative paths
+      const normalizedUser = {
+        ...user,
+        avatar: normalizeImageUrl(user.avatar) || user.avatar,
+        profileImageUrl: normalizeImageUrl(user.profileImageUrl) || user.profileImageUrl,
+      }
+
       if (token) initializeAuthFromStorage()
-      const verificationStatus = createDefaultVerificationStatus(user)
+      const verificationStatus = createDefaultVerificationStatus(normalizedUser)
       setAuthState({
         isLoggedIn: true,
-        user,
+        user: normalizedUser,
         isLoading: false,
         error: null,
         verificationStatus,
@@ -313,10 +343,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthState((prev) => ({
         ...prev,
         isLoading: false,
+        isLoggedIn: false,
+        user: null,
         error: 'Session restoration failed',
       }))
     }
-  }, [isSessionValid])
+  }, [isSessionValid, normalizeImageUrl])
 
   /**
    * Persists session data to localStorage (immediate for critical operations)
@@ -388,6 +420,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userDetails = await apiClient.getUserDetails()
 
+      // Convert relative image URL to absolute URL
+      const imageUrl = normalizeImageUrl(userDetails.profileImageUrl)
+
       // Transform backend response to User interface
       const user: User = {
         id: userDetails.loggingEmail, // Use email as ID
@@ -397,6 +432,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: userDetails.loggingEmail,
         loggingEmail: userDetails.loggingEmail,
         organizationEmail: userDetails.organizationalEmail,
+        avatar: imageUrl,
+        profileImageUrl: imageUrl,
         createdAt: new Date(), // Backend doesn't provide this, use current date
 
         // Profile information
@@ -445,7 +482,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to fetch user details:', error)
       return null
     }
-  }, [])
+  }, [normalizeImageUrl])
 
   /**
    * Authenticates user and creates session

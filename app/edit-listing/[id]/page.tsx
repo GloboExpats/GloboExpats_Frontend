@@ -23,7 +23,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { ITEM_CONDITIONS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
 import { CURRENCIES as CURRENCY_CONFIG } from '@/lib/currency-converter'
 import { getFullImageUrl } from '@/lib/image-utils'
-import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Loader2, Upload, X, Star, Trash2 } from 'lucide-react'
 
 interface FormData {
   productName: string
@@ -35,6 +35,12 @@ interface FormData {
   askingPrice: string
   originalPrice: string
   productWarranty: string
+}
+
+interface ProductImage {
+  imageId: number
+  imageUrl: string
+  isMain: boolean
 }
 
 export default function EditListingPage() {
@@ -59,6 +65,10 @@ function EditListingContent() {
   const [product, setProduct] = useState<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [categories, setCategories] = useState<any[]>([])
+  const [currentImages, setCurrentImages] = useState<ProductImage[]>([])
+  const [imagesToRemove, setImagesToRemove] = useState<number[]>([])
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
 
   const [formData, setFormData] = useState<FormData>({
     productName: '',
@@ -90,16 +100,75 @@ function EditListingContent() {
 
         // Pre-populate form with existing data
         const product = productResponse as Record<string, unknown>
+
+        // Set current images
+        if (product.productImages && Array.isArray(product.productImages)) {
+          setCurrentImages(product.productImages as ProductImage[])
+        }
+
+        // Handle location: convert backend location to proper value
+        let locationValue = String(product.productLocation || '').trim()
+        console.log('📍 Original location from backend:', locationValue)
+
+        // Try exact match first (value or label)
+        let locationMatch = EXPAT_LOCATIONS.find(
+          (loc) => loc.label === locationValue || loc.value === locationValue
+        )
+
+        // If no exact match, try partial match (for corrupted data like "Dar es Salaam" without emoji)
+        if (!locationMatch && locationValue) {
+          locationMatch = EXPAT_LOCATIONS.find((loc) => {
+            // Remove emojis and special chars for comparison
+            const cleanLabel = loc.label
+              .replace(/[^\w\s,]/g, '')
+              .trim()
+              .toLowerCase()
+            const cleanValue = locationValue
+              .replace(/[^\w\s,]/g, '')
+              .trim()
+              .toLowerCase()
+            return (
+              cleanLabel.includes(cleanValue) ||
+              cleanValue.includes(cleanLabel) ||
+              (loc.country && loc.country.toLowerCase().includes(cleanValue)) ||
+              cleanValue.includes(loc.value)
+            )
+          })
+        }
+
+        if (locationMatch) {
+          locationValue = locationMatch.value
+          console.log('✅ Matched location to:', locationMatch.value, '-', locationMatch.label)
+        } else if (locationValue) {
+          // If we have a value but no match, default to first location and warn
+          console.warn(
+            '⚠️ Could not match location:',
+            locationValue,
+            '- Defaulting to dar-es-salaam'
+          )
+          locationValue = 'dar-es-salaam'
+        } else {
+          // No location at all, default to first
+          console.warn('⚠️ No location found - Defaulting to dar-es-salaam')
+          locationValue = 'dar-es-salaam'
+        }
+
         setFormData({
           productName: String(product.productName || ''),
           categoryId: Number(product.categoryId || 0),
           condition: String(product.productCondition || ''),
-          location: String(product.productLocation || ''),
+          location: locationValue,
           productDescription: String(product.productDescription || ''),
           currency: String(product.productCurrency || 'TZS'),
           askingPrice: String(product.productAskingPrice || ''),
           originalPrice: String(product.productOriginalPrice || ''),
           productWarranty: String(product.productWarranty || '1 year manufacturer warranty'),
+        })
+
+        console.log('📋 Form data loaded:', {
+          productName: String(product.productName || ''),
+          location: locationValue,
+          condition: String(product.productCondition || ''),
         })
       } catch (error) {
         console.error('Failed to load product:', error)
@@ -111,6 +180,95 @@ function EditListingContent() {
 
     fetchData()
   }, [productId])
+
+  // Handle image file selection
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    // Validate file size (5MB max)
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    files.forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        invalidFiles.push(`${file.name} exceeds 5MB`)
+      } else if (!file.type.startsWith('image/')) {
+        invalidFiles.push(`${file.name} is not an image`)
+      } else {
+        validFiles.push(file)
+      }
+    })
+
+    if (invalidFiles.length > 0) {
+      setErrors(invalidFiles)
+      return
+    }
+
+    // Limit total images (current + new) to 10
+    const totalImages =
+      currentImages.length - imagesToRemove.length + newImages.length + validFiles.length
+    if (totalImages > 10) {
+      setErrors([`Maximum 10 images allowed. You would have ${totalImages} images.`])
+      return
+    }
+
+    // Create preview URLs
+    const previews = validFiles.map((file) => URL.createObjectURL(file))
+    setNewImages([...newImages, ...validFiles])
+    setNewImagePreviews([...newImagePreviews, ...previews])
+    setErrors([])
+  }
+
+  // Remove a new image (not yet uploaded)
+  const removeNewImage = (index: number) => {
+    const newImagesArray = [...newImages]
+    const newPreviewsArray = [...newImagePreviews]
+
+    // Revoke the object URL to prevent memory leaks
+    URL.revokeObjectURL(newPreviewsArray[index])
+
+    newImagesArray.splice(index, 1)
+    newPreviewsArray.splice(index, 1)
+
+    setNewImages(newImagesArray)
+    setNewImagePreviews(newPreviewsArray)
+  }
+
+  // Mark an existing image for removal
+  const markImageForRemoval = (imageId: number) => {
+    if (imagesToRemove.includes(imageId)) {
+      // Unmark for removal
+      setImagesToRemove(imagesToRemove.filter((id) => id !== imageId))
+    } else {
+      // Check if at least one image will remain
+      const remainingImages = currentImages.length - imagesToRemove.length - 1 + newImages.length
+      if (remainingImages < 1) {
+        setErrors(['Product must have at least one image'])
+        return
+      }
+      setImagesToRemove([...imagesToRemove, imageId])
+      setErrors([])
+    }
+  }
+
+  // Move image to first position (make it main)
+  const setAsMainImage = (index: number) => {
+    const newOrder = [...currentImages]
+    const [imageToMove] = newOrder.splice(index, 1)
+    newOrder.unshift(imageToMove)
+    setCurrentImages(newOrder)
+    setErrors([])
+
+    // Show feedback toast with limitation notice
+    toast({
+      title: '⚠️ Image reordered (display only)',
+      description:
+        'Backend does not support image reordering yet. To change the main photo, delete this image and re-upload it first.',
+      variant: 'default',
+      duration: 6000,
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -155,21 +313,57 @@ function EditListingContent() {
         convertedOriginalPrice: originalPriceInTZS,
       })
 
-      const updateData = {
-        productName: formData.productName.trim(),
-        categoryId: formData.categoryId,
-        condition: formData.condition,
-        location: formData.location,
-        productDescription: formData.productDescription.trim(),
-        currency: 'TZS', // Always store as TZS in backend
-        askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
-        originalPrice: Math.round(originalPriceInTZS),
-        productWarranty: formData.productWarranty,
+      // Validate field lengths before sending (database limits)
+      const MAX_LENGTHS = {
+        productName: 255,
+        location: 100, // Reduced to avoid emoji issues
+        condition: 50,
+        currency: 10,
+        productWarranty: 255,
       }
 
-      console.log('Updating product with data:', updateData)
+      const updateData = {
+        productName: formData.productName.trim().substring(0, MAX_LENGTHS.productName),
+        categoryId: formData.categoryId,
+        condition: formData.condition.substring(0, MAX_LENGTHS.condition),
+        location: formData.location.substring(0, MAX_LENGTHS.location),
+        productDescription: formData.productDescription.trim(),
+        currency: 'TZS',
+        askingPrice: Math.round(askingPriceInTZS),
+        originalPrice: Math.round(originalPriceInTZS),
+        productWarranty: formData.productWarranty.substring(0, MAX_LENGTHS.productWarranty),
+      }
 
-      const result = await apiClient.updateProduct(productId, updateData)
+      // Log field lengths for debugging
+      console.log('📊 Field lengths:', {
+        productName: updateData.productName.length,
+        location: updateData.location.length,
+        condition: updateData.condition.length,
+        warranty: updateData.productWarranty.length,
+        locationValue: updateData.location,
+      })
+
+      console.log('💱 Currency Conversion:', {
+        enteredCurrency,
+        conversionRate,
+        askingPriceInTZS,
+        originalPriceInTZS,
+      })
+
+      console.log('📦 Updating product with data:', updateData)
+      console.log('🖼️ Images to remove:', imagesToRemove)
+      console.log('📸 New images to add:', newImages.length)
+      console.log(
+        '🎨 Current image order (IDs):',
+        currentImages.map((img) => img.imageId)
+      )
+
+      const result = await apiClient.updateProduct(
+        productId,
+        updateData,
+        newImages.length > 0 ? newImages : undefined,
+        imagesToRemove.length > 0 ? imagesToRemove : undefined
+      )
 
       console.log('✅ Product updated successfully!', result)
 
@@ -268,36 +462,183 @@ function EditListingContent() {
             </Alert>
           )}
 
-          {/* Product Images Preview */}
-          {product.productImages && product.productImages.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Images</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {product.productImages.map((image: any, index: number) => (
-                    <div
-                      key={index}
-                      className="aspect-square bg-gray-100 rounded-lg overflow-hidden"
-                    >
-                      <Image
-                        src={getFullImageUrl(image.imageUrl)}
-                        alt={`Product image ${index + 1}`}
-                        width={200}
-                        height={200}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
+          {/* Product Images Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Product Images</CardTitle>
+              <p className="text-sm text-[#64748B] mt-1">
+                Manage your product photos (maximum 10 images, 5MB each)
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Current Images */}
+              {currentImages.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Current Images</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {currentImages.map((image, index) => {
+                      const isMarkedForRemoval = imagesToRemove.includes(image.imageId)
+                      return (
+                        <div
+                          key={image.imageId}
+                          className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden group ${
+                            isMarkedForRemoval ? 'opacity-50 ring-2 ring-red-500' : ''
+                          }`}
+                        >
+                          <Image
+                            src={getFullImageUrl(image.imageUrl)}
+                            alt={`Product image ${index + 1}`}
+                            width={200}
+                            height={200}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Main image badge */}
+                          {index === 0 && !isMarkedForRemoval && (
+                            <div className="absolute top-2 left-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold shadow-lg flex items-center gap-1">
+                              <Star className="w-3 h-3 fill-white" />
+                              Main Photo
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="absolute top-2 right-2 flex gap-2">
+                            {/* Set as Main button - only show on non-main images */}
+                            {index !== 0 && !isMarkedForRemoval && (
+                              <button
+                                type="button"
+                                onClick={() => setAsMainImage(index)}
+                                className="group/btn flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md opacity-0 group-hover:opacity-100 transition-all shadow-lg text-xs font-medium"
+                                title="Set as main photo"
+                              >
+                                <Star className="w-3 h-3" />
+                                <span>Make Main</span>
+                              </button>
+                            )}
+
+                            {/* Remove/Restore button */}
+                            <button
+                              type="button"
+                              onClick={() => markImageForRemoval(image.imageId)}
+                              className={`group/btn flex items-center gap-1 px-2 py-1 rounded-md transition-all shadow-lg text-xs font-medium ${
+                                isMarkedForRemoval
+                                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                                  : 'bg-red-600 hover:bg-red-700 text-white opacity-0 group-hover:opacity-100'
+                              }`}
+                              title={isMarkedForRemoval ? 'Keep this image' : 'Remove image'}
+                            >
+                              {isMarkedForRemoval ? (
+                                <>
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                  <span>Keep</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Remove</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          {isMarkedForRemoval && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                              <span className="text-white text-sm font-medium">
+                                Will be removed
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-                <p className="text-sm text-[#64748B] mt-4">
-                  Image editing is not yet available. Contact support if you need to update images.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+              )}
+
+              {/* New Images Preview */}
+              {newImages.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">New Images to Add</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {newImagePreviews.map((preview, index) => (
+                      <div
+                        key={index}
+                        className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group"
+                      >
+                        <Image
+                          src={preview}
+                          alt={`New image ${index + 1}`}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
+                          New
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeNewImage(index)}
+                          className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove new image"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Button */}
+              <div>
+                <Label htmlFor="image-upload" className="cursor-pointer">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#1E3A8A] hover:bg-blue-50 transition-colors">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600 mb-1">Click to add more images</p>
+                    <p className="text-xs text-gray-400">
+                      {currentImages.length - imagesToRemove.length + newImages.length}/10 images
+                    </p>
+                  </div>
+                  <Input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                </Label>
+              </div>
+
+              {/* Image Guidelines */}
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-[#1E3A8A] font-medium mb-1">Image Guidelines:</p>
+                <ul className="text-xs text-[#64748B] space-y-1">
+                  <li>• Maximum 10 images per product</li>
+                  <li>• Each image must be under 5MB</li>
+                  <li>• Supported formats: JPG, PNG, WebP</li>
+                  <li>
+                    • <strong className="text-blue-600">First image = Main photo</strong> (shown on
+                    product cards)
+                  </li>
+                  <li>
+                    • <strong className="text-orange-600">⚠️ To change main photo:</strong> Remove
+                    old main image, then upload new one first
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Basic Information */}
           <Card>
@@ -368,7 +709,7 @@ function EditListingContent() {
                   </SelectTrigger>
                   <SelectContent>
                     {EXPAT_LOCATIONS.map((location) => (
-                      <SelectItem key={location.value} value={location.label}>
+                      <SelectItem key={location.value} value={location.value}>
                         {location.label}
                       </SelectItem>
                     ))}

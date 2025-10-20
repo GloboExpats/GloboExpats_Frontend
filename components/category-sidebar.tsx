@@ -11,8 +11,8 @@ export default function CategorySidebar() {
   const { isLoggedIn } = useAuth()
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 min-h-screen sticky top-16 lg:block overflow-hidden">
-      <div className="h-screen">
+    <aside className="w-64 flex-shrink-0 bg-white border-r border-slate-200 min-h-screen sticky top-16 overflow-hidden">
+      <div className="h-screen flex flex-col">
         {/* Unified Expat Dashboard Section */}
         <div className="p-4 border-b border-slate-100">
           <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-brand-primary/20 shadow-futuristic">
@@ -101,10 +101,10 @@ export default function CategorySidebar() {
         </div>
 
         {/* Categories Section with Custom Scroll */}
-        <div className="p-4">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Categories</h2>
-          <div className="overflow-y-auto max-h-[calc(100vh-25rem)] pr-2">
-            <div className="space-y-2">
+        <div className="flex-1 flex flex-col px-4 py-2 min-h-0">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex-shrink-0">Categories</h2>
+          <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+            <div className="space-y-2 pr-2 pb-4">
               {CATEGORIES.map((category) => {
                 const IconComponent = category.icon
                 return (
@@ -113,7 +113,7 @@ export default function CategorySidebar() {
                     href={`/browse?category=${category.slug}`}
                     className="block"
                   >
-                    <Card className="group cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-slate-50 border-slate-100">
+                    <Card className="group cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-slate-50 border-slate-100 mr-1">
                       <CardContent className="p-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">

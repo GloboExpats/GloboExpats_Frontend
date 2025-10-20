@@ -27,15 +27,15 @@ export default function MobileSidebarToggle() {
           <Button
             variant="ghost"
             size="icon"
-            className="fixed top-[72px] left-2 sm:left-4 z-40 bg-white shadow-lg border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-full"
+            className="fixed top-[76px] left-2 sm:left-4 z-40 bg-transparent hover:bg-white/80 shadow-lg border border-slate-200 text-slate-700 rounded-full w-9 h-9 backdrop-blur-sm"
           >
-            <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Menu className="h-4 w-4" />
             <span className="sr-only">Toggle categories menu</span>
           </Button>
         </SheetTrigger>
         <SheetContent
           side="left"
-          className="w-[280px] sm:w-80 p-0 flex flex-col top-[64px] h-[calc(100vh-64px)] md:top-0 md:h-screen"
+          className="w-[280px] sm:w-80 p-0 flex flex-col top-[64px] h-[calc(100vh-64px)] md:top-0 md:h-screen z-50"
           hideOverlay={true}
         >
           <SheetHeader className="p-4 border-b flex-shrink-0">

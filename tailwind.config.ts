@@ -155,8 +155,6 @@ const config: Config = {
       boxShadow: {
         card: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
         'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1)',
-        premium:
-          '0 20px 25px -5px rgba(30, 58, 138, 0.1), 0 10px 10px -5px rgba(245, 158, 11, 0.04)',
         futuristic: '0 8px 32px rgba(30, 64, 175, 0.12), 0 4px 16px rgba(6, 182, 212, 0.08)',
         'card-modern': '0 4px 24px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04)',
       },

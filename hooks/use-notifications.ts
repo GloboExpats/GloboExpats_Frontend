@@ -75,25 +75,26 @@ export function useNotifications(): UseNotificationsReturn {
     setIsLoading(true)
 
     try {
-      // Simulate API calls - replace with actual API endpoints
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // TODO: Replace with actual API endpoints when backend implements notification system
+      // await api.notifications.getCounts()
+      // await api.messages.getUnreadCount()
 
-      // Mock data based on current user state
-      const mockNotificationCounts = {
-        total: 7,
-        unread: 3,
-        messages: 2,
-        admin: 1,
-        updates: 2,
+      // Using zero counts until backend notification system is ready
+      const notificationCountsData = {
+        total: 0,
+        unread: 0,
+        messages: 0,
+        admin: 0,
+        updates: 0,
       }
 
-      const mockMessageCounts = {
-        total: 4,
-        unread: 2,
+      const messageCountsData = {
+        total: 0,
+        unread: 0,
       }
 
-      setNotificationCounts(mockNotificationCounts)
-      setMessageCounts(mockMessageCounts)
+      setNotificationCounts(notificationCountsData)
+      setMessageCounts(messageCountsData)
     } catch (error) {
       console.error('Failed to fetch notification counts:', error)
     } finally {

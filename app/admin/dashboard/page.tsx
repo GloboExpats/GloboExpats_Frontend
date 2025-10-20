@@ -67,7 +67,6 @@ const overdueItems = [
     seller: {
       name: 'John Smith',
       email: 'john.smith@undp.com',
-      avatar: '/images/seller-avatar-1.jpg',
     },
     listingDate: '2024-05-10',
     daysListed: 14,
@@ -82,7 +81,6 @@ const overdueItems = [
     seller: {
       name: 'Sarah Johnson',
       email: 'sarah.johnson@un.org',
-      avatar: '/images/seller-avatar-2.jpg',
     },
     listingDate: '2024-05-08',
     daysListed: 16,
@@ -97,7 +95,6 @@ const overdueItems = [
     seller: {
       name: 'Michael Wong',
       email: 'michael.wong@who.int',
-      avatar: '/images/seller-avatar-3.jpg',
     },
     listingDate: '2024-05-05',
     daysListed: 19,
@@ -112,7 +109,6 @@ const overdueItems = [
     seller: {
       name: 'Emma Davis',
       email: 'emma.davis@embassy.gov',
-      avatar: '/images/seller-avatar-1.jpg',
     },
     listingDate: '2024-05-01',
     daysListed: 23,
@@ -131,7 +127,6 @@ const archivedItems = [
     seller: {
       name: 'David Lee',
       email: 'david.lee@unicef.org',
-      avatar: '/images/seller-avatar-2.jpg',
     },
     listingDate: '2024-04-15',
     archivedDate: '2024-05-10',
@@ -146,7 +141,6 @@ const archivedItems = [
     seller: {
       name: 'Lisa Wang',
       email: 'lisa.wang@un.org',
-      avatar: '/images/seller-avatar-3.jpg',
     },
     listingDate: '2024-04-18',
     archivedDate: '2024-05-12',
@@ -413,7 +407,7 @@ function AdminDashboardContent() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={item.seller.avatar || '/placeholder.svg'} />
+                                <AvatarImage src={'/placeholder.svg'} />
                                 <AvatarFallback>
                                   {item.seller.name
                                     .split(' ')
@@ -641,7 +635,7 @@ function AdminDashboardContent() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={item.seller.avatar || '/placeholder.svg'} />
+                              <AvatarImage src={'/placeholder.svg'} />
                               <AvatarFallback>
                                 {item.seller.name
                                   .split(' ')

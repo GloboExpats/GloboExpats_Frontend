@@ -16,6 +16,7 @@ interface ProductCardProps {
   viewMode?: 'grid' | 'list'
   className?: string
   onViewDetails?: (productId: number) => void
+  compact?: boolean // For mobile slider optimization
 }
 
 export function ProductCard({
@@ -23,6 +24,7 @@ export function ProductCard({
   viewMode = 'grid',
   className,
   onViewDetails,
+  compact = false,
 }: ProductCardProps) {
   const router = useRouter()
   const { addToCart } = useCart()
@@ -46,11 +48,12 @@ export function ProductCard({
   })
 
   const handleViewDetails = () => {
+    // Track analytics if callback provided
     if (onViewDetails) {
       onViewDetails(product.id)
-    } else {
-      router.push(`/product/${product.id}`)
     }
+    // Always navigate to product page
+    router.push(`/product/${product.id}`)
   }
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -78,7 +81,8 @@ export function ProductCard({
     <Card
       className={cn(
         'group cursor-pointer transition-all duration-300 hover:shadow-card-modern hover:-translate-y-1 focus-within:ring-2 focus-within:ring-brand-primary focus-within:ring-offset-2',
-        'bg-surface-primary border-neutral-300 rounded-2xl overflow-hidden h-full flex flex-col',
+        'bg-surface-primary border border-neutral-200 rounded-xl overflow-hidden h-full flex flex-col m-0.5',
+        compact && 'border-neutral-300',
         className
       )}
       role="article"
@@ -98,9 +102,7 @@ export function ProductCard({
           <div
             className={cn(
               'relative overflow-hidden flex-shrink-0 bg-white',
-              viewMode === 'list'
-                ? 'w-48 aspect-square rounded-l-2xl'
-                : 'aspect-square rounded-t-2xl'
+              viewMode === 'list' ? 'w-48 aspect-square rounded-l-xl' : 'aspect-square rounded-t-xl'
             )}
           >
             <Image
@@ -119,12 +121,19 @@ export function ProductCard({
           </div>
 
           {/* Content */}
-          <div className="p-3 sm:p-4 flex-1 flex flex-col h-full">
+          <div
+            className={cn('flex-1 flex flex-col h-full', compact ? 'p-1.5 sm:p-3' : 'p-2 sm:p-3')}
+          >
             {/* Title - Fixed height with line clamping */}
-            <div className="mb-2">
+            <div className="mb-1.5">
               <h3
                 id={`product-title-${product.id}`}
-                className="font-semibold text-neutral-900 line-clamp-2 group-hover:text-brand-primary transition-colors text-sm sm:text-base leading-tight min-h-[2.5rem]"
+                className={cn(
+                  'font-semibold text-neutral-900 line-clamp-2 group-hover:text-brand-primary transition-colors leading-tight',
+                  compact
+                    ? 'text-xs sm:text-sm min-h-[2rem] sm:min-h-[2rem]'
+                    : 'text-sm sm:text-base min-h-[2.5rem]'
+                )}
               >
                 {product.title}
               </h3>
@@ -132,7 +141,11 @@ export function ProductCard({
 
             {/* Price - Fixed height - Auto-converts to selected currency */}
             <div
-              className="flex items-center gap-1.5 sm:gap-2 mb-2 min-h-[1.75rem]"
+              className={cn(
+                'flex items-center gap-1 sm:gap-1.5',
+                compact ? 'mb-1' : 'mb-1.5',
+                'min-h-[1.5rem]'
+              )}
               aria-label="Product pricing"
             >
               <PriceDisplay
@@ -140,62 +153,94 @@ export function ProductCard({
                 size="lg"
                 weight="bold"
                 variant="secondary"
-                className="text-base sm:text-lg"
+                className={cn(compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg')}
                 showOriginal
               />
+              {/* Show original price on desktop/large screens even in compact mode */}
               {product.originalPrice && parseNumericPrice(product.originalPrice) > 0 && (
                 <PriceDisplay
                   price={parseNumericPrice(product.originalPrice)}
                   size="sm"
                   weight="normal"
                   variant="muted"
-                  className="text-xs sm:text-sm line-through"
+                  className={cn('line-through', compact ? 'hidden sm:block text-xs' : 'text-xs')}
                 />
               )}
             </div>
 
             {/* Seller Info - Fixed height */}
-            <div className="flex items-center justify-between mb-2 min-h-[1.25rem]">
+            <div
+              className={cn(
+                'flex items-center justify-between min-h-[1rem]',
+                compact ? 'mb-1' : 'mb-1.5'
+              )}
+            >
+              {/* Always show rating with star, even if 0 */}
               <div
                 className="flex items-center gap-1 flex-shrink-0"
-                aria-label={`Rating ${product.rating} out of 5 stars with ${product.reviews} reviews`}
+                aria-label={`Rating ${product.rating || 0} out of 5 stars with ${product.reviews || 0} reviews`}
               >
                 <Star
-                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-brand-secondary text-brand-secondary flex-shrink-0"
+                  className={cn(
+                    'fill-yellow-400 text-yellow-400',
+                    'flex-shrink-0',
+                    compact ? 'w-3 h-3 sm:w-3.5 sm:h-3.5' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'
+                  )}
                   aria-hidden="true"
                 />
-                <span className="text-xs sm:text-sm font-medium">{product.rating}</span>
-                <span className="text-xs sm:text-sm text-neutral-500">({product.reviews})</span>
+                <span
+                  className={cn(
+                    'font-medium text-neutral-900',
+                    compact ? 'text-xs sm:text-sm' : 'text-sm'
+                  )}
+                >
+                  {(product.rating || 0).toFixed(1)}
+                </span>
+                <span
+                  className={cn('text-neutral-500', compact ? 'text-xs sm:text-sm' : 'text-sm')}
+                >
+                  ({product.reviews || 0})
+                </span>
               </div>
-              <span
-                className="text-xs sm:text-sm text-neutral-600 truncate max-w-[100px] sm:max-w-[120px] ml-1"
-                aria-label={`Listed by ${product.listedBy}`}
-              >
-                {product.listedBy}
-              </span>
+              {!compact && (
+                <span
+                  className="text-xs text-neutral-600 truncate max-w-[80px] sm:max-w-[100px] ml-1"
+                  aria-label={`Listed by ${product.listedBy}`}
+                >
+                  {product.listedBy}
+                </span>
+              )}
             </div>
 
             {/* Location - Fixed height */}
             <div
-              className="flex items-center gap-1 mb-2 min-h-[1.25rem]"
+              className={cn('flex items-center gap-1 min-h-[1rem]', compact ? 'mb-1' : 'mb-1.5')}
               aria-label={`Location: ${product.location}`}
             >
               <MapPin
-                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-neutral-400 flex-shrink-0"
+                className={cn(
+                  'text-neutral-400 flex-shrink-0',
+                  compact ? 'w-3 h-3 sm:w-3.5 sm:h-3.5' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'
+                )}
                 aria-hidden="true"
               />
-              <span className="text-xs sm:text-sm text-neutral-600 truncate">
+              <span
+                className={cn(
+                  'text-neutral-600 truncate',
+                  compact ? 'text-xs sm:text-sm' : 'text-sm'
+                )}
+              >
                 {product.location}
               </span>
             </div>
 
-            {/* Category Badge - if available */}
-            {product.category && (
-              <div className="flex items-center gap-1 mb-2 min-h-[1.25rem]">
-                <Tag className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" aria-hidden="true" />
+            {/* Category Badge - if available (hidden in compact mode) */}
+            {!compact && product.category && (
+              <div className="flex items-center gap-1 mb-1.5 min-h-[1rem]">
+                <Tag className="w-3 h-3 text-blue-500 flex-shrink-0" aria-hidden="true" />
                 <Badge
                   variant="secondary"
-                  className="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  className="text-[10px] sm:text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5"
                   aria-label={`Category: ${product.category}`}
                 >
                   {product.category}
@@ -204,27 +249,50 @@ export function ProductCard({
             )}
 
             {/* Bottom Section - Pushed to bottom */}
-            <div className="mt-auto pt-2">
-              <div className="flex gap-3 items-center">
+            <div className={cn('mt-auto', compact ? 'pt-1' : 'pt-1.5')}>
+              <div className={cn('flex items-center', compact ? 'gap-1' : 'gap-2')}>
                 <Button
-                  className="flex-1 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white font-semibold py-1.5 sm:py-2 rounded-full shadow-futuristic hover:shadow-xl focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-all duration-300 group/btn text-xs sm:text-sm"
+                  className={cn(
+                    'flex-1 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white font-semibold rounded-full shadow-futuristic hover:shadow-xl focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-all duration-300 group/btn',
+                    compact
+                      ? 'py-2 sm:py-2 text-xs sm:text-sm h-9 sm:h-10'
+                      : 'py-2 sm:py-2.5 text-sm sm:text-base h-10 sm:h-11'
+                  )}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleViewDetails()
                   }}
                   aria-label={`View details for ${product.title}`}
                 >
-                  <span className="flex items-center justify-center gap-1.5 sm:gap-2">
-                    View Product
-                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/btn:translate-x-1 transition-transform duration-200" />
+                  <span
+                    className={cn(
+                      'flex items-center justify-center',
+                      compact ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'
+                    )}
+                  >
+                    {compact ? 'View' : 'View Product'}
+                    <ArrowRight
+                      className={cn(
+                        'group-hover/btn:translate-x-1 transition-transform duration-200',
+                        compact ? 'w-3.5 h-3.5 sm:w-4 sm:h-4' : 'w-4 h-4 sm:w-4.5 sm:h-4.5'
+                      )}
+                    />
                   </span>
                 </Button>
                 <button
                   onClick={handleAddToCart}
-                  className="flex-shrink-0 p-2 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white rounded-full shadow-futuristic hover:shadow-xl hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+                  className={cn(
+                    'flex-shrink-0 bg-gradient-to-r from-brand-primary to-brand-accent hover:from-blue-800 hover:to-cyan-600 text-white rounded-full shadow-futuristic hover:shadow-xl hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2',
+                    compact
+                      ? 'p-2 sm:p-2.5 w-9 h-9 sm:w-10 sm:h-10'
+                      : 'p-2.5 sm:p-3 w-10 h-10 sm:w-11 sm:h-11',
+                    'flex items-center justify-center'
+                  )}
                   aria-label={`Add ${product.title} to cart`}
                 >
-                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <ShoppingCart
+                    className={cn(compact ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-4.5 h-4.5 sm:w-5 sm:h-5')}
+                  />
                 </button>
               </div>
             </div>

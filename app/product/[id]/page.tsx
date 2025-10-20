@@ -62,78 +62,54 @@ export default function ProductPage() {
 
         console.log('🔥 PRODUCT PAGE: Fetching product for ID:', id)
 
-        let allProducts: unknown[] = []
-        let productData: Record<string, unknown> | undefined
-        let currentPage = 0
-        let hasMorePages = true
+        // Use the dedicated product details endpoint - this increments view count on backend
+        const response = await apiClient.getProductDetails(Number(id))
+        console.log('📦 PRODUCT PAGE: Product details response:', response)
 
-        // Fetch pages until we find the product or run out of pages
-        while (hasMorePages && !productData) {
-          const response = await apiClient.getAllProducts(currentPage)
-          console.log(`📄 PRODUCT PAGE: Fetched page ${currentPage}:`, response)
+        // Extract product data from response
+        const respData = response as {
+          data?: Record<string, unknown>
+        } & Record<string, unknown>
 
-          // Extract products from response
-          const respData = response as {
-            data?: { content?: unknown[]; last?: boolean } | unknown[]
-            content?: unknown[]
-            last?: boolean
-          }
-
-          const pageProducts =
-            (respData.data as { content?: unknown[] })?.content ||
-            (respData as { content?: unknown[] })?.content ||
-            (respData.data as unknown[]) ||
-            []
-
-          const isLastPage =
-            (respData.data as { last?: boolean })?.last ??
-            (respData as { last?: boolean })?.last ??
-            true
-
-          // Add products to our collection
-          allProducts = [...allProducts, ...pageProducts]
-
-          // Try to find the product in current batch
-          productData = pageProducts.find((item) => {
-            const product = item as Record<string, unknown>
-            return (
-              product.productId === Number(id) ||
-              product.id === Number(id) ||
-              String(product.productId) === id ||
-              String(product.id) === id
-            )
-          }) as Record<string, unknown> | undefined
-
-          // Check if we should continue fetching
-          hasMorePages = !isLastPage && !productData
-          currentPage++
-
-          // Safety limit to prevent infinite loops
-          if (currentPage > 10) {
-            console.warn('⚠️ Reached page limit, stopping search')
-            break
-          }
-        }
+        const productData = (respData.data as Record<string, unknown>) || respData
 
         if (productData && (productData.productId || productData.id)) {
-          console.log('📦 PRODUCT PAGE: Found product:', productData)
+          console.log('📦 PRODUCT PAGE: Found product with views:', productData.views || 0)
           setRawProductData(productData)
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
 
-          // Get similar products (exclude current product)
-          const similar = allProducts
-            .filter((item) => {
-              const product = item as Record<string, unknown>
-              return (
-                (product.productId || product.id) !== Number(id) &&
-                String(product.productId) !== id &&
-                String(product.id) !== id
-              )
-            })
-            .slice(0, 4)
-            .map((item) => transformToFeaturedItem(item as Record<string, unknown>))
-          setSimilarProducts(similar)
+          // Fetch similar products from all products list
+          try {
+            const allProductsResponse = await apiClient.getAllProducts(0)
+            const allRespData = allProductsResponse as {
+              data?: { content?: unknown[] } | unknown[]
+              content?: unknown[]
+            }
+
+            const allProducts =
+              (allRespData.data as { content?: unknown[] })?.content ||
+              (allRespData as { content?: unknown[] })?.content ||
+              (allRespData.data as unknown[]) ||
+              []
+
+            // Get similar products (exclude current product)
+            const similar = allProducts
+              .filter((item) => {
+                const product = item as Record<string, unknown>
+                return (
+                  (product.productId || product.id) !== Number(id) &&
+                  String(product.productId) !== id &&
+                  String(product.id) !== id
+                )
+              })
+              .slice(0, 4)
+              .map((item) => transformToFeaturedItem(item as Record<string, unknown>))
+            setSimilarProducts(similar)
+          } catch (similarErr) {
+            console.warn('⚠️ Failed to fetch similar products:', similarErr)
+            // Continue without similar products
+          }
         } else {
           throw new Error('Product not found')
         }
@@ -605,11 +581,6 @@ export default function ProductPage() {
                         placeholder="blur"
                         blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                       />
-                      {similarProduct.isPremium && (
-                        <Badge className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
-                          Premium
-                        </Badge>
-                      )}
                     </div>
 
                     <h3 className="font-semibold text-gray-800 text-xs sm:text-sm mb-2 sm:mb-3 group-hover:text-blue-600 transition-colors">

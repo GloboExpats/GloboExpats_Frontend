@@ -35,6 +35,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useUserProfile } from '@/hooks/use-user-profile'
 import { useToast } from '@/components/ui/use-toast'
 import { EXPAT_LOCATIONS } from '@/lib/constants'
+import { getInitials } from '@/lib/utils'
 
 export default function AccountSettings() {
   useAuth() // Auth context available if needed
@@ -55,6 +56,8 @@ export default function AccountSettings() {
   const [isEditing, setIsEditing] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null)
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null)
 
   // Profile data - now using dynamic data from useUserProfile
   const [profileData, setProfileData] = useState({
@@ -93,12 +96,18 @@ export default function AccountSettings() {
     emailMarketing: false,
   })
 
-  // Privacy settings
-  const [privacy, setPrivacy] = useState({
-    showEmail: false,
-    showPhone: true,
-    allowMessages: true,
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+
+  // Verification documents state
+  const [passportFile, setPassportFile] = useState<File | null>(null)
+  const [addressFile, setAddressFile] = useState<File | null>(null)
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false)
 
   const handleProfileUpdate = (field: string, value: string) => {
     setProfileData((prev) => ({ ...prev, [field]: value }))
@@ -110,9 +119,39 @@ export default function AccountSettings() {
     setHasChanges(true)
   }
 
-  const handlePrivacyUpdate = (field: string, value: boolean) => {
-    setPrivacy((prev) => ({ ...prev, [field]: value }))
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Profile image must be less than 5MB',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setProfileImageFile(file)
     setHasChanges(true)
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setProfileImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
   const saveChanges = async () => {
@@ -122,31 +161,44 @@ export default function AccountSettings() {
       setIsSubmitting(true)
 
       // Update profile information - map form data to User type
-      await updateProfile({
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        name: `${profileData.firstName} ${profileData.lastName}`,
-        email: profileData.email,
-        phoneNumber: profileData.phone,
-        location: profileData.location,
-        aboutMe: profileData.bio,
-        organization: profileData.organization,
-        position: profileData.position,
-      })
+      // Pass both profile data and optional image file
+      await updateProfile(
+        {
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+          name: `${profileData.firstName} ${profileData.lastName}`,
+          email: profileData.email,
+          phoneNumber: profileData.phone,
+          location: profileData.location,
+          aboutMe: profileData.bio,
+          organization: profileData.organization,
+          position: profileData.position,
+        },
+        profileImageFile || undefined
+      )
 
       // Show success message
+      let successMessage = 'Your profile information has been saved successfully.'
+      if (profileImageFile) {
+        successMessage += ' Profile image updated.'
+      }
+
       toast({
         title: 'Profile updated',
-        description: 'Your profile information has been saved successfully.',
+        description: successMessage,
       })
 
+      // Reset image selection
+      setProfileImageFile(null)
+      setProfileImagePreview(null)
       setHasChanges(false)
       setIsEditing(false)
     } catch (error) {
       console.error('Failed to save profile:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast({
         title: 'Error',
-        description: 'Failed to save profile changes. Please try again.',
+        description: `Failed to save profile changes: ${errorMessage}`,
         variant: 'destructive',
       })
     } finally {
@@ -157,17 +209,128 @@ export default function AccountSettings() {
   const discardChanges = () => {
     setHasChanges(false)
     setIsEditing(false)
+    setProfileImageFile(null)
+    setProfileImagePreview(null)
+
+    // Reset profile data to original values
+    if (userProfile && !profileLoading) {
+      setProfileData({
+        firstName: userProfile.firstName || '',
+        lastName: userProfile.lastName || '',
+        email: userProfile.email || '',
+        phone: userProfile.phoneNumber || '',
+        location: userProfile.location || '',
+        bio: userProfile.aboutMe || '',
+        website: '',
+        organization: userProfile.organization || '',
+        position: userProfile.position || '',
+      })
+    }
   }
 
   const handleVerificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
+
+    if (!passportFile && !addressFile) {
+      toast({
+        title: 'No Documents Selected',
+        description: 'Please select at least one document to upload.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsUploadingDocs(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-    } catch (error) {
-      console.error('Verification submission failed:', error)
+      const { api } = await import('@/lib/api')
+      const files: File[] = []
+      if (passportFile) files.push(passportFile)
+      if (addressFile) files.push(addressFile)
+
+      await api.profile.uploadVerificationDocs(files)
+
+      toast({
+        title: 'Documents Uploaded Successfully',
+        description: 'Your verification documents have been submitted for review.',
+        variant: 'default',
+      })
+
+      // Clear selected files
+      setPassportFile(null)
+      setAddressFile(null)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload documents'
+      toast({
+        title: 'Upload Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
     } finally {
-      setIsSubmitting(false)
+      setIsUploadingDocs(false)
+    }
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Validation
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      toast({
+        title: 'Missing Fields',
+        description: 'Please fill in all password fields.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: 'Password Mismatch',
+        description: 'New password and confirmation do not match.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast({
+        title: 'Weak Password',
+        description: 'Password must be at least 8 characters long.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      const { api } = await import('@/lib/api')
+      await api.profile.changePassword(passwordData.currentPassword, passwordData.newPassword)
+
+      toast({
+        title: 'Password Changed Successfully',
+        description: 'Your password has been updated.',
+        variant: 'default',
+      })
+
+      // Clear form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change password'
+      toast({
+        title: 'Password Change Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -201,20 +364,9 @@ export default function AccountSettings() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-800">Account Settings</h1>
-            <p className="text-neutral-600 mt-1">Manage your account preferences and settings.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-800">Settings</h1>
+            <p className="text-neutral-600 mt-1">Manage your profile, security and preferences.</p>
           </div>
-          {hasChanges && (
-            <div className="flex gap-2 self-end sm:self-center">
-              <Button variant="outline" onClick={discardChanges}>
-                Discard
-              </Button>
-              <Button onClick={saveChanges}>
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </Button>
-            </div>
-          )}
         </div>
 
         {hasChanges && (
@@ -234,14 +386,13 @@ export default function AccountSettings() {
               <SelectItem value="profile">Profile</SelectItem>
               <SelectItem value="verification">Verification</SelectItem>
               <SelectItem value="notifications">Notifications</SelectItem>
-              <SelectItem value="privacy">Privacy</SelectItem>
               <SelectItem value="security">Security</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden md:block">
-          <TabsList className="grid w-full grid-cols-5 max-w-xl mb-8">
+          <TabsList className="grid w-full grid-cols-4 max-w-xl mb-8">
             <TabsTrigger value="profile">
               <UserIcon className="w-4 h-4 mr-2" /> Profile
             </TabsTrigger>
@@ -250,9 +401,6 @@ export default function AccountSettings() {
             </TabsTrigger>
             <TabsTrigger value="notifications">
               <Bell className="w-4 h-4 mr-2" /> Notifications
-            </TabsTrigger>
-            <TabsTrigger value="privacy">
-              <Shield className="w-4 h-4 mr-2" /> Privacy
             </TabsTrigger>
             <TabsTrigger value="security">
               <Shield className="w-4 h-4 mr-2" /> Security
@@ -276,25 +424,41 @@ export default function AccountSettings() {
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <div className="relative">
                   <Avatar className="h-24 w-24 border-2 border-white shadow-lg">
-                    <AvatarImage src={userProfile?.avatar || '/images/seller-avatar-2.jpg'} />
+                    <AvatarImage src={profileImagePreview || userProfile?.avatar} />
                     <AvatarFallback className="bg-brand-secondary text-brand-primary text-2xl font-bold">
-                      {userProfile?.name?.slice(0, 2).toUpperCase() || 'TE'}
+                      {getInitials(userProfile?.name || '')}
                     </AvatarFallback>
                   </Avatar>
                   {isEditing && (
-                    <Button
-                      size="icon"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <input
+                        type="file"
+                        id="profile-image-upload"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                      <Button
+                        size="icon"
+                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
+                        onClick={() => document.getElementById('profile-image-upload')?.click()}
+                        type="button"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
                 <div className="text-center sm:text-left">
                   <h3 className="text-lg font-semibold text-neutral-800">Profile Picture</h3>
                   <p className="text-sm text-neutral-600">
-                    Upload a photo to personalize your account.
+                    Upload a photo to personalize your account. Max size: 5MB
                   </p>
+                  {profileImageFile && (
+                    <p className="text-xs text-green-600 mt-1">
+                      New image selected: {profileImageFile.name}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -336,12 +500,13 @@ export default function AccountSettings() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">Phone Number (Optional)</Label>
                   <Input
                     id="phone"
                     value={profileData.phone}
                     onChange={(e) => handleProfileUpdate('phone', e.target.value)}
                     disabled={!isEditing}
+                    placeholder="+255 xxx xxx xxx"
                     className="h-11"
                   />
                 </div>
@@ -401,7 +566,7 @@ export default function AccountSettings() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="position">Position</Label>
+                    <Label htmlFor="position">Position (Optional)</Label>
                     <Input
                       id="position"
                       value={profileData.position}
@@ -415,7 +580,7 @@ export default function AccountSettings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bio">About Me / Bio</Label>
+                <Label htmlFor="bio">About Me / Bio (Optional)</Label>
                 <Textarea
                   id="bio"
                   value={profileData.bio}
@@ -425,6 +590,19 @@ export default function AccountSettings() {
                   placeholder="Tell others about yourself..."
                 />
               </div>
+
+              {/* Action Buttons */}
+              {hasChanges && (
+                <div className="flex gap-2 justify-end pt-4">
+                  <Button variant="outline" onClick={discardChanges}>
+                    Discard
+                  </Button>
+                  <Button onClick={saveChanges} disabled={isSubmitting}>
+                    <Save className="w-4 h-4 mr-2" />
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              )}
 
               {/* Seller Information Section */}
               {userProfile &&
@@ -546,20 +724,70 @@ export default function AccountSettings() {
               <form onSubmit={handleVerificationSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label>Passport or Residence Permit</Label>
-                    <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center hover:border-brand-primary transition-colors cursor-pointer">
+                    <Label htmlFor="passport-upload">Passport or Residence Permit</Label>
+                    <label
+                      htmlFor="passport-upload"
+                      className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center hover:border-brand-primary transition-colors cursor-pointer block"
+                    >
+                      <input
+                        id="passport-upload"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast({
+                                title: 'File Too Large',
+                                description: 'Maximum file size is 5MB',
+                                variant: 'destructive',
+                              })
+                              return
+                            }
+                            setPassportFile(file)
+                          }
+                        }}
+                      />
                       <Upload className="h-8 w-8 text-neutral-400 mx-auto mb-2" />
-                      <p className="text-sm text-neutral-600">Upload document</p>
+                      <p className="text-sm text-neutral-600">
+                        {passportFile ? passportFile.name : 'Upload document'}
+                      </p>
                       <p className="text-xs text-neutral-500">PDF, JPG, PNG up to 5MB</p>
-                    </div>
+                    </label>
                   </div>
                   <div className="space-y-2">
-                    <Label>Proof of Address</Label>
-                    <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center hover:border-brand-primary transition-colors cursor-pointer">
+                    <Label htmlFor="address-upload">Proof of Address</Label>
+                    <label
+                      htmlFor="address-upload"
+                      className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center hover:border-brand-primary transition-colors cursor-pointer block"
+                    >
+                      <input
+                        id="address-upload"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast({
+                                title: 'File Too Large',
+                                description: 'Maximum file size is 5MB',
+                                variant: 'destructive',
+                              })
+                              return
+                            }
+                            setAddressFile(file)
+                          }
+                        }}
+                      />
                       <Upload className="h-8 w-8 text-neutral-400 mx-auto mb-2" />
-                      <p className="text-sm text-neutral-600">Upload document</p>
+                      <p className="text-sm text-neutral-600">
+                        {addressFile ? addressFile.name : 'Upload document'}
+                      </p>
                       <p className="text-xs text-neutral-500">PDF, JPG, PNG up to 5MB</p>
-                    </div>
+                    </label>
                   </div>
                 </div>
                 <Alert className="bg-blue-50 text-blue-900 border-blue-200">
@@ -568,8 +796,8 @@ export default function AccountSettings() {
                     verification status.
                   </AlertDescription>
                 </Alert>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Submitting...' : 'Submit for Verification'}
+                <Button type="submit" className="w-full" disabled={isUploadingDocs}>
+                  {isUploadingDocs ? 'Uploading...' : 'Submit for Verification'}
                 </Button>
               </form>
             </CardContent>
@@ -632,44 +860,6 @@ export default function AccountSettings() {
           </Card>
         </div>
 
-        {/* Privacy Settings */}
-        <div className={activeTab === 'privacy' ? 'block' : 'hidden'}>
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Privacy Settings</CardTitle>
-              <p className="text-sm text-neutral-500">Control how your information is displayed.</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <Label htmlFor="showEmail">Show email on profile</Label>
-                  <p className="text-sm text-neutral-600">
-                    Allow other users to see your email address.
-                  </p>
-                </div>
-                <Switch
-                  id="showEmail"
-                  checked={privacy.showEmail}
-                  onCheckedChange={(val) => handlePrivacyUpdate('showEmail', val)}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <Label htmlFor="showPhone">Show phone number on profile</Label>
-                  <p className="text-sm text-neutral-600">
-                    Allow other users to see your phone number.
-                  </p>
-                </div>
-                <Switch
-                  id="showPhone"
-                  checked={privacy.showPhone}
-                  onCheckedChange={(val) => handlePrivacyUpdate('showPhone', val)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Security Settings */}
         <div className={activeTab === 'security' ? 'block' : 'hidden'}>
           <Card className="shadow-sm">
@@ -678,50 +868,84 @@ export default function AccountSettings() {
               <p className="text-sm text-neutral-500">Manage your account security settings.</p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="p-4 border rounded-lg">
-                <h3 className="font-semibold text-neutral-800 mb-2">Change Password</h3>
-                <p className="text-sm text-neutral-600 mb-4">
-                  Update your password to keep your account secure.
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      className="h-11"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      className="h-11"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
+              <form onSubmit={handlePasswordChange}>
+                <div className="p-4 border rounded-lg">
+                  <h3 className="font-semibold text-neutral-800 mb-2">Change Password</h3>
+                  <p className="text-sm text-neutral-600 mb-4">
+                    Update your password to keep your account secure.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <Input
+                        id="currentPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        className="h-11"
+                        value={passwordData.currentPassword}
+                        onChange={(e) =>
+                          setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <Input
+                        id="newPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        className="h-11"
+                        value={passwordData.newPassword}
+                        onChange={(e) =>
+                          setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))
+                        }
+                        required
+                        minLength={8}
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Must be at least 8 characters long
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        className="h-11"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordData((prev) => ({
+                            ...prev,
+                            confirmPassword: e.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                        {showPassword ? 'Hide' : 'Show'} passwords
+                      </Button>
+                    </div>
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowPassword(!showPassword)}
+                      type="submit"
+                      className="w-full sm:w-auto"
+                      disabled={isChangingPassword}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      {showPassword ? 'Hide' : 'Show'} passwords
+                      {isChangingPassword ? 'Updating...' : 'Update Password'}
                     </Button>
                   </div>
-                  <Button className="w-full sm:w-auto">Update Password</Button>
                 </div>
-              </div>
+              </form>
             </CardContent>
           </Card>
         </div>

@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { User } from '@/lib/types'
+import { api } from '@/lib/api'
 
 export interface UserProfileMethods {
   userProfile: User | null
@@ -17,7 +18,7 @@ export interface UserProfileMethods {
   error: string | null
 
   // Profile management methods
-  updateProfile: (updates: Partial<User>) => Promise<void>
+  updateProfile: (updates: Partial<User>, profileImage?: File) => Promise<void>
   updateBasicInfo: (basicInfo: {
     name: string
     email: string
@@ -66,23 +67,64 @@ export function useUserProfile(): UserProfileMethods {
 
   // Update profile data
   const updateProfile = useCallback(
-    async (updates: Partial<User>) => {
+    async (updates: Partial<User>, profileImage?: File) => {
       if (!userProfile) {
         throw new Error('No profile to update')
       }
 
       try {
         setError(null)
-        const updatedProfile = { ...userProfile, ...updates }
 
-        // Update local state
-        setUserProfile(updatedProfile)
+        // Prepare backend update payload
+        const updatePayload: {
+          firstName?: string
+          lastName?: string
+          email?: string
+          phoneNumber?: string
+          location?: string
+          aboutMe?: string
+          organization?: string
+          position?: string
+        } = {}
 
-        // Update auth user data
-        updateUser(updatedProfile)
+        if (updates.firstName) updatePayload.firstName = updates.firstName
+        if (updates.lastName) updatePayload.lastName = updates.lastName
+        if (updates.email) updatePayload.email = updates.email
+        if (updates.phoneNumber) updatePayload.phoneNumber = updates.phoneNumber
+        if (updates.location) updatePayload.location = updates.location
+        if (updates.aboutMe) updatePayload.aboutMe = updates.aboutMe
+        if (updates.organization) updatePayload.organization = updates.organization
+        if (updates.position) updatePayload.position = updates.position
 
-        // TODO: Save to backend API
-        // ...existing code...
+        // Call backend API to update profile with optional image
+        await api.profile.update(updatePayload, profileImage)
+
+        // Refetch user details to get updated profileImageUrl from backend
+        const updatedUserDetails = await api.profile.get()
+
+        // Convert relative image URL to absolute URL
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
+        let imageUrl = updatedUserDetails.profileImageUrl
+
+        // If the backend returns a relative path, prepend the backend URL
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          // Remove leading slash if present to avoid double slashes
+          imageUrl = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
+          imageUrl = `${BACKEND_URL}/${imageUrl}`
+        }
+
+        // Update local state with fresh data from backend
+        const freshProfile = {
+          ...userProfile,
+          ...updates,
+          avatar: imageUrl || userProfile.avatar,
+          profileImageUrl: imageUrl,
+        }
+
+        setUserProfile(freshProfile)
+
+        // Update auth user data so navigation bar reflects changes
+        updateUser(freshProfile)
       } catch (err) {
         console.error('Failed to update profile:', err)
         setError('Failed to update profile')

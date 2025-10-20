@@ -221,7 +221,10 @@ function DashboardContent() {
         }).length
         const totalViewsCount = userListings.reduce((sum: number, item) => {
           const p = item as Record<string, unknown>
-          return sum + ((p.views as number) || 0)
+          // Try multiple possible field names for views
+          const views =
+            (p.views as number) || (p.productViews as number) || (p.viewCount as number) || 0
+          return sum + views
         }, 0)
 
         setStats({
@@ -450,7 +453,12 @@ function DashboardContent() {
                       <div className="flex items-center justify-between text-sm text-[#64748B] mb-4">
                         <div className="flex items-center">
                           <Eye className="w-4 h-4 mr-1" />
-                          {listing.views || 0}
+                          {listing.views ||
+                            (listing as unknown as { productViews?: number; viewCount?: number })
+                              .productViews ||
+                            (listing as unknown as { productViews?: number; viewCount?: number })
+                              .viewCount ||
+                            0}
                         </div>
                       </div>
                       <div className="flex space-x-2">

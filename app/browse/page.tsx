@@ -32,7 +32,6 @@ import {
   SlidersHorizontal,
   X,
   Clock,
-  Star,
   Shield,
   Calendar,
   ChevronLeft,
@@ -42,11 +41,17 @@ import {
   Loader2,
 } from 'lucide-react'
 
-const categories = CATEGORIES.map((c) => ({
-  name: c.name,
-  count: parseInt(c.count.replace(/\D/g, '')),
-  slug: c.slug,
-}))
+// Calculate real category counts from products
+const getCategoryCounts = (products: FeaturedItem[]) => {
+  const counts: Record<string, number> = {}
+  products.forEach((product) => {
+    if (product.category) {
+      const slug = generateSlug(product.category)
+      counts[slug] = (counts[slug] || 0) + 1
+    }
+  })
+  return counts
+}
 
 interface FilterState {
   selectedCategory: string
@@ -61,9 +66,10 @@ interface FilterProps {
   filters: FilterState
   setFilters: (filters: FilterState) => void
   clearAllFilters: () => void
+  categoryCounts: Record<string, number>
 }
 
-const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) => {
+const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts }: FilterProps) => {
   const updateFilter = (
     key: keyof FilterState,
     value: string | number | string[] | [number, number]
@@ -108,27 +114,30 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) 
       <div className="space-y-3">
         <Label className="text-sm font-semibold text-gray-700">Categories</Label>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-          {categories.map((category) => (
-            <div
-              key={category.name}
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              <Checkbox
-                id={`filter-${category.slug}`}
-                checked={filters.selectedCategory === category.slug}
-                onCheckedChange={(checked) =>
-                  updateFilter('selectedCategory', checked ? category.slug : '')
-                }
-              />
-              <Label
-                htmlFor={`filter-${category.slug}`}
-                className="text-sm text-gray-600 flex-1 cursor-pointer hover:text-gray-800 transition-colors"
+          {CATEGORIES.map((category) => {
+            const count = categoryCounts[category.slug] || 0
+            return (
+              <div
+                key={category.name}
+                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
               >
-                {category.name}
-                <span className="text-gray-400 ml-1">({category.count.toLocaleString()})</span>
-              </Label>
-            </div>
-          ))}
+                <Checkbox
+                  id={`filter-${category.slug}`}
+                  checked={filters.selectedCategory === category.slug}
+                  onCheckedChange={(checked) =>
+                    updateFilter('selectedCategory', checked ? category.slug : '')
+                  }
+                />
+                <Label
+                  htmlFor={`filter-${category.slug}`}
+                  className="text-sm text-gray-600 flex-1 cursor-pointer hover:text-gray-800 transition-colors"
+                >
+                  {category.name}
+                  <span className="text-gray-400 ml-1">({count.toLocaleString()})</span>
+                </Label>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -307,19 +316,6 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters }: FilterProps) 
                   </Badge>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="premium" id="expat-premium" />
-                <Label
-                  htmlFor="expat-premium"
-                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex items-center gap-2"
-                >
-                  Premium expats only
-                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700">
-                    <Star className="h-3 w-3 mr-1" />
-                    Premium
-                  </Badge>
-                </Label>
-              </div>
             </RadioGroup>
           </div>
 
@@ -372,6 +368,7 @@ export default function BrowsePage() {
   const [products, setProducts] = useState<FeaturedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
 
   // Debounce updates to the actual search query to reduce re-renders and URL churn
   const debouncedUpdateQuery = useMemo(
@@ -412,9 +409,11 @@ export default function BrowsePage() {
         const response = await apiClient.getAllProducts(0)
         const productsData = extractContentFromResponse(response)
         console.log('📦 BROWSE PAGE: Products count:', productsData.length)
-        setProducts(
-          productsData.map((item) => transformToFeaturedItem(item as Record<string, unknown>))
+        const transformedProducts = productsData.map((item) =>
+          transformToFeaturedItem(item as Record<string, unknown>)
         )
+        setProducts(transformedProducts)
+        setCategoryCounts(getCategoryCounts(transformedProducts))
         console.log('✅ BROWSE PAGE: Successfully loaded products')
       } catch (err) {
         console.error('🚨 BROWSE PAGE: Error fetching products:', err)
@@ -522,9 +521,7 @@ export default function BrowsePage() {
       priceNumber >= filters.priceRange[0] && priceNumber <= filters.priceRange[1]
 
     const matchesExpatType =
-      !filters.expatType ||
-      (filters.expatType === 'verified' && product.isVerified) ||
-      (filters.expatType === 'premium' && product.isPremium)
+      !filters.expatType || (filters.expatType === 'verified' && product.isVerified)
 
     // Condition filtering using product.condition field
     const matchesCondition =
@@ -636,14 +633,14 @@ export default function BrowsePage() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-white shadow-sm md:sticky md:top-16 z-30 border-b border-gray-200">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="container mx-auto max-w-7xl px-2 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
             <div className="w-full md:w-auto md:flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                 <Input
-                  placeholder="Search for cars, electronics, furniture..."
-                  className="pl-10 w-full h-11 bg-gray-100 border-transparent focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder="Search products..."
+                  className="pl-9 sm:pl-10 w-full h-10 sm:h-11 bg-gray-100 border-transparent focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm sm:text-base"
                   value={searchInput}
                   onChange={(e) => {
                     setSearchInput(e.target.value)
@@ -653,44 +650,57 @@ export default function BrowsePage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between w-full md:w-auto gap-4">
+            <div className="flex items-center justify-between w-full md:w-auto gap-2 sm:gap-4">
               {/* Mobile Filter Trigger */}
               <Sheet open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" className="md:hidden flex-1 border-gray-300">
-                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    className="md:hidden flex-1 border-gray-300 h-10 text-sm"
+                  >
+                    <SlidersHorizontal className="mr-1.5 h-4 w-4" />
                     Filters
                     {(filters.selectedCategory ||
                       filters.condition ||
                       filters.expatType ||
                       filters.timePosted ||
                       filters.location) && (
-                      <Badge variant="secondary" className="ml-2 text-xs bg-blue-100 text-blue-700">
-                        Active
+                      <Badge
+                        variant="secondary"
+                        className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0"
+                      >
+                        •
                       </Badge>
                     )}
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80">
-                  <FilterContentEl
-                    filters={filters}
-                    setFilters={setFilters}
-                    clearAllFilters={clearAllFilters}
-                  />
+                <SheetContent
+                  side="left"
+                  className="w-[85%] sm:w-80 overflow-y-auto"
+                  hideOverlay={true}
+                >
+                  <div className="py-4">
+                    <FilterContentEl
+                      filters={filters}
+                      setFilters={setFilters}
+                      clearAllFilters={clearAllFilters}
+                      categoryCounts={categoryCounts}
+                    />
+                  </div>
                 </SheetContent>
               </Sheet>
 
               {/* Sort By Dropdown */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full md:w-48 flex-1 border-gray-300">
-                  <SelectValue placeholder="Sort by" />
+                <SelectTrigger className="w-full md:w-48 flex-1 border-gray-300 h-10 text-sm">
+                  <SelectValue placeholder="Sort" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="relevance">Sort by: Relevance</SelectItem>
-                  <SelectItem value="price-asc">Sort by: Price (Low to High)</SelectItem>
-                  <SelectItem value="price-desc">Sort by: Price (High to Low)</SelectItem>
-                  <SelectItem value="date-desc">Sort by: Newest</SelectItem>
-                  <SelectItem value="rating-desc">Sort by: Highest Rating</SelectItem>
+                  <SelectItem value="relevance">Relevance</SelectItem>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                  <SelectItem value="date-desc">Newest</SelectItem>
+                  <SelectItem value="rating-desc">Highest Rating</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -728,8 +738,8 @@ export default function BrowsePage() {
         </div>
       </header>
 
-      <main className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
+      <main className="container mx-auto max-w-7xl px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="flex gap-4 sm:gap-8">
           {/* Desktop Filters */}
           <aside className="hidden md:block w-72 lg:w-80 flex-shrink-0">
             <div className="sticky top-32">
@@ -739,6 +749,7 @@ export default function BrowsePage() {
                     filters={filters}
                     setFilters={setFilters}
                     clearAllFilters={clearAllFilters}
+                    categoryCounts={categoryCounts}
                   />
                 </CardContent>
               </Card>
@@ -747,9 +758,9 @@ export default function BrowsePage() {
 
           {/* Product Grid / List */}
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-800">
+                <h2 className="text-base sm:text-xl font-semibold text-gray-800">
                   Showing {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} of{' '}
                   {filteredProducts.length} results
                 </h2>
@@ -793,12 +804,17 @@ export default function BrowsePage() {
                 <div
                   className={
                     viewMode === 'grid'
-                      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6'
-                      : 'space-y-6'
+                      ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6 p-1'
+                      : 'space-y-4'
                   }
                 >
                   {currentProducts.map((product: FeaturedItem) => (
-                    <ProductCard key={product.id} product={product} viewMode={viewMode} />
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      viewMode={viewMode}
+                      compact={viewMode === 'grid'}
+                    />
                   ))}
                 </div>
 

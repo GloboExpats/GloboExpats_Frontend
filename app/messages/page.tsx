@@ -26,175 +26,13 @@ import { getInitials } from '@/lib/utils'
 import { RouteGuard } from '@/components/route-guard'
 import type { Conversation, Message, ChatData, MessagesData } from '@/lib/types'
 
-const conversations: Conversation[] = [
-  {
-    id: 1,
-    name: 'Sarah Mitchell',
-    avatar: '/images/expat-avatar-1.jpg',
-    lastMessage: 'Is the iPhone still available?',
-    time: '2 min ago',
-    unread: 2,
-    product: 'iPhone 15 Pro Max',
-    online: true,
-  },
-  {
-    id: 2,
-    name: 'Ahmed Hassan',
-    avatar: '/images/expat-avatar-2.jpg',
-    lastMessage: 'Thanks for the quick delivery!',
-    time: '1 hour ago',
-    unread: 0,
-    product: 'MacBook Air M2',
-    online: false,
-  },
-  {
-    id: 3,
-    name: 'Lisa Wang',
-    avatar: '/images/expat-avatar-3.jpg',
-    lastMessage: "What's the battery health?",
-    time: '3 hours ago',
-    unread: 1,
-    product: 'iPad Pro 12.9"',
-    online: true,
-  },
-  {
-    id: 4,
-    name: 'David Rodriguez',
-    avatar: '/images/expat-avatar-4.jpg',
-    lastMessage: 'Can we meet tomorrow at 3 PM?',
-    time: '1 day ago',
-    unread: 0,
-    product: 'Gaming Setup',
-    online: false,
-  },
-]
+// Conversations will be loaded from backend when messaging system is implemented
+// TODO: Connect to GET /api/v1/messages/conversations endpoint
+const conversations: Conversation[] = []
 
-const messagesData: MessagesData = {
-  1: {
-    product: {
-      name: 'iPhone 15 Pro Max',
-      price: '$1,199',
-      condition: 'Like New',
-      image: '/images/iphone-15-pro.jpg',
-    },
-    messages: [
-      {
-        id: '1',
-        sender: 'Sarah Mitchell',
-        text: "Hi! I'm interested in your iPhone 15 Pro Max. Is it still available?",
-        time: '10:30 AM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: '2',
-        sender: 'me',
-        text: "Yes, it's still available! It's in excellent condition, barely used for 2 months.",
-        time: '10:32 AM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: '3',
-        sender: 'Sarah Mitchell',
-        text: 'Great! Can you tell me more about the battery health and any scratches?',
-        time: '10:35 AM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: '4',
-        sender: 'me',
-        text: "Battery health is at 98%, and there are no visible scratches. I've kept it in a case with a screen protector since day one.",
-        time: '10:37 AM',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: '5',
-        sender: 'Sarah Mitchell',
-        text: 'Perfect! Would it be possible to meet somewhere in Dubai?',
-        time: '10:45 AM',
-        type: 'text',
-        status: 'read',
-      },
-    ],
-    participants: [],
-    isLoading: false,
-    error: null,
-  },
-  2: {
-    product: {
-      name: 'MacBook Air M2',
-      price: '$950',
-      condition: 'Excellent',
-      image: '/images/macbook-air.jpg',
-    },
-    messages: [
-      {
-        id: '6',
-        sender: 'Ahmed Hassan',
-        text: 'Thanks for the quick delivery!',
-        time: '1 hour ago',
-        type: 'text',
-        status: 'read',
-      },
-      {
-        id: '7',
-        sender: 'me',
-        text: "You're welcome! Enjoy the new MacBook.",
-        time: '1 hour ago',
-        type: 'text',
-        status: 'read',
-      },
-    ],
-    participants: [],
-    isLoading: false,
-    error: null,
-  },
-  3: {
-    product: {
-      name: 'iPad Pro 12.9"',
-      price: '$800',
-      condition: 'Good',
-      image: '/images/ipad-pro.jpg',
-    },
-    messages: [
-      {
-        id: '8',
-        sender: 'Lisa Wang',
-        text: "What's the battery health?",
-        time: '3 hours ago',
-        type: 'text',
-        status: 'read',
-      },
-    ],
-    participants: [],
-    isLoading: false,
-    error: null,
-  },
-  4: {
-    product: {
-      name: 'Gaming Setup',
-      price: '$2,500',
-      condition: 'Used',
-      image: '/images/gaming-setup.jpg',
-    },
-    messages: [
-      {
-        id: '9',
-        sender: 'David Rodriguez',
-        text: 'Can we meet tomorrow at 3 PM?',
-        time: '1 day ago',
-        type: 'text',
-        status: 'read',
-      },
-    ],
-    participants: [],
-    isLoading: false,
-    error: null,
-  },
-}
+// Messages data will be loaded from backend when messaging system is implemented
+// TODO: Connect to GET /api/v1/messages/conversations/{id} endpoint
+const messagesData: MessagesData = {}
 
 export default function MessagesPage() {
   return (
@@ -210,7 +48,9 @@ export default function MessagesPage() {
 
 function MessagesPageContent() {
   const searchParams = useSearchParams()
-  const [selectedConversation, setSelectedConversation] = useState<Conversation>(conversations[0])
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(
+    conversations.length > 0 ? conversations[0] : null
+  )
   const [allConversations, setAllConversations] = useState<Conversation[]>(conversations)
   const [newMessage, setNewMessage] = useState('')
   // Typing indicator feature reserved for future real-time messaging
@@ -291,10 +131,10 @@ function MessagesPageContent() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (messagesEndRef.current && selectedConversation) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [selectedConversation.id])
+  }, [selectedConversation?.id, selectedConversation])
 
   // Handle mobile responsiveness
   useEffect(() => {
@@ -309,6 +149,45 @@ function MessagesPageContent() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Show empty state when there are no conversations
+  if (allConversations.length === 0) {
+    return (
+      <div className="container mx-auto mt-4 mb-4 px-4 max-w-7xl">
+        <Card className="h-[85vh] max-h-[900px] min-h-[600px] overflow-hidden shadow-lg flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center p-8 text-center max-w-md">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+              <Search className="w-10 h-10 text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-neutral-800 mb-3">No Messages Yet</h3>
+            <p className="text-neutral-600 mb-8 leading-relaxed">
+              When you contact sellers or buyers respond to your listings, your conversations will
+              appear here. Start browsing items to connect with the community!
+            </p>
+            <div className="flex gap-3">
+              <Button asChild size="lg">
+                <Link href="/browse">Browse Items</Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link href="/sell">Sell an Item</Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // If no conversation is selected but conversations exist, select the first one
+  if (!selectedConversation && allConversations.length > 0) {
+    setSelectedConversation(allConversations[0])
+    return null
+  }
+
+  // Safety check - should not happen but TypeScript needs it
+  if (!selectedConversation) {
+    return null
+  }
 
   const conversationId = Number(selectedConversation.id)
   const activeChat: ChatData = messagesData[conversationId] || {

@@ -6,8 +6,8 @@ import Image from 'next/image'
 
 export default function HeroCarousel() {
   return (
-    <section className="mb-8 mx-4 sm:mx-6 lg:mx-8">
-      <div className="relative h-[400px] sm:h-[500px] lg:h-[600px] text-white overflow-hidden rounded-2xl shadow-xl">
+    <section className="mb-8 mx-4 sm:mx-6 lg:mx-0 lg:pr-8">
+      <div className="relative h-[450px] sm:h-[500px] lg:h-[600px] text-white overflow-hidden rounded-2xl shadow-xl">
         {/* Background Image */}
         <Image
           src="/assets/images/heroes/home-bottom-hero.jpeg"
@@ -18,30 +18,41 @@ export default function HeroCarousel() {
           priority
         />
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/70 via-slate-800/50 to-transparent z-10" />
+        {/* Stronger Gradient Overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/85 via-slate-800/70 to-slate-900/50 z-10" />
 
         {/* Content */}
-        <div className="container mx-auto px-6 sm:px-8 relative z-20 flex flex-col items-start justify-center h-full">
+        <div className="container mx-auto px-4 sm:px-8 relative z-20 flex flex-col items-start justify-center h-full">
           <div className="max-w-2xl">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 sm:mb-6 leading-tight drop-shadow-lg">
               Got Items Taking Up Space?
             </h1>
 
-            <p className="text-lg sm:text-xl lg:text-2xl text-neutral-200 mb-6 sm:mb-8 leading-relaxed">
+            <p className="text-base sm:text-xl lg:text-2xl text-white/95 mb-5 sm:mb-8 leading-relaxed drop-shadow-md">
               Moving, relocating, or just need to declutter? Connect with fellow expats who need
               exactly what you&apos;re ready to let go. Turn your unused items into someone
               else&apos;s perfect find.
             </p>
 
-            <Link href="/browse">
-              <Button
-                size="lg"
-                className="bg-transparent border-2 border-white/80 hover:bg-white/10 hover:border-white text-white font-semibold text-lg px-8 py-6 rounded-xl transition-all duration-300 transform hover:scale-105 backdrop-blur-sm"
-              >
-                Browse Available Items
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-start">
+              <Link href="/sell" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="bg-brand-secondary hover:bg-brand-secondary/90 text-neutral-900 font-semibold text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-6 h-12 sm:h-auto rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg w-full"
+                >
+                  Create Listing
+                </Button>
+              </Link>
+
+              <Link href="/browse" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="bg-white/20 border-2 border-white hover:bg-white/30 hover:border-white text-white font-semibold text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-6 h-12 sm:h-auto rounded-full transition-all duration-300 transform hover:scale-105 backdrop-blur-sm w-full"
+                >
+                  Browse Available Items
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

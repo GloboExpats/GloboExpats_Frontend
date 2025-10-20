@@ -58,7 +58,11 @@ export const cleanLocationString = (location: string): string => {
 /**
  * Transforms backend product data to frontend format with proper image URLs
  * @param item - Backend product item
- * @returns Transformed item with full image URLs
+ * @returns Transformed item with full image URLs and seller information
+ *
+ * IMPORTANT: Backend provides sellerId (user ID) and sellerName separately
+ * - sellerId: Unique user ID from database (number)
+ * - sellerName: User's display name (string)
  */
 export const transformBackendProduct = (item: Record<string, unknown>) => {
   // ...existing code...
@@ -68,6 +72,13 @@ export const transformBackendProduct = (item: Record<string, unknown>) => {
   const listedBy = item.listedBy as { name?: string; verified?: boolean } | string | undefined
   const category = item.category as { categoryName?: string } | undefined
   const reviews = item.reviews
+
+  // Log seller information for debugging (verify sellerId is present)
+  if (item.sellerId) {
+    console.log(
+      `👤 Product ${item.productId}: Seller ID=${item.sellerId}, Name="${item.sellerName}"`
+    )
+  }
 
   const transformed = {
     id: (item.productId as number) || (item.id as number) || 0,
@@ -87,12 +98,20 @@ export const transformBackendProduct = (item: Record<string, unknown>) => {
     // to prevent duplication when displaying thumbnails
     images: productImages?.slice(1).map((img) => getFullImageUrl(img.imageUrl)) || [],
     description: String(item.productDescription || item.description || ''),
+    // Preserve both seller ID and name from backend (Backend assigns from JWT)
+    sellerId: (item.sellerId as number) || undefined,
+    sellerName: String(
+      item.sellerName ||
+        (typeof listedBy === 'object' ? listedBy?.name : listedBy) ||
+        'Unknown Seller'
+    ),
+    // listedBy for backward compatibility
     listedBy: String(
       item.sellerName ||
         (typeof listedBy === 'object' ? listedBy?.name : listedBy) ||
         'Unknown Seller'
     ),
-    rating: (item.rating as number) || 4.5,
+    rating: (item.rating as number) || 0, // Default to 0 if no rating
     reviews:
       typeof reviews === 'number'
         ? reviews
@@ -100,14 +119,13 @@ export const transformBackendProduct = (item: Record<string, unknown>) => {
           ? reviews.length
           : typeof reviews === 'object' && reviews !== null
             ? 1 // If it's a single review object, count as 1
-            : Math.floor(Math.random() * 100) + 10, // Fallback for no reviews
+            : 0, // Show 0 reviews if none exist (no fake data)
     location: cleanLocationString(
       String(item.productLocation || item.location || 'Dar es Salaam, TZ')
     ),
     isVerified: Boolean(
       (typeof listedBy === 'object' ? listedBy?.verified : false) || item.isVerified || true
     ),
-    isPremium: Boolean(item.isPremium || false),
     category: String(category?.categoryName || item.categoryName || ''),
     condition: String(item.productCondition || item.condition || 'used'),
   }
