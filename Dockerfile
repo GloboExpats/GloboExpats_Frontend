@@ -38,12 +38,12 @@ COPY . .
 # Accept build-time overridable environment arguments (provide defaults for local builds)
 # IMPORTANT: NEXT_PUBLIC_API_URL should be the full backend URL (not a relative proxy path)
 # The API client code already appends /api/v1/ to endpoints
-ARG NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
-ARG BACKEND_URL=http://10.123.22.21:8081
+ARG NEXT_PUBLIC_API_URL=https://dev.globoexpats.com
+ARG BACKEND_URL=https://dev.globoexpats.com
 ARG NEXT_PUBLIC_WS_URL=ws://10.123.22.21:8081/ws
 ARG NEXT_PUBLIC_CDN_URL=
 ARG NEXT_PUBLIC_ENVIRONMENT=production
-ARG NEXT_PUBLIC_BACKEND_URL=http://10.123.22.21:8081
+ARG NEXT_PUBLIC_BACKEND_URL=https://dev.globoexpats.com
 
 # Expose them to the build (Next.js inlines NEXT_PUBLIC_*)
 # NOTE:
