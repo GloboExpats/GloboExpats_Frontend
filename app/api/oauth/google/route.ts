@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://10.123.22.21:8081'
+// Use BACKEND_URL (server-side) or fall back to NEXT_PUBLIC_BACKEND_URL
+const BACKEND_URL =
+  process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://10.123.22.21:8081'
 
 /**
  * Proxy endpoint for Google OAuth initiation
@@ -16,6 +18,11 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://10.123.22.21:8081'
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
+    // Log environment for debugging
+    console.log('[OAuth Proxy] BACKEND_URL:', BACKEND_URL)
+    console.log('[OAuth Proxy] env.BACKEND_URL:', process.env.BACKEND_URL)
+    console.log('[OAuth Proxy] env.NEXT_PUBLIC_BACKEND_URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
+
     // Get nextPath from query params
     const searchParams = req.nextUrl.searchParams
     const nextPath = searchParams.get('nextPath') || '/'
@@ -53,10 +60,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(data, { status: 200 })
   } catch (error) {
     console.error('[OAuth Proxy] Exception occurred:', error)
+    console.error('[OAuth Proxy] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown',
+      stack: error instanceof Error ? error.stack : 'No stack',
+      type: typeof error,
+    })
     return NextResponse.json(
       {
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
+        backendUrl: BACKEND_URL,
+        envCheck: {
+          BACKEND_URL: process.env.BACKEND_URL,
+          NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+        },
       },
       { status: 500 }
     )
