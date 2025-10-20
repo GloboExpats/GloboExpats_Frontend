@@ -124,9 +124,18 @@ export default function RegisterPage() {
     setSocialLoading('google')
 
     try {
-      // Redirect to Google OAuth using environment variable
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://10.123.22.21:8081'
-      window.location.href = `${backendUrl}/api/v1/oauth2/login/google`
+      // Use Next.js API proxy route (same-origin, no CORS, no caching issues)
+      const res = await fetch('/api/oauth/google?nextPath=/', {
+        method: 'GET',
+        headers: { accept: '*/*' },
+      })
+      if (!res.ok) throw new Error('Failed to initiate Google registration')
+      const data = await res.json()
+      if (data && data.authUrl) {
+        window.location.href = data.authUrl
+      } else {
+        throw new Error('No authUrl returned from server')
+      }
     } catch {
       setError('Google registration failed. Please try again.')
       setSocialLoading(null)

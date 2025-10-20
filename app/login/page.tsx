@@ -228,10 +228,9 @@ function LoginContent() {
     try {
       // Determine nextPath: use returnUrl from query string if present, else '/'
       const nextPath = searchParams.get('returnUrl') || '/'
-      // Use NEXT_PUBLIC_BACKEND_URL for OAuth (direct backend access required)
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://10.123.22.21:8081'
+      // Use Next.js API proxy route (same-origin, no CORS, no caching issues)
       const res = await fetch(
-        `${backendUrl}/api/v1/oauth2/login/google?nextPath=${encodeURIComponent(nextPath)}`,
+        `/api/oauth/google?nextPath=${encodeURIComponent(nextPath)}`,
         {
           method: 'GET',
           headers: { accept: '*/*' },
