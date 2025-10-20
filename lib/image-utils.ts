@@ -5,8 +5,8 @@
  * Handles conversion of relative backend image paths to full URLs.
  */
 
-/** Backend base URL for image serving */
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ' '
+/** Backend base URL for image serving (empty for same-origin requests via Next.js proxy) */
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 /**
  * Converts backend image paths to full URLs
