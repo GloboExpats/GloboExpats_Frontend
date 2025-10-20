@@ -102,15 +102,15 @@ export function useUserProfile(): UserProfileMethods {
         // Refetch user details to get updated profileImageUrl from backend
         const updatedUserDetails = await api.profile.get()
 
-        // Convert relative image URL to absolute URL
-        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
+        // Keep relative URLs as-is for Next.js proxy (avoids CORS on production)
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || ''
         let imageUrl = updatedUserDetails.profileImageUrl
 
-        // If the backend returns a relative path, prepend the backend URL
+        // If the backend returns a relative path, keep it relative for proxy
         if (imageUrl && !imageUrl.startsWith('http')) {
-          // Remove leading slash if present to avoid double slashes
-          imageUrl = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
-          imageUrl = `${BACKEND_URL}/${imageUrl}`
+          // Ensure leading slash for proper routing
+          imageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+          imageUrl = `${BACKEND_URL}${imageUrl}`
         }
 
         // Update local state with fresh data from backend

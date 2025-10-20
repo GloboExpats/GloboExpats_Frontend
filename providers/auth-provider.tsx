@@ -238,15 +238,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /**
-   * Helper function to normalize image URLs (convert relative to absolute)
+   * Helper function to normalize image URLs (keep relative for Next.js proxy)
    */
   const normalizeImageUrl = useCallback((imageUrl: string | undefined): string | undefined => {
     if (!imageUrl) return undefined
     if (imageUrl.startsWith('http')) return imageUrl
 
-    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
-    const cleanUrl = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
-    return `${BACKEND_URL}/${cleanUrl}`
+    // Keep relative URLs as-is so they go through Next.js proxy (avoids CORS)
+    // NEXT_PUBLIC_API_URL should be empty - endpoints already include full paths
+    const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || ''
+    const cleanUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+    return `${BACKEND_URL}${cleanUrl}`
   }, [])
 
   /**
