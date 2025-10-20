@@ -160,7 +160,9 @@ export function initializeAutoLogout() {
 // Google OAuth functions
 export function redirectToGoogleLogin() {
   if (typeof window !== 'undefined') {
-    window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
+    // Use NEXT_PUBLIC_BACKEND_URL for OAuth (cannot be proxied, needs direct backend access)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://10.123.22.21:8081'
+    window.location.href = `${backendUrl}/api/v1/oauth2/login/google`
   }
 }
 

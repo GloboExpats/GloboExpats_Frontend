@@ -124,8 +124,9 @@ export default function RegisterPage() {
     setSocialLoading('google')
 
     try {
-      // Redirect to Google OAuth
-      window.location.href = 'https://dev.globoexpats.com/api/v1/oauth2/login/google'
+      // Redirect to Google OAuth using environment variable
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://10.123.22.21:8081'
+      window.location.href = `${backendUrl}/api/v1/oauth2/login/google`
     } catch {
       setError('Google registration failed. Please try again.')
       setSocialLoading(null)

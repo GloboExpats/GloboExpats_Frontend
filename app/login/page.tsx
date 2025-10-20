@@ -228,9 +228,10 @@ function LoginContent() {
     try {
       // Determine nextPath: use returnUrl from query string if present, else '/'
       const nextPath = searchParams.get('returnUrl') || '/'
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dev.globoexpats.com'
+      // Use NEXT_PUBLIC_BACKEND_URL for OAuth (direct backend access required)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://10.123.22.21:8081'
       const res = await fetch(
-        `${apiUrl}/api/v1/oauth2/login/google?nextPath=${encodeURIComponent(nextPath)}`,
+        `${backendUrl}/api/v1/oauth2/login/google?nextPath=${encodeURIComponent(nextPath)}`,
         {
           method: 'GET',
           headers: { accept: '*/*' },
