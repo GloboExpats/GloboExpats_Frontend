@@ -34,9 +34,9 @@ WORKDIR /app
 COPY . .
 
 # Accept build-time overridable environment arguments (provide defaults for local builds)
-# IMPORTANT: NEXT_PUBLIC_API_URL should be the full backend URL (not a relative proxy path)
-# The API client code already appends /api/v1/ to endpoints
-ARG NEXT_PUBLIC_API_URL=http://10.123.22.21:8081
+# IMPORTANT: NEXT_PUBLIC_API_URL should be empty - API client endpoints already include /api/v1/ path
+# Next.js proxy will rewrite /api/v1/* requests to BACKEND_URL/api/v1/* server-side
+ARG NEXT_PUBLIC_API_URL=
 ARG BACKEND_URL=http://10.123.22.21:8081
 ARG NEXT_PUBLIC_WS_URL=ws://10.123.22.21:8081/ws
 ARG NEXT_PUBLIC_CDN_URL=
@@ -45,17 +45,16 @@ ARG NEXT_PUBLIC_BACKEND_URL=https://dev.globoexpats.com
 
 # Expose them to the build (Next.js inlines NEXT_PUBLIC_*)
 # NOTE:
-# - NEXT_PUBLIC_API_URL should be RELATIVE (e.g., /api/v1) to use Next.js proxy and avoid CORS
+# - NEXT_PUBLIC_API_URL should be empty - endpoints already contain /api/v1/ path
 # - BACKEND_URL is used SERVER-SIDE by Next.js rewrites in next.config.mjs
 # - Browser requests go to /api/v1/* (same origin), Next.js proxies to BACKEND_URL
 # - When running BOTH frontend and backend as containers on the SAME Docker network,
 #   use the backend container name + its internal port for BACKEND_URL.
 #   Example build override:
 #     docker build --build-arg BACKEND_URL=http://backend-container:8081 \
-#                  --build-arg NEXT_PUBLIC_API_URL=/api/v1 \
 #                  -t expat-frontend .
 # - For production, set BACKEND_URL to actual backend (e.g., https://api.globoexpats.com)
-#   but keep NEXT_PUBLIC_API_URL as /api/v1 for proxy pattern
+#   NEXT_PUBLIC_API_URL should always remain empty for proxy pattern
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
   BACKEND_URL=${BACKEND_URL} \
   NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL} \

@@ -21,8 +21,8 @@
 // CONFIGURATION & TYPES
 // ============================================================================
 
-/** Base API URL from environment or fallback */
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://dev.globoexpats.com').replace(
+/** Base API URL from environment or fallback (empty string - endpoints already include /api/v1/) */
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(
   /\/$/,
   ''
 )
