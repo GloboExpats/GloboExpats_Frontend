@@ -52,7 +52,8 @@ function LoginContent() {
   // Handle OAuth callback
   useEffect(() => {
     const handleOAuthCallback = async () => {
-      const authCode = searchParams.get('auth_code')
+      // Google returns 'code' parameter, backend might return 'auth_code'
+      const authCode = searchParams.get('code') || searchParams.get('auth_code')
       if (authCode) {
         setSocialLoading('google')
         try {
