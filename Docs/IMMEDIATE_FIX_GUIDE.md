@@ -1,21 +1,48 @@
-# Immediate Fix Guide - API Path Duplication Issue
+# Immediate Fix Guide - CORS Issue
 
-**Status:** Critical - Local development frontend broken  
+**Status:** Critical - CORS blocking all API requests  
 **Last Updated:** October 20, 2025
 
 ---
 
 ## Problem Summary
 
-The frontend is making API requests with duplicated paths:
+The frontend is being blocked by CORS policy:
 ```
-❌ Current: /api/backend/v1/api/v1/displayItem/newest
-✅ Expected: http://10.123.22.21:8081/api/v1/displayItem/newest
+❌ Current Error: Access to fetch at 'http://10.123.22.21:8081/api/v1/...' from origin 'http://10.123.22.21:3000' has been blocked by CORS policy
+✅ Solution: Use Next.js proxy pattern to avoid CORS
 ```
 
 ## Root Cause
 
-The running application was built with incorrect `NEXT_PUBLIC_API_URL=/api/backend/v1` instead of the full backend URL.
+The application was configured to make **direct cross-origin requests** from browser to backend (`http://10.123.22.21:8081`), which triggers CORS. The backend doesn't have CORS headers allowing requests from `http://10.123.22.21:3000`.
+
+**Previous misconfiguration:**
+- `NEXT_PUBLIC_API_URL=http://10.123.22.21:8081` (direct backend URL)
+- Browser makes cross-origin requests → CORS error
+
+**Correct configuration:**
+- `NEXT_PUBLIC_API_URL=/api/v1` (relative path)
+- Browser requests go to same origin → Next.js proxies server-side → No CORS
+
+## How Next.js Proxy Works
+
+```
+┌─────────────┐         ┌──────────────┐         ┌─────────────┐
+│   Browser   │         │  Next.js     │         │   Backend   │
+│             │         │  Server      │         │             │
+└─────────────┘         └──────────────┘         └─────────────┘
+       │                       │                        │
+       │  GET /api/v1/products │                        │
+       │──────────────────────>│                        │
+       │  (same origin)        │                        │
+       │                       │  GET http://backend:8081/api/v1/products
+       │                       │───────────────────────>│
+       │                       │  (server-side, no CORS)│
+       │                       │<───────────────────────│
+       │<──────────────────────│  200 OK                │
+       │  200 OK               │                        │
+```
 
 ## Quick Fix Steps
 
@@ -78,15 +105,15 @@ Navigate to `http://10.123.22.21:3000/` and open browser DevTools (F12).
 
 **Expected:**
 ```javascript
-[LOG] [API] GET http://10.123.22.21:8081/api/v1/displayItem/newest?page=0&size=20
-[LOG] [API] GET http://10.123.22.21:8081/api/v1/displayItem/top-picks?page=0&size=20
-[LOG] [API] GET http://10.123.22.21:8081/api/v1/products/get-all-products?page=0
+[LOG] [API] GET /api/v1/displayItem/newest?page=0&size=20
+[LOG] [API] GET /api/v1/displayItem/top-picks?page=0&size=20
+[LOG] [API] GET /api/v1/products/get-all-products?page=0
 ```
 
 **Should NOT see:**
 ```javascript
-❌ [ERROR] Failed to load resource: 404
-❌ /api/backend/v1/api/v1/...
+❌ Access to fetch at 'http://10.123.22.21:8081/api/v1/...' has been blocked by CORS policy
+❌ net::ERR_FAILED
 ```
 
 ### 2. Test API Endpoints Directly
@@ -115,9 +142,19 @@ Open DevTools → Network tab:
 
 ## Troubleshooting
 
-### Issue: Still seeing `/api/backend/v1/api/v1/` after rebuild
+### Issue: Still seeing CORS errors after rebuild
 
-**Solution:**
+**Solution 1: Verify environment variables**
+```bash
+# Check environment in running container
+docker exec <container-name> env | grep API_URL
+
+# Should show:
+# NEXT_PUBLIC_API_URL=/api/v1
+# BACKEND_URL=http://10.123.22.21:8081
+```
+
+**Solution 2: Clear browser cache**
 ```bash
 # Clear browser cache
 # Chrome: Ctrl+Shift+Del → Clear all
@@ -185,18 +222,18 @@ docker logs <container-id>
 
 ## Files Modified in This Fix
 
-1. **`Dockerfile`** (Lines 39-46, 48-58)
-   - Changed `NEXT_PUBLIC_API_URL` from `/api/backend/v1` to `http://10.123.22.21:8081`
-   - Updated all related environment variables
-   - Fixed documentation comments
+1. **`Dockerfile`** (Lines 37-58)
+   - Changed `NEXT_PUBLIC_API_URL` from `http://10.123.22.21:8081` to `/api/v1` (relative path)
+   - Kept `BACKEND_URL=http://10.123.22.21:8081` for server-side rewrites
+   - Updated documentation to explain proxy pattern
 
-2. **`.env.local`** (Already correct)
-   - Contains proper configuration
+2. **`next.config.mjs`** (Already correct, lines 124-131)
+   - Rewrite rule proxies `/api/v1/*` to `${BACKEND_URL}/api/v1/*`
    - No changes needed
 
-3. **`lib/api.ts`** (No changes needed)
-   - Already handles URL construction correctly
-   - Appends `/api/v1/` to base URL automatically
+3. **`lib/api.ts`** (Already correct, lines 121-124)
+   - Detects Next.js API routes and uses them appropriately
+   - No changes needed
 
 ## Expected Behavior After Fix
 
@@ -206,9 +243,11 @@ docker logs <container-id>
 - ✅ "Trending Now" section shows items
 - ✅ Search bar functional
 - ✅ No console errors
+- ✅ No CORS errors
 
 ### API Requests
-- ✅ All requests go directly to `http://10.123.22.21:8081/api/v1/...`
+- ✅ All requests go to `/api/v1/...` (same origin, relative URLs)
+- ✅ Next.js proxies to backend server-side (no CORS)
 - ✅ Responses are JSON (not HTML)
 - ✅ Status codes: 200 (success) or 401 (auth required)
 
@@ -221,15 +260,31 @@ docker logs <container-id>
 
 ## Production Deployment Notes
 
-For production deployment to `https://globoexpats.com/`, use:
+For production deployment to `https://globoexpats.com/`, use the **proxy pattern**:
 
 ```bash
 docker build \
-  --build-arg NEXT_PUBLIC_API_URL=https://api.globoexpats.com \
+  --build-arg NEXT_PUBLIC_API_URL=/api/v1 \
   --build-arg BACKEND_URL=https://api.globoexpats.com \
   --build-arg NEXT_PUBLIC_BACKEND_URL=https://api.globoexpats.com \
   --build-arg NEXT_PUBLIC_WS_URL=wss://api.globoexpats.com/ws \
   --build-arg NEXT_PUBLIC_ENVIRONMENT=production \
+  -t expat-frontend:production .
+```
+
+**Key Points:**
+- ✅ Keep `NEXT_PUBLIC_API_URL=/api/v1` (relative, uses proxy)
+- ✅ Set `BACKEND_URL` to actual backend URL (used server-side)
+- ✅ This avoids CORS in production too
+
+**Alternative: Direct Backend Requests (requires CORS configuration)**
+
+If you want direct browser-to-backend requests (not recommended):
+```bash
+# Backend must have CORS headers allowing frontend origin
+docker build \
+  --build-arg NEXT_PUBLIC_API_URL=https://api.globoexpats.com \
+  --build-arg BACKEND_URL=https://api.globoexpats.com \
   -t expat-frontend:production .
 ```
 
