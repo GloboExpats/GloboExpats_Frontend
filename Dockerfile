@@ -97,6 +97,14 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
+# Re-declare build args for runtime (these get passed through from build stage)
+ARG NEXT_PUBLIC_API_URL=
+ARG BACKEND_URL=http://10.123.22.21:8081
+ARG NEXT_PUBLIC_WS_URL=ws://10.123.22.21:8081/ws
+ARG NEXT_PUBLIC_CDN_URL=
+ARG NEXT_PUBLIC_ENVIRONMENT=production
+ARG NEXT_PUBLIC_BACKEND_URL=http://10.123.22.21:8081
+
 # Set environment variables
 ENV NODE_ENV=production \
   PORT=3000 \
