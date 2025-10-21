@@ -88,6 +88,42 @@ await exchangeAuthCode(authCode)
 3. No duplicate authentication attempt needed
 4. Single source of truth for session management
 
+## Update: UI State Sync Fix (2025-10-21 04:00)
+
+### Issue: Header UI Not Updating Immediately
+After the initial fix, OAuth login worked but the header UI (login button, user profile) didn't update until page refresh.
+
+**Root Cause**: Two competing redirects:
+1. `setTimeout(() => router.replace('/'), 500)` - Redirected before `AuthProvider` set `isLoggedIn = true`
+2. `useEffect` watching `isLoggedIn` - Tried to redirect after auth state updated
+
+The first redirect happened too early, so users landed on home page while still in "logged out" state.
+
+**Solution**: Remove the `setTimeout` redirect and rely solely on the `isLoggedIn` `useEffect`. This ensures:
+- Token is stored
+- `AuthProvider` rebuilds session completely
+- `isLoggedIn` becomes `true`
+- Header UI updates to show logged-in state
+- **Then** redirect happens with fully updated UI
+
+**Code Change** (`/app/login/page.tsx`):
+```typescript
+// ❌ BEFORE: Premature redirect
+setTimeout(() => router.replace('/'), 500)
+
+// ✅ AFTER: Let isLoggedIn useEffect handle redirect
+// Clean up URL params only, let auth state drive redirect
+const url = new URL(window.location.href)
+url.searchParams.delete('code')
+url.searchParams.delete('auth_code')
+window.history.replaceState({}, '', url.pathname)
+// Redirect happens automatically when isLoggedIn becomes true
+```
+
+**Result**: Users now see fully updated UI (logged-in header, profile icon, etc.) immediately upon redirect to home page.
+
+---
+
 ## All Changes Made
 
 ### 1. `/lib/api.ts`

@@ -60,17 +60,22 @@ function LoginContent() {
           // Exchange auth code for token (token is already set in exchangeAuthCode)
           await exchangeAuthCode(authCode)
 
+          // Clean up URL to remove auth code parameter
+          // Don't redirect yet - let the isLoggedIn useEffect handle that
+          // once AuthProvider finishes rebuilding the session
+          const url = new URL(window.location.href)
+          url.searchParams.delete('code')
+          url.searchParams.delete('auth_code')
+          window.history.replaceState({}, '', url.pathname)
+
           toast({
             title: 'Login Successful!',
             description: 'Welcome back! Redirecting to your dashboard...',
             variant: 'default',
           })
 
-          // Clean up URL and redirect
-          // Give auth provider time to rebuild session from token
-          setTimeout(() => {
-            router.replace('/')
-          }, 500)
+          // Note: Redirect will happen automatically when isLoggedIn becomes true
+          // via the useEffect below (line 90-94)
         } catch (_error) {
           console.error('OAuth callback error:', _error)
           toast({
@@ -85,7 +90,7 @@ function LoginContent() {
     }
 
     handleOAuthCallback()
-  }, [searchParams, router, toast])
+  }, [searchParams, toast])
 
   // Add redirect logic for already authenticated users
   useEffect(() => {
