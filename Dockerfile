@@ -29,10 +29,6 @@ FROM node:22-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy dependencies from deps stage
-# Copy source code
-COPY . .
-
 # Accept build-time overridable environment arguments (provide defaults for local builds)
 # IMPORTANT: NEXT_PUBLIC_API_URL should be empty - API client endpoints already include /api/v1/ path
 # Next.js proxy will rewrite /api/v1/* requests to BACKEND_URL/api/v1/* server-side
@@ -61,8 +57,14 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
   NEXT_PUBLIC_CDN_URL=${NEXT_PUBLIC_CDN_URL} \
   NEXT_PUBLIC_ENVIRONMENT=${NEXT_PUBLIC_ENVIRONMENT}
 
+# Copy package files first for better layer caching
+COPY package.json package-lock.json* ./
+
 # Install all dependencies (including dev) for building
 RUN npm ci --legacy-peer-deps
+
+# Now copy the rest of the source code
+COPY . .
 
 # Build the application for production with standalone output
 ENV NODE_ENV=production
