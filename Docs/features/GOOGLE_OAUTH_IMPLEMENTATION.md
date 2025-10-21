@@ -10,7 +10,7 @@ Implemented Google OAuth login flow with automatic token expiration and logout f
 
 - **Login Button**: Redirects to `http://10.123.22.21:8081/api/v1/oauth2/login/google`
 - **Callback Handling**: Processes `auth_code` parameter from Google redirect
-- **Token Exchange**: Exchanges auth code for user data and JWT token via `http://10.123.22.21:8081/api/v1/oauth2/exchange?auth_code={code}`
+- **Token Exchange**: Exchanges auth code for user data and JWT token via `http://10.123.22.21:8081/api/v1/oauth2/exchange?code={code}`
 
 ### 2. Token Management
 
@@ -90,7 +90,7 @@ Implemented Google OAuth login flow with automatic token expiration and logout f
 ## API Endpoints Used
 
 - **Login**: `GET http://10.123.22.21:8081/api/v1/oauth2/login/google`
-- **Exchange**: `GET http://10.123.22.21:8081/api/v1/oauth2/exchange?auth_code={code}`
+- **Exchange**: `GET http://10.123.22.21:8081/api/v1/oauth2/exchange?code={code}`
 
 ## Response Format
 

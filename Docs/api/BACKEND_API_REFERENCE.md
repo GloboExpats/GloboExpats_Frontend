@@ -300,17 +300,17 @@ Frontend: /app/account/verification/page.tsx
 _OAuth2 Authentication Endpoints_
 
 ```http
-POST /api/v1/oauth2/exchange?auth_code={code}
+GET /api/v1/oauth2/exchange?code={code}
 Summary: Exchange Google OAuth authorization code for JWT
 Auth: Not required
 Query Params:
-  - auth_code: string (from Google OAuth)
+  - code: string (from Google OAuth)
 Response: AuthenticationResponse {
   "token": string,
   "email": string,
   "role": string
 }
-Status: ✅ Implemented in api.ts:542
+Status: ✅ Implemented in api.ts
 Frontend: /app/login/page.tsx (Google Sign-In)
 ```
 

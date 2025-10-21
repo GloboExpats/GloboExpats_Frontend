@@ -919,14 +919,14 @@ class ApiClient {
 
   /**
    * Exchanges Google OAuth auth code for JWT token
-   * Trying request body approach as backend rejects query param
+   * Backend expects GET request with 'code' query parameter
    * @param authCode - Google OAuth authorization code
    * @returns Promise resolving to authentication data
    */
   async exchangeOAuthCode(authCode: string): Promise<ApiResponse<unknown>> {
-    return this.request('/api/v1/oauth2/exchange', {
-      method: 'POST',
-      body: JSON.stringify({ auth_code: authCode }),
+    const params = new URLSearchParams({ code: authCode })
+    return this.request(`/api/v1/oauth2/exchange?${params.toString()}`, {
+      method: 'GET',
     })
   }
 

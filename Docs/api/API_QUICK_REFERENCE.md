@@ -72,7 +72,7 @@ GET /api/v1/oauth2/login/google
 // User will be redirected to Google for authentication
 
 // Step 2: Exchange auth code for token
-POST /api/v1/oauth2/exchange?auth_code={code}
+GET /api/v1/oauth2/exchange?code={code}
 
 // Response: 200 OK
 {
