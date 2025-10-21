@@ -223,6 +223,11 @@ export default function CheckoutPage() {
 
   // Comprehensive authentication and verification checks
   useEffect(() => {
+    // Set authChecked immediately if conditions are met to avoid loading delay
+    if (!authLoading && isLoggedIn && items.length > 0 && selectedItems.length > 0) {
+      setAuthChecked(true)
+    }
+
     if (!authLoading) {
       if (!isLoggedIn) {
         router.push('/login?redirect=/checkout')
@@ -242,8 +247,6 @@ export default function CheckoutPage() {
       if (!checkVerification('buy')) {
         return
       }
-
-      setAuthChecked(true)
     }
   }, [authLoading, isLoggedIn, items.length, selectedItems.length, router, checkVerification])
 

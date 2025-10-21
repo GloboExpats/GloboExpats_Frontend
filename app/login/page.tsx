@@ -131,11 +131,11 @@ function LoginContent() {
   // Show loading state during OAuth processing
   if (socialLoading === 'google') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-brand-primary to-brand-secondary">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-white mx-auto mb-4"></div>
-          <h2 className="text-2xl font-bold text-white mb-2">Signing you in...</h2>
-          <p className="text-white/80">Please wait while we complete your Google authentication</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-brand-primary mx-auto mb-4"></div>
+          <h2 className="text-2xl font-bold text-brand-primary mb-2">Signing you in...</h2>
+          <p className="text-gray-600">Please wait while we complete your Google authentication</p>
         </div>
       </div>
     )

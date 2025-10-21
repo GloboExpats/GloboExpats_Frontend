@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProductActions } from '@/components/product-actions'
 import { useParams, useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
-import { transformBackendProduct } from '@/lib/image-utils'
+import { transformBackendProduct, getFullImageUrl } from '@/lib/image-utils'
 import type { FeaturedItem } from '@/lib/types'
 import PriceDisplay from '@/components/price-display'
 import { parseNumericPrice } from '@/lib/utils'
@@ -87,10 +87,8 @@ export default function ProductPage() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const sellerData = (sellerResponse as any)?.data || sellerResponse
               if (sellerData?.profileImageUrl) {
-                // Normalize the URL to use the backend base URL
-                const fullImageUrl = sellerData.profileImageUrl.startsWith('http')
-                  ? sellerData.profileImageUrl
-                  : `http://10.123.22.21:8081${sellerData.profileImageUrl.startsWith('/') ? '' : '/'}${sellerData.profileImageUrl}`
+                // Use getFullImageUrl to properly normalize the image URL
+                const fullImageUrl = getFullImageUrl(sellerData.profileImageUrl)
                 setSellerProfileImage(fullImageUrl)
                 console.log('👤 Seller profile image loaded:', fullImageUrl)
               }
