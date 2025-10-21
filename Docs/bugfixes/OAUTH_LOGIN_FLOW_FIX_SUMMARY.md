@@ -124,6 +124,60 @@ window.history.replaceState({}, '', url.pathname)
 
 ---
 
+## Update 2: Session Restoration Fix (2025-10-21 04:24)
+
+### Issue: User Stuck on Login Page After OAuth Success
+After the UI sync fix, token was stored successfully but user remained on login page. The `isLoggedIn` state never changed to `true`.
+
+**Root Cause**: `AuthProvider`'s `restoreSession()` only runs **once on mount**. When OAuth stores a token mid-session, there's no mechanism to trigger re-evaluation. The `useEffect` watching `isLoggedIn` never fires because the state never updates.
+
+**Why the Previous Approach Failed**:
+```typescript
+// ❌ This doesn't work because:
+// 1. exchangeAuthCode() stores token
+// 2. AuthProvider already mounted (restoreSession ran at mount)
+// 3. No trigger to re-run restoreSession
+// 4. isLoggedIn stays false
+// 5. useEffect never redirects
+await exchangeAuthCode(authCode)
+// Wait for isLoggedIn to become true... but it never does!
+```
+
+**Solution**: Force page reload to `/` after token storage. This:
+1. Stores token via `exchangeAuthCode()`
+2. Navigates to home page with `window.location.href = '/'`
+3. Home page loads → `AuthProvider` mounts → `restoreSession()` runs
+4. Detects token → Fetches user details → Sets `isLoggedIn = true`
+5. UI renders in logged-in state immediately
+
+**Code Change** (`/app/login/page.tsx`):
+```typescript
+// Store token
+await exchangeAuthCode(authCode)
+
+// Clean up URL
+const url = new URL(window.location.href)
+url.searchParams.delete('code')
+url.searchParams.delete('auth_code')
+window.history.replaceState({}, '', url.pathname)
+
+// Force page reload to trigger AuthProvider mount
+setTimeout(() => {
+  window.location.href = '/'
+}, 1000)
+```
+
+**Added Guards**:
+```typescript
+if (authCode && !isLoggedIn && !isLoading) {
+  // Only process OAuth if not already logged in
+}
+```
+
+**Result**: OAuth flow now works end-to-end with proper session restoration.
+
+---
+
 ## All Changes Made
 
 ### 1. `/lib/api.ts`

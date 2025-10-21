@@ -54,19 +54,20 @@ function LoginContent() {
     const handleOAuthCallback = async () => {
       // Google returns 'code' parameter, backend might return 'auth_code'
       const authCode = searchParams.get('code') || searchParams.get('auth_code')
-      if (authCode) {
+      if (authCode && !isLoggedIn && !isLoading) {
         setSocialLoading('google')
         try {
+          console.log('[OAuth] Starting OAuth exchange...')
           // Exchange auth code for token (token is already set in exchangeAuthCode)
           await exchangeAuthCode(authCode)
 
           // Clean up URL to remove auth code parameter
-          // Don't redirect yet - let the isLoggedIn useEffect handle that
-          // once AuthProvider finishes rebuilding the session
           const url = new URL(window.location.href)
           url.searchParams.delete('code')
           url.searchParams.delete('auth_code')
           window.history.replaceState({}, '', url.pathname)
+
+          console.log('[OAuth] Token stored, waiting for auth state update...')
 
           toast({
             title: 'Login Successful!',
@@ -74,8 +75,12 @@ function LoginContent() {
             variant: 'default',
           })
 
-          // Note: Redirect will happen automatically when isLoggedIn becomes true
-          // via the useEffect below (line 90-94)
+          // Trigger page reload to force AuthProvider to restore session
+          // This is more reliable than waiting for state updates
+          setTimeout(() => {
+            console.log('[OAuth] Reloading page to restore session...')
+            window.location.href = '/'
+          }, 1000)
         } catch (_error) {
           console.error('OAuth callback error:', _error)
           toast({
@@ -90,7 +95,7 @@ function LoginContent() {
     }
 
     handleOAuthCallback()
-  }, [searchParams, toast])
+  }, [searchParams, toast, isLoggedIn, isLoading])
 
   // Add redirect logic for already authenticated users
   useEffect(() => {
