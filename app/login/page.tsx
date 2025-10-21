@@ -67,20 +67,20 @@ function LoginContent() {
           url.searchParams.delete('auth_code')
           window.history.replaceState({}, '', url.pathname)
 
-          console.log('[OAuth] Token stored, waiting for auth state update...')
+          console.log('[OAuth] Token stored, redirecting to home...')
 
           toast({
-            title: 'Login Successful!',
-            description: 'Welcome back! Redirecting to your dashboard...',
+            title: 'Authenticated with Google!',
+            description: 'Taking you to your home page...',
             variant: 'default',
           })
 
           // Trigger page reload to force AuthProvider to restore session
-          // This is more reliable than waiting for state updates
+          // Reduced timeout for faster experience
           setTimeout(() => {
-            console.log('[OAuth] Reloading page to restore session...')
+            console.log('[OAuth] Navigating to home page...')
             window.location.href = '/'
-          }, 1000)
+          }, 500)
         } catch (_error) {
           console.error('OAuth callback error:', _error)
           toast({
@@ -124,6 +124,19 @@ function LoginContent() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+      </div>
+    )
+  }
+
+  // Show loading state during OAuth processing
+  if (socialLoading === 'google') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-brand-primary to-brand-secondary">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-white mx-auto mb-4"></div>
+          <h2 className="text-2xl font-bold text-white mb-2">Signing you in...</h2>
+          <p className="text-white/80">Please wait while we complete your Google authentication</p>
+        </div>
       </div>
     )
   }

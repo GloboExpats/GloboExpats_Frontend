@@ -44,6 +44,7 @@ export default function ProductPage() {
   const [error, setError] = useState<string | null>(null)
   const [currentImage, setCurrentImage] = useState(0)
   const [isSaved, setIsSaved] = useState(false)
+  const [sellerProfileImage, setSellerProfileImage] = useState<string | null>(null)
 
   // Transform backend data to FeaturedItem format
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,6 +79,25 @@ export default function ProductPage() {
           setRawProductData(productData)
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
+
+          // Fetch seller profile image if sellerId is available
+          if (productData.sellerId) {
+            try {
+              const sellerResponse = await apiClient.getUser(String(productData.sellerId))
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const sellerData = (sellerResponse as any)?.data || sellerResponse
+              if (sellerData?.profileImageUrl) {
+                // Normalize the URL to use the backend base URL
+                const fullImageUrl = sellerData.profileImageUrl.startsWith('http')
+                  ? sellerData.profileImageUrl
+                  : `http://10.123.22.21:8081${sellerData.profileImageUrl.startsWith('/') ? '' : '/'}${sellerData.profileImageUrl}`
+                setSellerProfileImage(fullImageUrl)
+                console.log('👤 Seller profile image loaded:', fullImageUrl)
+              }
+            } catch (err) {
+              console.warn('Could not fetch seller profile image:', err)
+            }
+          }
 
           // Fetch similar products from all products list
           try {
@@ -463,9 +483,13 @@ export default function ProductPage() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
                   <Avatar className="w-12 h-12 sm:w-16 sm:h-16 border-2 border-blue-100 shadow-lg flex-shrink-0">
-                    <AvatarImage src="/placeholder.svg" alt={product.listedBy} />
+                    <AvatarImage
+                      src={sellerProfileImage || '/placeholder.svg'}
+                      alt={product.listedBy}
+                      onError={() => setSellerProfileImage(null)}
+                    />
                     <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold">
-                      {product.listedBy?.slice(0, 2) || 'UN'}
+                      {product.listedBy?.slice(0, 2).toUpperCase() || 'UN'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
