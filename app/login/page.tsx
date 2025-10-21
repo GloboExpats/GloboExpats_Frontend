@@ -57,26 +57,20 @@ function LoginContent() {
       if (authCode) {
         setSocialLoading('google')
         try {
-          const userData = await exchangeAuthCode(authCode)
+          // Exchange auth code for token (token is already set in exchangeAuthCode)
+          await exchangeAuthCode(authCode)
+
           toast({
             title: 'Login Successful!',
             description: 'Welcome back! Redirecting to your dashboard...',
             variant: 'default',
           })
 
-          // Update auth context with user data
-          await login({
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            name: `${userData.firstName} ${userData.lastName}`,
-            email: userData.email,
-            avatar: userData.profileImageUrl,
-          })
-
           // Clean up URL and redirect
+          // Give auth provider time to rebuild session from token
           setTimeout(() => {
             router.replace('/')
-          }, 1000)
+          }, 500)
         } catch (_error) {
           console.error('OAuth callback error:', _error)
           toast({
@@ -91,7 +85,7 @@ function LoginContent() {
     }
 
     handleOAuthCallback()
-  }, [searchParams, login, router, toast])
+  }, [searchParams, router, toast])
 
   // Add redirect logic for already authenticated users
   useEffect(() => {

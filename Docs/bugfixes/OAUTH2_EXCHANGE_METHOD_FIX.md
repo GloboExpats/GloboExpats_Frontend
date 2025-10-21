@@ -86,7 +86,40 @@ const data = responseData as {
 
 This follows the same defensive pattern used in `loginUser()` function.
 
-### 3. Updated Documentation
+### 3. Fixed OAuth Login Flow (`app/login/page.tsx`) - Duplicate Login Fix
+
+**Problem**: After successful OAuth token exchange, the code was calling `login()` with user data, which attempted to authenticate via the standard `/api/v1/auth/login` endpoint (requires email + password). This caused a 500 error: "Bad credentials".
+
+**Cause**: OAuth users don't have passwords, so calling the standard login endpoint fails. The auth provider's `login()` method calls `loginUser()` which makes a POST to `/api/v1/auth/login` expecting email/password credentials.
+
+**Before:**
+```typescript
+const userData = await exchangeAuthCode(authCode)
+// ❌ This tries to login again with email/password
+await login({
+  firstName: userData.firstName,
+  lastName: userData.lastName,
+  name: `${userData.firstName} ${userData.lastName}`,
+  email: userData.email,
+  avatar: userData.profileImageUrl,
+})
+```
+
+**After:**
+```typescript
+// Exchange auth code for token (token is already set in exchangeAuthCode)
+await exchangeAuthCode(authCode)
+// ✅ Let auth provider's session restoration handle the rest
+// Token is stored, and useEffect in auth-provider will rebuild session
+```
+
+**Why This Works**:
+- `exchangeAuthCode()` already stores the JWT token in localStorage
+- The `AuthProvider` has a `useEffect` that detects token presence and automatically rebuilds the session by calling `/api/v1/userManagement/user-details`
+- This eliminates the need for a second authentication call
+- User is redirected after 500ms, giving auth provider time to restore session
+
+### 4. Updated Documentation
 
 Fixed incorrect API documentation in:
 - `Docs/features/GOOGLE_OAUTH_IMPLEMENTATION.md`
@@ -144,9 +177,10 @@ Response: 200 OK
 
 1. `/lib/api.ts` - Fixed `exchangeOAuthCode()` method (HTTP method and parameters)
 2. `/lib/auth-service.ts` - Fixed `exchangeAuthCode()` response handling
-3. `/Docs/features/GOOGLE_OAUTH_IMPLEMENTATION.md` - Updated endpoint documentation
-4. `/Docs/api/BACKEND_API_REFERENCE.md` - Updated API reference
-5. `/Docs/api/API_QUICK_REFERENCE.md` - Updated quick reference
+3. `/app/login/page.tsx` - Removed erroneous login() call after OAuth exchange
+4. `/Docs/features/GOOGLE_OAUTH_IMPLEMENTATION.md` - Updated endpoint documentation
+5. `/Docs/api/BACKEND_API_REFERENCE.md` - Updated API reference
+6. `/Docs/api/API_QUICK_REFERENCE.md` - Updated quick reference
 
 ## Prevention
 
