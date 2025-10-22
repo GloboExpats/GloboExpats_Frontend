@@ -66,7 +66,8 @@ const nextConfig = {
       '@radix-ui/react-tooltip',
     ],
     // Optimize CSS imports
-    optimizeCss: true,
+    // Disabled temporarily due to critters module issue in Docker builds
+    // optimizeCss: true,
     // Enable Turbo for faster builds in development
     turbo: {
       rules: {
