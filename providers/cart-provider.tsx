@@ -211,7 +211,7 @@ export const CartContext = createContext<CartContextType | undefined>(undefined)
 
 const CART_STORAGE_KEY = 'expatCartItems'
 const CART_EXPIRY_HOURS = 168 // 7 days
-const MAX_CART_ITEMS = 50
+const _MAX_CART_ITEMS = 50 // Reserved for future cart limits
 const MAX_ITEM_QUANTITY = 10
 
 // ============================================================================
@@ -236,7 +236,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     selectedItems: [],
   })
 
-  const { isLoggedIn, user, canBuy, isLoading: authLoading } = useAuth()
+  const { isLoggedIn, user, canBuy: _canBuy, isLoading: authLoading } = useAuth()
 
   // ============================================================================
   // CART DATA VALIDATION & UTILITIES
@@ -245,22 +245,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   /**
    * Validates cart data structure and expiry
    */
-  const isCartDataValid = useCallback((cartData: any): boolean => {
+  const isCartDataValid = useCallback((cartData: unknown): boolean => {
     if (!cartData || typeof cartData !== 'object') return false
-
+    const data = cartData as { timestamp?: number; items?: unknown[] }
     // Check timestamp for expiry
-    if (cartData.timestamp) {
-      const age = Date.now() - cartData.timestamp
+    if (data.timestamp) {
+      const age = Date.now() - data.timestamp
       const maxAge = CART_EXPIRY_HOURS * 60 * 60 * 1000
       if (age > maxAge) return false
     }
 
     // Validate items structure
-    if (!Array.isArray(cartData.items)) return false
+    if (!Array.isArray(data.items)) return false
 
-    return cartData.items.every(
-      (item: any) => item.id && item.title && typeof item.price === 'number'
-    )
+    return data.items.every((item) => {
+      const cartItem = item as { id?: unknown; title?: unknown; price?: unknown }
+      return cartItem.id && cartItem.title && typeof cartItem.price === 'number'
+    })
   }, [])
 
   /**
@@ -444,8 +445,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // CART OPERATIONS
   // ============================================================================
 
-  const syncWithBackend = useCallback(
-    async (items: CartItem[]) => {
+  const _syncWithBackend = useCallback(
+    async (_items: CartItem[]) => {
       if (!isLoggedIn) return
 
       try {
@@ -641,7 +642,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => ({ ...prev, isLoading: false }))
       }
     },
-    [isLoggedIn, cart.items, removeItem, persistCart]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isLoggedIn, removeItem, persistCart]
   )
 
   /**

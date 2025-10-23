@@ -621,6 +621,16 @@ class ApiClient {
     return this.request(`/api/v1/displayItem/itemDetails/${id}`)
   }
 
+  /**
+   * Gets click count for a product
+   * @param productId - Product identifier
+   * @returns Promise resolving to click count and userId
+   */
+  async getProductClickCount(productId: number): Promise<{ clicks: number; userId: number }> {
+    const response = await this.request(`/api/v1/products/product-clickCount/${productId}`)
+    return response as unknown as { clicks: number; userId: number }
+  }
+
   // ============================================================================
   // USER ENDPOINTS
   // ============================================================================
@@ -899,15 +909,55 @@ class ApiClient {
   }
 
   /**
+   * Step 1: Sends password reset OTP to user's email
+   * @param email - User email address
+   * @returns Promise resolving to OTP send confirmation
+   */
+  async sendPasswordResetOtp(email: string): Promise<ApiResponse<unknown>> {
+    return this.request(
+      `/api/v1/userManagement/reset-passwordEmail?email=${encodeURIComponent(email)}`,
+      {
+        method: 'POST',
+      }
+    )
+  }
+
+  /**
+   * Step 2: Verifies the OTP code sent to user's email
+   * @param email - User email address
+   * @param otp - One-time password code
+   * @returns Promise resolving to OTP verification result
+   */
+  async verifyPasswordResetOtp(email: string, otp: string): Promise<ApiResponse<unknown>> {
+    return this.request(
+      `/api/v1/userManagement/verify-otp?loggingEmail=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`,
+      {
+        method: 'POST',
+      }
+    )
+  }
+
+  /**
+   * Step 3: Resets the password with new password
+   * @param email - User email address
+   * @param newPassword - New password to set
+   * @returns Promise resolving to password reset confirmation
+   */
+  async resetPasswordWithOtp(email: string, newPassword: string): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/userManagement/new-password', {
+      method: 'POST',
+      body: JSON.stringify({ loggingEmail: email, newPassword }),
+    })
+  }
+
+  /**
+   * @deprecated Use sendPasswordResetOtp instead
    * Initiates password reset process
    * @param email - User email address
    * @returns Promise resolving to reset confirmation
    */
   async resetPassword(email: string): Promise<ApiResponse<unknown>> {
-    return this.request('/api/v1/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    })
+    return this.sendPasswordResetOtp(email)
   }
 
   /**
@@ -1069,6 +1119,11 @@ export const api = {
     login: (email: string, password: string) => apiClient.login(email, password),
     register: (userData: Record<string, unknown>) => apiClient.register(userData),
     resetPassword: (email: string) => apiClient.resetPassword(email),
+    sendPasswordResetOtp: (email: string) => apiClient.sendPasswordResetOtp(email),
+    verifyPasswordResetOtp: (email: string, otp: string) =>
+      apiClient.verifyPasswordResetOtp(email, otp),
+    resetPasswordWithOtp: (email: string, newPassword: string) =>
+      apiClient.resetPasswordWithOtp(email, newPassword),
     logout: () => apiClient.logout(),
   },
 

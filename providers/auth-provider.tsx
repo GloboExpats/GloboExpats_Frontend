@@ -51,7 +51,7 @@ import {
   registerUser,
   sendOrgEmailOtp,
   verifyOrgEmailOtp,
-  setAuthToken,
+  // setAuthToken, // Not used in provider
   clearAuthToken,
   getAuthToken,
   initializeAuthFromStorage,
@@ -177,13 +177,15 @@ const SESSION_EXPIRY_HOURS = 24
  * Creates default verification status for new users
  * SIMPLIFIED: Email verification = full access
  */
-const createDefaultVerificationStatus = (user?: Partial<User>): VerificationStatus => {
+const createDefaultVerificationStatus = (
+  user?: Partial<User> | Record<string, unknown>
+): VerificationStatus => {
   // Check if backend says user is verified (any of these conditions)
   const isBackendVerified =
-    (user as any)?.isVerified === true ||
-    (user as any)?.verificationStatus === 'VERIFIED' ||
-    (user as any)?.backendVerificationStatus === 'VERIFIED' ||
-    (user as any)?.isOrganizationEmailVerified === true
+    (user as { isVerified?: boolean })?.isVerified === true ||
+    (user as { verificationStatus?: string })?.verificationStatus === 'VERIFIED' ||
+    (user as { backendVerificationStatus?: string })?.backendVerificationStatus === 'VERIFIED' ||
+    (user as { isOrganizationEmailVerified?: boolean })?.isOrganizationEmailVerified === true
 
   // Simplified logic: Email verified = all access
   return {
@@ -224,14 +226,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Validates if stored session is still valid
    */
-  const isSessionValid = useCallback((sessionData: any): boolean => {
+  const isSessionValid = useCallback((sessionData: unknown): boolean => {
     if (!sessionData || typeof sessionData !== 'object') return false
-
+    const session = sessionData as { user?: { email?: string }; timestamp?: number }
     // Check required fields
-    if (!sessionData.user?.email || !sessionData.timestamp) return false
+    if (!session.user?.email || !session.timestamp) return false
 
     // Check session expiry
-    const sessionAge = Date.now() - sessionData.timestamp
+    const sessionAge = Date.now() - session.timestamp
     const maxAge = SESSION_EXPIRY_HOURS * 60 * 60 * 1000
 
     return sessionAge < maxAge
@@ -290,11 +292,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               backendVerificationStatus: userDetails.verificationStatus,
               passportVerificationStatus: userDetails.passportVerificationStatus,
               addressVerificationStatus: userDetails.addressVerificationStatus,
-              verificationStatus: createDefaultVerificationStatus(userDetails as any),
-              role: userDetails.roles?.some((r: any) => r.roleName === 'ADMIN') ? 'admin' : 'user',
+              verificationStatus: createDefaultVerificationStatus(userDetails),
+              role: userDetails.roles?.some((r: { roleName?: string }) => r.roleName === 'ADMIN')
+                ? 'admin'
+                : 'user',
               roles: userDetails.roles,
               isVerified: userDetails.verificationStatus === 'VERIFIED',
-            } as any
+            } as User
             const verificationStatus = createDefaultVerificationStatus(rebuiltUser)
             setAuthState({
               isLoggedIn: true,
@@ -705,11 +709,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (updatedUserDetails) {
           // Use backend verification status
-          const updatedUser: any = {
+          const updatedUser = {
             ...authState.user,
             ...updatedUserDetails,
             organizationEmail: organizationalEmail,
-          }
+          } as User
 
           // Create verification status based on backend response
           const computedVerificationStatus = createDefaultVerificationStatus(updatedUser)
@@ -729,12 +733,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           )
         } else {
           // Fallback if user details fetch fails
-          const updatedUser: any = {
+          const updatedUser = {
             ...authState.user,
             organizationEmail: organizationalEmail,
             isVerified: true,
             backendVerificationStatus: 'VERIFIED',
-          }
+          } as User
           const computedVerificationStatus: VerificationStatus = {
             isFullyVerified: true,
             isIdentityVerified: true,
@@ -760,7 +764,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [authState.user, authState.verificationStatus, persistSession, fetchUserDetails]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [authState.user, persistSession, fetchUserDetails]
   )
 
   /**
@@ -845,7 +850,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }))
       throw new Error('Failed to complete verification')
     }
-  }, [authState.user, persistSession])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authState.user])
 
   /**
    * =============================================================================
@@ -893,6 +899,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Computed Properties
       ...computedProperties,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       authState,
       login,

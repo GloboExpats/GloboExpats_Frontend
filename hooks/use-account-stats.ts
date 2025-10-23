@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { api } from '@/lib/api'
+// import { api } from '@/lib/api' // TODO: Implement API integration for stats
 
 export interface AccountStats {
   totalOrders: number

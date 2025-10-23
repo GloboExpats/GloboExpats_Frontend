@@ -34,7 +34,7 @@ interface UseNotificationsReturn {
 }
 
 export function useNotifications(): UseNotificationsReturn {
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn, user: _user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
 
   const [notificationCounts, setNotificationCounts] = useState<NotificationCounts>({
@@ -105,7 +105,7 @@ export function useNotifications(): UseNotificationsReturn {
   /**
    * Mark a specific notification as read
    */
-  const markNotificationAsRead = useCallback((notificationId: number) => {
+  const markNotificationAsRead = useCallback((_notificationId: number) => {
     setNotificationCounts((prev) => ({
       ...prev,
       unread: Math.max(0, prev.unread - 1),
@@ -115,7 +115,7 @@ export function useNotifications(): UseNotificationsReturn {
   /**
    * Mark a conversation/message as read
    */
-  const markMessageAsRead = useCallback((conversationId: number) => {
+  const markMessageAsRead = useCallback((_conversationId: number) => {
     setMessageCounts((prev) => ({
       ...prev,
       unread: Math.max(0, prev.unread - 1),

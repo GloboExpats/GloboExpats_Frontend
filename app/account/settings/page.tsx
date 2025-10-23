@@ -323,11 +323,39 @@ export default function AccountSettings() {
         confirmPassword: '',
       })
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to change password'
+      console.error('Password change error:', error)
+
+      let errorTitle = 'Password Change Failed'
+      let errorDescription = 'Failed to change password'
+
+      if (error instanceof Error) {
+        const errorMsg = error.message.toLowerCase()
+
+        // Check for specific backend errors
+        if (
+          errorMsg.includes('securityuser') ||
+          errorMsg.includes('userroles') ||
+          errorMsg.includes('cast')
+        ) {
+          errorTitle = 'Server Configuration Error'
+          errorDescription =
+            'There is a backend configuration issue. Please contact support or try again later. (Error: Backend class casting issue)'
+        } else if (errorMsg.includes('unauthorized') || errorMsg.includes('401')) {
+          errorDescription = 'Your current password is incorrect. Please try again.'
+        } else if (errorMsg.includes('500')) {
+          errorTitle = 'Server Error'
+          errorDescription =
+            'The server encountered an error. Please try again later or contact support.'
+        } else {
+          errorDescription = error.message
+        }
+      }
+
       toast({
-        title: 'Password Change Failed',
-        description: errorMessage,
+        title: errorTitle,
+        description: errorDescription,
         variant: 'destructive',
+        duration: 8000, // Show longer for server errors
       })
     } finally {
       setIsChangingPassword(false)

@@ -42,7 +42,7 @@ export default function NewListingsSlider() {
   }
 
   return (
-    <section className="py-6 sm:py-12 lg:py-16">
+    <section className="py-6 sm:py-8 lg:py-10">
       <div className="mx-4 sm:mx-6 lg:mx-0 lg:pr-8">
         <SectionHeader title="New Arrivals" subtitle="Latest items from the expat community" />
 

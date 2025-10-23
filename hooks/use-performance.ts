@@ -13,7 +13,7 @@ export function useRenderTracker(componentName: string, enabled = false) {
       const endTime = performance.now()
 
       if (startTime.current > 0) {
-        const renderTime = endTime - startTime.current
+        const _renderTime = endTime - startTime.current
         // ...existing code...
       }
 
@@ -118,11 +118,12 @@ export function useThrottled<T>(value: T, delay: number): T {
 /**
  * Hook for memoizing expensive calculations
  */
-export function useExpensiveCalculation<T, P extends any[]>(
+export function useExpensiveCalculation<T, P extends unknown[]>(
   calculateFn: (...args: P) => T,
   dependencies: P
 ): T {
-  return useMemo(() => calculateFn(...dependencies), dependencies)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => calculateFn(...dependencies), [...dependencies, calculateFn])
 }
 
 /**
@@ -171,7 +172,11 @@ export function useMemoryMonitor(enabled = false) {
 
     const updateMemoryInfo = () => {
       if ('memory' in performance) {
-        const memory = (performance as any).memory
+        const memory = (
+          performance as Performance & {
+            memory: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number }
+          }
+        ).memory
         setMemoryInfo({
           usedJSHeapSize: memory.usedJSHeapSize,
           totalJSHeapSize: memory.totalJSHeapSize,
@@ -244,7 +249,7 @@ export function useComponentLifecycle(componentName: string, enabled = false) {
 
       return () => {
         const unmountTime = performance.now()
-        const totalLifetime = unmountTime - mountTime.current
+        const _totalLifetime = unmountTime - mountTime.current
         // ...existing code...
       }
     }

@@ -31,9 +31,7 @@ import {
   List,
   SlidersHorizontal,
   X,
-  Clock,
   Shield,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -58,7 +56,6 @@ interface FilterState {
   priceRange: [number, number]
   condition: string
   expatType: string
-  timePosted: string
   location: string
 }
 
@@ -86,10 +83,18 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
     filters.priceRange[1] < 10000000 ||
     filters.condition ||
     filters.expatType ||
-    filters.timePosted ||
     filters.location
 
   const [showAdvanced, setShowAdvanced] = useState(false)
+  // Local state for price inputs to allow smooth editing
+  const [minPriceInput, setMinPriceInput] = useState(filters.priceRange[0].toString())
+  const [maxPriceInput, setMaxPriceInput] = useState(filters.priceRange[1].toString())
+
+  // Sync with external filter changes
+  useEffect(() => {
+    setMinPriceInput(filters.priceRange[0].toString())
+    setMaxPriceInput(filters.priceRange[1].toString())
+  }, [filters.priceRange])
 
   return (
     <div className="space-y-6">
@@ -148,24 +153,41 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
         <Label className="text-sm font-semibold text-gray-700">Price Range (TZS)</Label>
         <div className="grid grid-cols-2 gap-2">
           <Input
-            type="number"
-            placeholder="Min"
-            value={filters.priceRange[0]}
-            onChange={(e) =>
-              updateFilter('priceRange', [parseInt(e.target.value) || 0, filters.priceRange[1]])
-            }
+            type="text"
+            inputMode="numeric"
+            placeholder="Min (0)"
+            value={minPriceInput}
+            onChange={(e) => {
+              const value = e.target.value
+              // Allow empty string or numbers only
+              if (value === '' || /^\d+$/.test(value)) {
+                setMinPriceInput(value)
+              }
+            }}
+            onBlur={() => {
+              const numValue = minPriceInput === '' ? 0 : parseInt(minPriceInput, 10)
+              const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue)
+              updateFilter('priceRange', [validValue, filters.priceRange[1]])
+            }}
             className="text-sm h-9"
           />
           <Input
-            type="number"
-            placeholder="Max"
-            value={filters.priceRange[1]}
-            onChange={(e) =>
-              updateFilter('priceRange', [
-                filters.priceRange[0],
-                parseInt(e.target.value) || 10000000,
-              ])
-            }
+            type="text"
+            inputMode="numeric"
+            placeholder="Max (10B)"
+            value={maxPriceInput}
+            onChange={(e) => {
+              const value = e.target.value
+              // Allow empty string or numbers only
+              if (value === '' || /^\d+$/.test(value)) {
+                setMaxPriceInput(value)
+              }
+            }}
+            onBlur={() => {
+              const numValue = maxPriceInput === '' ? 10000000 : parseInt(maxPriceInput, 10)
+              const validValue = isNaN(numValue) ? 10000000 : Math.max(0, numValue)
+              updateFilter('priceRange', [filters.priceRange[0], validValue])
+            }}
             className="text-sm h-9"
           />
         </div>
@@ -189,61 +211,6 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
       {/* Advanced Filters - Hidden by default */}
       {showAdvanced && (
         <>
-          <Separator />
-
-          {/* New Listings Filter */}
-          <div className="space-y-3">
-            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-green-600" />
-              Posted Time
-            </Label>
-            <RadioGroup
-              value={filters.timePosted}
-              onValueChange={(value) => updateFilter('timePosted', value)}
-              className="space-y-2"
-            >
-              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="" id="time-all" />
-                <Label
-                  htmlFor="time-all"
-                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
-                >
-                  Any time
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="24h" id="time-24h" />
-                <Label
-                  htmlFor="time-24h"
-                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
-                >
-                  Last 24 hours{' '}
-                  <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-700">
-                    New
-                  </Badge>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="7d" id="time-7d" />
-                <Label
-                  htmlFor="time-7d"
-                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
-                >
-                  Last week
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-                <RadioGroupItem value="30d" id="time-30d" />
-                <Label
-                  htmlFor="time-30d"
-                  className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
-                >
-                  Last month
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
           <Separator />
 
           {/* Condition */}
@@ -352,7 +319,7 @@ export default function BrowsePage() {
   const router = useRouter()
 
   const initialQuery = searchParams.get('q') || ''
-  const initialCategory = searchParams.get('category') || ''
+  const _initialCategory = searchParams.get('category') || ''
   const initialPage = parseInt(searchParams.get('page') || '1')
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -379,14 +346,15 @@ export default function BrowsePage() {
     []
   )
 
-  const [filters, setFilters] = useState<FilterState>({
-    selectedCategory: initialCategory,
+  const initialFilters: FilterState = {
+    selectedCategory: '',
     priceRange: [0, 10000000],
     condition: '',
     expatType: '',
-    timePosted: '',
     location: '',
-  })
+  }
+
+  const [filters, setFilters] = useState<FilterState>(initialFilters)
 
   // Transform backend ListingItem to FeaturedItem format
   const transformToFeaturedItem = (item: Record<string, unknown>): FeaturedItem => {
@@ -458,7 +426,6 @@ export default function BrowsePage() {
       priceRange: [0, 10000000],
       condition: '',
       expatType: '',
-      timePosted: '',
       location: '',
     })
   }
@@ -653,7 +620,6 @@ export default function BrowsePage() {
                     {(filters.selectedCategory ||
                       filters.condition ||
                       filters.expatType ||
-                      filters.timePosted ||
                       filters.location) && (
                       <Badge
                         variant="secondary"
@@ -757,12 +723,6 @@ export default function BrowsePage() {
                 {totalPages > 1 && (
                   <p className="text-sm text-gray-500 mt-1">
                     Page {currentPage} of {totalPages}
-                  </p>
-                )}
-                {filters.timePosted === '24h' && (
-                  <p className="text-sm text-green-600 mt-1 flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    Showing newest listings from last 24 hours
                   </p>
                 )}
               </div>

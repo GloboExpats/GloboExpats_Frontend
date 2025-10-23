@@ -19,7 +19,7 @@
  * ```
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { ListingItem } from '@/lib/types'
 
@@ -111,7 +111,7 @@ export function useProducts(options: UseProductsOptions = {}): UseProductsReturn
    * Fetches products from the API with current options
    * Handles loading states and error management
    */
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -124,12 +124,12 @@ export function useProducts(options: UseProductsOptions = {}): UseProductsReturn
     } finally {
       setLoading(false)
     }
-  }
+  }, [options])
 
   // Auto-refetch when options change
   useEffect(() => {
     fetchProducts()
-  }, [options.category, options.page, options.limit, options.search])
+  }, [fetchProducts])
 
   return {
     products,

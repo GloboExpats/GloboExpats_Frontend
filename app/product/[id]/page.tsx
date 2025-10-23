@@ -46,6 +46,7 @@ export default function ProductPage() {
   const [currentImage, setCurrentImage] = useState(0)
   const [isSaved, setIsSaved] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
+  const [sellerProfileImage, setSellerProfileImage] = useState<string | null>(null)
 
   // Transform backend data to FeaturedItem format
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,16 +103,18 @@ export default function ProductPage() {
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
 
-          // Note: Backend doesn't have /api/v1/users/{id} endpoint
-          // The /api/v1/userManagement/user-details only returns current user
-          // TODO: Backend needs to either:
-          // 1. Add sellerProfileImageUrl to product details response, or
-          // 2. Add GET /api/v1/users/{id} endpoint
-          // For now, we'll use initials as fallback
+          // Set seller profile image from product data
+          // NOTE: Backend limitation - profile images are stored with products at creation time
+          // This means if a seller updates their profile later, old products still show the old image
+          // Backend stores: sellerId, sellerName, profileImageUrl (snapshot at creation)
+          // To get current seller image would require: GET /api/v1/users/{sellerId} endpoint (doesn't exist)
+          setSellerProfileImage((productData.profileImageUrl as string) || null)
+
           console.log('👤 Seller info:', {
             sellerId: productData.sellerId,
             sellerName: productData.sellerName,
-            note: 'Profile image not available - backend endpoint missing',
+            profileImageUrl: productData.profileImageUrl || 'Not set',
+            note: 'Using stored profile image from product (historical snapshot)',
           })
 
           // Fetch similar products from all products list
@@ -384,6 +387,14 @@ export default function ProductPage() {
                                   </span>
                                 </div>
                               </div>
+                              <div className="bg-white rounded-lg p-4">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-gray-800">Warranty</span>
+                                  <span className="text-gray-600">
+                                    {rawProductData?.productWarranty || 'No warranty'}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                             <div className="space-y-4">
                               <div className="bg-white rounded-lg p-4">
@@ -537,7 +548,14 @@ export default function ProductPage() {
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
                   <Avatar className="w-12 h-12 sm:w-16 sm:h-16 border-2 border-blue-100 shadow-lg flex-shrink-0">
-                    <AvatarImage src="/placeholder.svg" alt={product.listedBy} />
+                    <AvatarImage
+                      src={sellerProfileImage || '/placeholder.svg'}
+                      alt={product.listedBy}
+                      onError={(e) => {
+                        // Fallback to placeholder if image fails to load
+                        ;(e.target as HTMLImageElement).src = '/placeholder.svg'
+                      }}
+                    />
                     <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold">
                       {product.listedBy?.slice(0, 2).toUpperCase() || 'UN'}
                     </AvatarFallback>

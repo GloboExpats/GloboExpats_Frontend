@@ -92,14 +92,15 @@ export const useAuth = () => {
  * @param user - User object to check
  * @returns True if user is properly authenticated
  */
-export const isAuthenticatedUser = (user: any): user is User => {
+export const isAuthenticatedUser = (user: unknown): user is User => {
+  if (!user || typeof user !== 'object') return false
+  const u = user as Record<string, unknown>
   return (
-    user &&
-    typeof user.id === 'string' &&
-    typeof user.email === 'string' &&
-    typeof user.name === 'string' &&
-    user.email.length > 0 &&
-    user.name.length > 0
+    typeof u.id === 'string' &&
+    typeof u.email === 'string' &&
+    typeof u.name === 'string' &&
+    u.email.length > 0 &&
+    u.name.length > 0
   )
 }
 
@@ -110,7 +111,7 @@ export const isAuthenticatedUser = (user: any): user is User => {
  * @param user - User object to check
  * @returns True if user has organization email verified
  */
-export const isVerifiedBuyer = (user: any): boolean => {
+export const isVerifiedBuyer = (user: unknown): boolean => {
   if (!isAuthenticatedUser(user)) return false
 
   return (
@@ -119,13 +120,12 @@ export const isVerifiedBuyer = (user: any): boolean => {
 }
 
 /**
- * Type guard to check if user has full verification
  * This allows users to sell items and access all features
  *
  * @param user - User object to check
  * @returns True if user has complete verification
  */
-export const isFullyVerifiedUser = (user: any): boolean => {
+export const isVerifiedSeller = (user: unknown): boolean => {
   if (!isAuthenticatedUser(user)) return false
 
   return user.verificationStatus?.isFullyVerified === true
@@ -138,12 +138,11 @@ export const isFullyVerifiedUser = (user: any): boolean => {
  * @param user - User object to check
  * @returns True if user has admin role
  */
-export const isAdminUser = (user: any): boolean => {
+export const isAdminUser = (user: unknown): boolean => {
   if (!isAuthenticatedUser(user)) return false
 
   return user.role === 'admin'
 }
-
 /**
  * =============================================================================
  * PERMISSION CHECKING UTILITIES
@@ -158,7 +157,10 @@ export const isAdminUser = (user: any): boolean => {
  * @param verificationStatus - Current verification status
  * @returns True if user can buy items
  */
-export const canUserBuy = (user: any, verificationStatus?: VerificationStatus | null): boolean => {
+export const canUserBuy = (
+  user: unknown,
+  verificationStatus?: VerificationStatus | null
+): boolean => {
   if (!isAuthenticatedUser(user)) return false
 
   return verificationStatus?.canBuy === true || isVerifiedBuyer(user)
@@ -172,10 +174,13 @@ export const canUserBuy = (user: any, verificationStatus?: VerificationStatus | 
  * @param verificationStatus - Current verification status
  * @returns True if user can sell items
  */
-export const canUserSell = (user: any, verificationStatus?: VerificationStatus | null): boolean => {
+export const canUserSell = (
+  user: unknown,
+  verificationStatus?: VerificationStatus | null
+): boolean => {
   if (!isAuthenticatedUser(user)) return false
 
-  return verificationStatus?.canSell === true || isFullyVerifiedUser(user)
+  return verificationStatus?.canSell === true || isVerifiedSeller(user)
 }
 
 /**
@@ -187,7 +192,7 @@ export const canUserSell = (user: any, verificationStatus?: VerificationStatus |
  * @returns True if user can contact sellers
  */
 export const canUserContact = (
-  user: any,
+  user: unknown,
   verificationStatus?: VerificationStatus | null
 ): boolean => {
   if (!isAuthenticatedUser(user)) return false
@@ -315,7 +320,7 @@ export const useVerificationStatus = () => {
     progress: getVerificationProgress(verificationStatus),
     statusMessage: getVerificationStatusMessage(verificationStatus),
     isVerifiedBuyer: isVerifiedBuyer(user),
-    isFullyVerified: isFullyVerifiedUser(user),
+    isFullyVerified: isVerifiedSeller(user),
   }
 }
 

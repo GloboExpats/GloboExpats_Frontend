@@ -35,6 +35,7 @@ interface FormData {
   price: string
   originalPrice: string
   currency: string
+  warranty: string
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -49,6 +50,7 @@ const INITIAL_FORM_DATA: FormData = {
   price: '',
   originalPrice: '',
   currency: 'TZS',
+  warranty: '',
 }
 
 const STEP_TITLES = ['Basic Details', 'Photos & Description', 'Pricing & Publish']
@@ -256,7 +258,7 @@ function SellPageContent() {
         currency: 'TZS', // Always store as TZS in backend
         askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
         originalPrice: Math.round(originalPriceInTZS),
-        productWarranty: '1 year manufacturer warranty', // Default warranty
+        productWarranty: formData.warranty.trim() || 'No warranty', // Use form data or default
       }
 
       // Call the backend API with reordered images (main image first)
@@ -813,6 +815,30 @@ function Step3Content({
             />
           </div>
         </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label htmlFor="warranty" className="text-base font-semibold text-neutral-800">
+          Warranty Information{' '}
+          <span className="text-sm font-normal text-neutral-500">(Optional)</span>
+        </Label>
+        <Input
+          id="warranty"
+          type="text"
+          placeholder="e.g., 1 year manufacturer warranty, 6 months seller warranty"
+          className="h-12 sm:h-14 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
+          value={formData.warranty}
+          onChange={(e) => {
+            // Allow only alphanumeric, spaces, hyphens, commas, and common warranty terms
+            const sanitized = e.target.value.replace(/[^a-zA-Z0-9\s\-,./()]/g, '')
+            updateFormData({ warranty: sanitized })
+          }}
+          maxLength={100}
+        />
+        <p className="text-xs sm:text-sm text-neutral-500">
+          {formData.warranty.length}/100 • Specify warranty details if applicable (e.g., remaining
+          manufacturer warranty, seller guarantee)
+        </p>
       </div>
 
       <div className="bg-[#F8FAFB] border border-[#E2E8F0] rounded-lg p-6">

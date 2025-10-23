@@ -212,18 +212,41 @@ function DashboardContent() {
           console.log(`   Total products in database: ${allProducts.length}`)
         }
 
-        setListings(userListings as UserListing[])
+        // Fetch click counts for each product
+        const listingsWithViews = await Promise.all(
+          userListings.map(async (item) => {
+            const product = item as Record<string, unknown>
+            const productId = product.productId as number
+
+            try {
+              const clickData = await apiClient.getProductClickCount(productId)
+              return {
+                ...product,
+                views: clickData.clicks || 0,
+              }
+            } catch (error) {
+              // If click count fetch fails, use 0
+              if (process.env.NODE_ENV === 'development') {
+                console.warn(`Failed to fetch click count for product ${productId}:`, error)
+              }
+              return {
+                ...product,
+                views: 0,
+              }
+            }
+          })
+        )
+
+        setListings(listingsWithViews as UserListing[])
 
         // Calculate stats from user listings
-        const activeCount = userListings.filter((item) => {
+        const activeCount = listingsWithViews.filter((item) => {
           const p = item as Record<string, unknown>
           return p.productStatus !== 'SOLD'
         }).length
-        const totalViewsCount = userListings.reduce((sum: number, item) => {
+        const totalViewsCount = listingsWithViews.reduce((sum: number, item) => {
           const p = item as Record<string, unknown>
-          // Try multiple possible field names for views
-          const views =
-            (p.views as number) || (p.productViews as number) || (p.viewCount as number) || 0
+          const views = (p.views as number) || 0
           return sum + views
         }, 0)
 
@@ -453,12 +476,7 @@ function DashboardContent() {
                       <div className="flex items-center justify-between text-sm text-[#64748B] mb-4">
                         <div className="flex items-center">
                           <Eye className="w-4 h-4 mr-1" />
-                          {listing.views ||
-                            (listing as unknown as { productViews?: number; viewCount?: number })
-                              .productViews ||
-                            (listing as unknown as { productViews?: number; viewCount?: number })
-                              .viewCount ||
-                            0}
+                          <span className="font-medium">{listing.views || 0} views</span>
                         </div>
                       </div>
                       <div className="flex space-x-2">

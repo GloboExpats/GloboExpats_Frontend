@@ -20,12 +20,38 @@ export default function TopPicksSlider() {
       try {
         setLoading(true)
         setError(null)
-        const res = await apiClient.getTopPicks(0, 20)
+        const res = await apiClient.getTopPicks(0, 30) // Fetch more to have better selection
         const content = extractContentFromResponse(res)
-        // Limit to 8 items max for optimal slider performance
-        setItems(
-          content.slice(0, 8).map((it) => transformBackendProduct(it as Record<string, unknown>))
+
+        // Fetch click counts for all products and sort by views
+        const productsWithViews = await Promise.all(
+          content.map(async (it) => {
+            const product = it as Record<string, unknown>
+            const productId = product.productId as number
+
+            try {
+              const clickData = await apiClient.getProductClickCount(productId)
+              return {
+                ...product,
+                views: clickData.clicks || 0,
+              }
+            } catch {
+              // If click count fetch fails, use 0
+              return {
+                ...product,
+                views: 0,
+              }
+            }
+          })
         )
+
+        // Sort by views (highest to lowest) and limit to 8 items
+        const sortedProducts = productsWithViews
+          .sort((a, b) => (b.views || 0) - (a.views || 0))
+          .slice(0, 8)
+          .map((it) => transformBackendProduct(it as Record<string, unknown>))
+
+        setItems(sortedProducts)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load top picks')
       } finally {
@@ -43,7 +69,7 @@ export default function TopPicksSlider() {
   }
 
   return (
-    <section className="py-6 sm:py-12 lg:py-16">
+    <section className="py-6 sm:py-8 lg:py-10">
       <div className="mx-4 sm:mx-6 lg:mx-0 lg:pl-6 lg:pr-8">
         <SectionHeader title="Trending Now" subtitle="Most popular items right now" />
 

@@ -260,14 +260,21 @@ function EditListingContent() {
     setCurrentImages(newOrder)
     setErrors([])
 
-    // Show feedback toast with limitation notice
+    // Show success feedback
     toast({
-      title: '⚠️ Image reordered (display only)',
-      description:
-        'Backend does not support image reordering yet. To change the main photo, delete this image and re-upload it first.',
+      title: '✅ Main photo updated',
+      description: 'This image will be set as the main photo when you save your changes.',
       variant: 'default',
-      duration: 6000,
+      duration: 3000,
     })
+  }
+
+  // Helper function to download image as File
+  const downloadImageAsFile = async (imageUrl: string, filename: string): Promise<File> => {
+    const fullUrl = getFullImageUrl(imageUrl)
+    const response = await fetch(fullUrl)
+    const blob = await response.blob()
+    return new File([blob], filename, { type: blob.type })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,35 +341,52 @@ function EditListingContent() {
         productWarranty: formData.productWarranty.substring(0, MAX_LENGTHS.productWarranty),
       }
 
-      // Log field lengths for debugging
-      console.log('📊 Field lengths:', {
-        productName: updateData.productName.length,
-        location: updateData.location.length,
-        condition: updateData.condition.length,
-        warranty: updateData.productWarranty.length,
-        locationValue: updateData.location,
-      })
+      // Check if image order has changed (main image selection)
+      const originalOrder = (product.productImages as ProductImage[]) || []
+      const orderChanged =
+        originalOrder.length > 0 &&
+        currentImages.length > 0 &&
+        originalOrder[0].imageId !== currentImages[0].imageId
 
-      console.log('💱 Currency Conversion:', {
-        enteredCurrency,
-        conversionRate,
-        askingPriceInTZS,
-        originalPriceInTZS,
-      })
+      let imagesToUpload = newImages
+      let imageIdsToDelete = imagesToRemove
+
+      // If order changed, we need to re-upload all images in new order
+      if (orderChanged && currentImages.length > 0) {
+        console.log('🔄 Image order changed - re-uploading in new order...')
+        try {
+          // Download all current images (excluding marked for removal)
+          const activeImages = currentImages.filter((img) => !imagesToRemove.includes(img.imageId))
+          const reorderedFiles = await Promise.all(
+            activeImages.map((img, index) =>
+              downloadImageAsFile(img.imageUrl, `image-${index}.jpg`)
+            )
+          )
+
+          // Add new images at the end
+          imagesToUpload = [...reorderedFiles, ...newImages]
+
+          // Delete ALL current images (they'll be replaced)
+          imageIdsToDelete = currentImages.map((img) => img.imageId)
+
+          console.log(
+            `📸 Re-uploading ${reorderedFiles.length} existing + ${newImages.length} new images in correct order`
+          )
+        } catch (downloadError) {
+          console.error('❌ Failed to download images for reordering:', downloadError)
+          throw new Error('Failed to reorder images. Please try again.')
+        }
+      }
 
       console.log('📦 Updating product with data:', updateData)
-      console.log('🖼️ Images to remove:', imagesToRemove)
-      console.log('📸 New images to add:', newImages.length)
-      console.log(
-        '🎨 Current image order (IDs):',
-        currentImages.map((img) => img.imageId)
-      )
+      console.log('🖼️ Images to remove:', imageIdsToDelete)
+      console.log('📸 Images to upload:', imagesToUpload.length)
 
       const result = await apiClient.updateProduct(
         productId,
         updateData,
-        newImages.length > 0 ? newImages : undefined,
-        imagesToRemove.length > 0 ? imagesToRemove : undefined
+        imagesToUpload.length > 0 ? imagesToUpload : undefined,
+        imageIdsToDelete.length > 0 ? imageIdsToDelete : undefined
       )
 
       console.log('✅ Product updated successfully!', result)
@@ -632,8 +656,8 @@ function EditListingContent() {
                     product cards)
                   </li>
                   <li>
-                    • <strong className="text-orange-600">⚠️ To change main photo:</strong> Remove
-                    old main image, then upload new one first
+                    • <strong className="text-green-600">💡 To change main photo:</strong> Click
+                    &quot;Make Main&quot; button on any image, then save
                   </li>
                 </ul>
               </div>
