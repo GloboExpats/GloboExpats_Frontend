@@ -130,7 +130,7 @@ const nextConfig = {
 
   // Environment variables accessible to the frontend
   env: {
-    BACKEND_URL=process.env.BACKEND_URL || 'https://dev.globoexpats.com',
+    BACKEND_URL: process.env.BACKEND_URL || 'https://dev.globoexpats.com',
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://globoexpats.com',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://10.123.22.21:8081/ws',
     NEXT_PUBLIC_CDN_URL: process.env.NEXT_PUBLIC_CDN_URL || 'https://dev.globoexpats.com',

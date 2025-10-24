@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_URL || 'https://dev.globoexpats.com'
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json()
     const authHeader = request.headers.get('authorization')
-    const { id } = params
+    const { id } = await params
 
     const response = await fetch(`${BACKEND_URL}/api/v1/cart/item/${id}`, {
       method: 'PUT',
@@ -25,10 +25,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const authHeader = request.headers.get('authorization')
-    const { id } = params
+    const { id } = await params
 
     const response = await fetch(`${BACKEND_URL}/api/v1/cart/item/${id}`, {
       method: 'DELETE',

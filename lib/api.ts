@@ -1153,7 +1153,8 @@ class ApiClient {
     totalAmount: number
     currency: string
   }): Promise<ApiResponse<unknown>> {
-    return this.request('/api/v1/checkout/zenoPayCheckOut', {
+    // Use Next.js API proxy to avoid CORS issues
+    return this.request('/api/checkout', {
       method: 'POST',
       body: JSON.stringify(checkoutData),
     })
