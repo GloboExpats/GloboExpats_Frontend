@@ -65,7 +65,6 @@
 import { createContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react'
 import { toast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { cartService, type BackendCartData, type FrontendCartItem } from '@/lib/cart-service'
 import {
   setItemDebounced,
   getItem,
@@ -292,72 +291,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [isLoggedIn, user?.id]
   )
 
-  /**
-   * BACKEND INTEGRATION: Sync cart with backend when user logs in
-   */
-  const syncCart = useCallback(async () => {
-    if (!isLoggedIn) return
-
-    try {
-      setCart((prev) => ({ ...prev, isLoading: true, error: null }))
-
-      // Get cart from backend
-      const backendCart = await cartService.getCart()
-      const frontendCart = cartService.convertToFrontendCart(backendCart)
-
-      // Convert to CartItem format
-      const cartItems = frontendCart.items.map((frontendItem) => ({
-        id: frontendItem.cartId?.toString() || frontendItem.productId.toString(),
-        productId: frontendItem.productId,
-        title: frontendItem.name,
-        price: frontendItem.price,
-        image: frontendItem.image || '',
-        condition: frontendItem.condition || 'Used',
-        expatId: 'unknown', // Will need to be fetched separately
-        expatName: frontendItem.seller || 'Unknown Seller',
-        quantity: frontendItem.quantity,
-        category: 'General', // Will need to be fetched separately
-        location: 'Unknown', // Will need to be fetched separately
-        verified: false, // Will need to be fetched separately
-        currency: frontendItem.currency || 'TZS',
-        isAvailable: true,
-        selected: false,
-      }))
-
-      // Update local state with backend data
-      setCart({
-        items: cartItems,
-        isLoading: false,
-        error: null,
-        isInitialized: true,
-        selectedItems: [],
-      })
-
-      // Persist to localStorage as backup
-      persistCart(cartItems, [])
-    } catch (error) {
-      console.error('❌ Failed to sync cart with backend:', error)
-
-      // Fall back to localStorage data - simplified fallback
-      setCart({
-        items: [],
-        isLoading: false,
-        error: null,
-        isInitialized: true,
-        selectedItems: [],
-      })
-    }
-  }, [isLoggedIn, persistCart])
-
   // ============================================================================
   // INITIALIZATION & CLEANUP
   // ============================================================================
 
   /**
-   * Load cart from backend when authenticated, fallback to localStorage
+   * CLIENT-SIDE ONLY: Load cart from localStorage on mount
    */
   useEffect(() => {
-    const loadCart = async () => {
+    const loadCart = () => {
       try {
         // Wait for auth to finish loading before deciding what to do with cart
         if (authLoading) {
@@ -377,10 +319,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // BACKEND INTEGRATION: Sync with backend for authenticated users
-        await syncCart()
+        // Load from localStorage for authenticated users
+        const cartData = getItem(CART_STORAGE_KEY)
+
+        if (!cartData) {
+          setCart((prev) => ({
+            ...prev,
+            items: [],
+            isLoading: false,
+            isInitialized: true,
+            selectedItems: [],
+          }))
+          return
+        }
+
+        // Validate cart data and user association
+        if (!isCartDataValid(cartData) || cartData.userId !== user?.id) {
+          console.warn('⚠️ Invalid cart data or user mismatch, clearing cart')
+          removeStorageItem(CART_STORAGE_KEY)
+          setCart((prev) => ({
+            ...prev,
+            items: [],
+            isLoading: false,
+            isInitialized: true,
+            selectedItems: [],
+          }))
+          return
+        }
+
+        setCart({
+          items: cartData.items || [],
+          isLoading: false,
+          error: null,
+          isInitialized: true,
+          selectedItems: cartData.selectedItems || [],
+        })
       } catch (error) {
-        console.error('❌ Failed to load cart:', error)
+        console.error('❌ Failed to load cart from localStorage:', error)
         removeStorageItem(CART_STORAGE_KEY)
         setCart({
           items: [],
@@ -393,7 +368,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     loadCart()
-  }, [authLoading, isLoggedIn, user?.id, syncCart])
+  }, [authLoading, isLoggedIn, user?.id, isCartDataValid])
 
   /**
    * Clear cart when user logs out (not on initial load)
@@ -488,15 +463,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback(
     async (item: Omit<CartItem, 'quantity'>) => {
-      console.log('🎯 [CART-PROVIDER] addItem called with:', {
-        itemId: item.id,
-        productId: item.productId,
-        title: item.title,
-        isLoggedIn,
-      })
-
       if (!isLoggedIn) {
-        console.log('❌ [CART-PROVIDER] User not logged in')
         toast({
           title: 'Join the Expat Community!',
           description:
@@ -523,80 +490,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // BACKEND INTEGRATION: Add item to backend cart
-        const productId = item.productId || parseInt(item.id)
-
-        console.log('🛒 Cart Provider - Adding item:', {
-          itemId: item.id,
-          itemProductId: item.productId,
-          calculatedProductId: productId,
-          itemTitle: item.title,
-        })
-
-        if (!productId || isNaN(productId)) {
-          console.error('❌ Invalid productId:', { itemId: item.id, productId, item })
-          throw new Error('Product ID is required to add item to cart')
-        }
-
-        console.log('✅ Calling cartService.addToCart with productId:', productId)
-        const success = await cartService.addToCart(productId, 1)
-
-        console.log('📊 Add to cart result:', { success })
-
-        if (!success) {
-          throw new Error('Failed to add item to backend cart')
-        }
-
-        console.log('✅ Item added to backend, fetching updated cart...')
-        // Fetch updated cart from backend
-        const backendCart = await cartService.getCart()
-        const frontendCart = cartService.convertToFrontendCart(backendCart)
-
-        console.log('📊 Backend cart after add:', {
-          totalItems: backendCart.items.length,
-          items: backendCart.items,
-        })
-        console.log('📊 Frontend cart after conversion:', {
-          totalItems: frontendCart.items.length,
-          items: frontendCart.items.map((i) => ({ id: i.productId, name: i.name })),
-        })
-
-        // Update local state with backend data
+        // CLIENT-SIDE ONLY: Add new item to cart
         setCart((prev) => {
           const updatedSelectedItems = [...prev.selectedItems]
 
-          // Convert frontend items to CartItem format
-          const updatedItems = frontendCart.items.map((frontendItem) => ({
-            id: frontendItem.cartId?.toString() || frontendItem.productId.toString(),
-            productId: frontendItem.productId,
-            title: frontendItem.name,
-            price: frontendItem.price,
-            image: frontendItem.image || item.image || '', // Use original image if backend doesn't provide
-            condition: frontendItem.condition || item.condition || 'Used',
-            expatId: item.expatId || 'unknown',
-            expatName: item.expatName || frontendItem.seller || 'Unknown Seller',
-            quantity: frontendItem.quantity,
-            category: item.category || 'General',
-            location: item.location || 'Unknown',
-            verified: item.verified || false,
-            currency: frontendItem.currency || 'TZS',
-            isAvailable: true,
-            selected: false,
-          }))
+          // New item - add to cart with quantity 1
+          const updatedItems = [...prev.items, { ...item, quantity: 1 }]
 
-          // Auto-select the newly added item for checkout
-          const newItemId = item.id
-          if (!updatedSelectedItems.includes(newItemId)) {
-            updatedSelectedItems.push(newItemId)
+          // Auto-select new item for checkout
+          if (!updatedSelectedItems.includes(item.id)) {
+            updatedSelectedItems.push(item.id)
           }
 
-          // Persist to localStorage as backup
+          // Persist to localStorage
           persistCart(updatedItems, updatedSelectedItems)
-
-          console.log('✅ Cart updated successfully:', {
-            totalItems: updatedItems.length,
-            items: updatedItems.map((i) => ({ id: i.id, title: i.title, quantity: i.quantity })),
-          })
 
           return {
             ...prev,
@@ -613,28 +520,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         })
       } catch (error) {
         console.error('❌ Error adding to cart:', error)
-
-        // Extract error message for user
-        let errorMessage = 'Failed to add item to cart. Please try again.'
-
-        if (error instanceof Error) {
-          // Check for specific error messages from backend
-          if (error.message.includes('verification') || error.message.includes('verify')) {
-            errorMessage =
-              'Please verify your account to add items to cart. Go to Account → Verification.'
-          } else if (error.message.includes('Buyer profile not found')) {
-            errorMessage =
-              'Account setup required. Please complete your profile to add items to cart.'
-          } else if (error.message.includes('not found') || error.message.includes('404')) {
-            errorMessage = 'This feature requires account verification. Please verify your email.'
-          } else if (error.message) {
-            errorMessage = error.message
-          }
-        }
-
         toast({
           title: 'Error',
-          description: errorMessage,
+          description: 'Failed to add item to cart. Please try again.',
           variant: 'destructive',
         })
         setCart((prev) => ({ ...prev, isLoading: false }))
@@ -658,30 +546,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         setCart((prev) => ({ ...prev, isLoading: true, error: null }))
 
-        // Find the item to get the cartId for backend
-        const itemToRemove = cart.items.find((item) => item.id === id)
-        if (!itemToRemove) {
-          throw new Error('Item not found in cart')
-        }
-
-        // BACKEND INTEGRATION: Remove item from backend cart
-        const cartId = parseInt(itemToRemove.id)
-        if (!cartId) {
-          throw new Error('Invalid cart item ID')
-        }
-
-        const success = await cartService.removeFromCart(cartId)
-
-        if (!success) {
-          throw new Error('Failed to remove item from backend cart')
-        }
-
-        // Update local state
+        // CLIENT-SIDE ONLY: Remove item from local cart
         setCart((prev) => {
           const updatedItems = prev.items.filter((item) => item.id !== id)
           const updatedSelectedItems = prev.selectedItems.filter((itemId) => itemId !== id)
 
-          // Persist to localStorage as backup
+          // Persist to localStorage
           persistCart(updatedItems, updatedSelectedItems)
 
           return {
@@ -742,33 +612,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         setCart((prev) => ({ ...prev, isLoading: true, error: null }))
 
-        // Find the item to get cartId and productId for backend
-        const itemToUpdate = cart.items.find((item) => item.id === itemId)
-        if (!itemToUpdate) {
-          throw new Error('Item not found in cart')
-        }
-
-        // BACKEND INTEGRATION: Update item quantity in backend cart
-        const cartId = parseInt(itemToUpdate.id)
-        const productId = itemToUpdate.productId || parseInt(itemToUpdate.id)
-
-        if (!cartId || !productId) {
-          throw new Error('Invalid cart item or product ID')
-        }
-
-        const success = await cartService.updateCartItem(cartId, productId, quantity)
-
-        if (!success) {
-          throw new Error('Failed to update item quantity in backend cart')
-        }
-
-        // Update local state
+        // CLIENT-SIDE ONLY: Update item quantity in local cart
         setCart((prev) => {
           const updatedItems = prev.items.map((item) =>
             item.id === itemId ? { ...item, quantity } : item
           )
 
-          // Persist to localStorage as backup
+          // Persist to localStorage
           persistCart(updatedItems, prev.selectedItems)
 
           return {
@@ -815,14 +665,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       setCart((prev) => ({ ...prev, isLoading: true, error: null }))
 
-      // BACKEND INTEGRATION: Clear cart from backend
-      const success = await cartService.clearCart()
-
-      if (!success) {
-        throw new Error('Failed to clear cart from backend')
-      }
-
-      // Update local state
+      // CLIENT-SIDE ONLY: Clear cart from local storage
       setCart((prev) => ({
         ...prev,
         items: [],
@@ -830,8 +673,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         isLoading: false,
         error: null,
       }))
-
-      // Clear localStorage as backup
       removeStorageItem(CART_STORAGE_KEY)
 
       toast({
@@ -848,6 +689,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart((prev) => ({ ...prev, isLoading: false }))
     }
   }, [isLoggedIn])
+
+  /**
+   * CLIENT-SIDE ONLY: No backend sync needed
+   * Cart is stored locally and sent to backend only during checkout
+   */
+  const syncCart = useCallback(async () => {
+    // No-op: Cart is fully client-side now
+  }, [])
 
   /**
    * Validate cart items availability
