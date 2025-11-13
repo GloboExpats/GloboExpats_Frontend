@@ -12,12 +12,14 @@
 
 **Problem**: Product pages were attempting to fetch seller profile images but failing silently.
 
-**Root Cause**: 
+**Root Cause**:
+
 - Frontend code attempted to call `GET /api/v1/users/{sellerId}` endpoint
 - **This endpoint does not exist in the backend** (verified via Swagger UI)
 - Backend only has `/api/v1/userManagement/user-details` which returns the **current authenticated user's** details, not any user by ID
 
 **Swagger API Verification**:
+
 ```
 Available Endpoint:
 GET /api/v1/userManagement/user-details
@@ -35,11 +37,13 @@ GET /api/v1/users/{id}
 **Problem**: "Product not found" errors on deployed version (worked locally).
 
 **Root Cause**:
+
 - Inconsistent response wrapping between environments
 - Local: Direct product object
 - Production: Product wrapped in `data` property
 
 **Fix**: Enhanced response handling to support both structures:
+
 ```typescript
 // Handle both direct and wrapped responses
 let productData = respData as Record<string, unknown>
@@ -78,6 +82,7 @@ if (respData.data && typeof respData.data === 'object') {
 The backend needs **ONE** of these solutions:
 
 #### Option 1: Add User Profile Endpoint (Recommended)
+
 ```java
 /**
  * Get public user profile by ID
@@ -90,15 +95,17 @@ public ResponseEntity<PublicUserProfileDTO> getUserProfile(@PathVariable Long us
 ```
 
 **PublicUserProfileDTO should include**:
+
 - `userId` (Long)
 - `firstName` (String)
-- `lastName` (String)  
+- `lastName` (String)
 - `profileImageUrl` (String) ← **Most important for product pages**
 - `location` (String)
 - `verificationStatus` (enum)
 - Optional: `aboutMe`, `memberSince`, `rating`, `totalProducts`
 
 **Security**: This endpoint should NOT require authentication and should NOT return sensitive data like:
+
 - Email addresses
 - Phone numbers
 - Organizational details
@@ -111,16 +118,18 @@ public ResponseEntity<PublicUserProfileDTO> getUserProfile(@PathVariable Long us
 Modify `/api/v1/displayItem/itemDetails/{productId}` response:
 
 **Current response**:
+
 ```json
 {
   "productId": 123,
   "sellerId": 456,
-  "sellerName": "John Doe",
+  "sellerName": "John Doe"
   // ... other fields
 }
 ```
 
 **Enhanced response**:
+
 ```json
 {
   "productId": 123,
@@ -138,11 +147,13 @@ Modify `/api/v1/displayItem/itemDetails/{productId}` response:
 ## Current User Experience
 
 ### Before Fix:
+
 - ❌ Console errors from failed API calls
 - ❌ Profile image state stuck in loading
 - ❌ Product page crashes in production with "Product not found"
 
 ### After Fix:
+
 - ✅ Product pages load successfully
 - ✅ Seller info displays with initials fallback
 - ✅ No console errors
@@ -154,6 +165,7 @@ Modify `/api/v1/displayItem/itemDetails/{productId}` response:
 ## Visual Impact
 
 **Seller Card - Current State**:
+
 ```
 ┌──────────────────────────────┐
 │  [FJ]  Francis Jacob         │  ← Initials in colored circle
@@ -164,6 +176,7 @@ Modify `/api/v1/displayItem/itemDetails/{productId}` response:
 ```
 
 **Seller Card - After Backend Fix**:
+
 ```
 ┌──────────────────────────────┐
 │  [📷]  Francis Jacob         │  ← Actual profile picture
@@ -181,17 +194,19 @@ Modify `/api/v1/displayItem/itemDetails/{productId}` response:
 
 1. **Implement Option 1 or 2 above**
 2. **Test the endpoint**:
+
    ```bash
    # Test public user profile endpoint
    curl -X GET "http://10.123.22.21:8081/api/v1/users/123"
-   
+
    # Should return public profile including profileImageUrl
    ```
 
 3. **Verify product details include seller image**:
+
    ```bash
    curl -X GET "http://10.123.22.21:8081/api/v1/displayItem/itemDetails/8"
-   
+
    # Check if sellerProfileImageUrl is present
    ```
 

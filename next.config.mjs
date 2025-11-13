@@ -121,6 +121,8 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Loader for faster image serving
+    loader: 'default',
   },
 
   /**
@@ -214,7 +216,9 @@ const nextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: process.env.ALLOWED_ORIGINS || 'https://globoexpats.com,https://www.globoexpats.com,https://dev.globoexpats.com',
+            value:
+              process.env.ALLOWED_ORIGINS ||
+              'https://globoexpats.com,https://www.globoexpats.com,https://dev.globoexpats.com',
           },
           {
             key: 'Access-Control-Allow-Methods',

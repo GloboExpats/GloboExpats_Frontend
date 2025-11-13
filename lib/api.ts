@@ -238,9 +238,24 @@ class ApiClient {
               if (errorData && Object.keys(errorData).length > 0) {
                 console.error('[API] Server error 500:', errorData)
               }
-              errorMessage =
-                errorData.message ||
-                "We're experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team."
+
+              // Check for specific database constraint violations
+              if (
+                errorData.message &&
+                errorData.message.includes('duplicate key value violates unique constraint')
+              ) {
+                if (errorData.message.includes('organizational_email')) {
+                  errorMessage =
+                    'This email address is already being used by another user for verification. Please use a different email address.'
+                } else {
+                  errorMessage =
+                    'This information is already in use. Please try with different details.'
+                }
+              } else {
+                errorMessage =
+                  errorData.message ||
+                  "We're experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team."
+              }
             }
           } else {
             // Plain text error response
@@ -260,8 +275,37 @@ class ApiClient {
             }
           }
         } catch (parseError) {
-          // If response body parsing fails, use the status code message
+          // If response body parsing fails, use the status code message with more context
           console.warn('Could not parse error response:', parseError)
+
+          // Try to get raw text if available
+          let rawText = ''
+          try {
+            rawText = await response.clone().text()
+          } catch {
+            // If that fails too, continue with status-based messages
+          }
+
+          // Check for specific database constraint violations in raw text
+          if (rawText && rawText.includes('duplicate key value violates unique constraint')) {
+            if (rawText.includes('organizational_email')) {
+              errorMessage =
+                'This email address is already being used by another user for verification. Please use a different email address.'
+            } else {
+              errorMessage =
+                'This information is already in use. Please try with different details.'
+            }
+          } else if (response.status === 404) {
+            errorMessage =
+              'Product not found. The item you are looking for may have been removed or is no longer available.'
+          } else if (response.status === 500) {
+            errorMessage =
+              "We're experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team."
+          } else if (response.status === 401 || response.status === 403) {
+            errorMessage = 'Authentication required. Please log in to access this content.'
+          } else {
+            errorMessage = `Server error (${response.status}). Please try again later.`
+          }
         }
 
         // Create error object with detailed type info
@@ -392,41 +436,183 @@ class ApiClient {
     productData: Record<string, unknown>,
     images: File[]
   ): Promise<{ productId: number; imageIds: number[] }> {
-    const formData = new FormData()
+    try {
+      console.log('📤 Creating product with data:', productData)
+      console.log('📸 Number of images:', images.length)
 
-    // Add product data as JSON string
-    // NOTE: Do NOT include sellerId - backend extracts it from JWT token
-    formData.append('product', JSON.stringify(productData))
+      // For multiple images, try chunked approach if needed
+      if (images.length > 10) {
+        console.warn(
+          `[ApiClient] Many images (${images.length}) - consider chunked upload if errors occur`
+        )
+      }
 
-    // Add images
-    images.forEach((image) => {
-      formData.append('images', image)
-    })
+      const formData = new FormData()
 
-    const response = await fetch(`${this.baseURL}/api/v1/products/post-product`, {
-      method: 'POST',
-      headers: {
-        // JWT token contains user ID - backend extracts sellerId from this
-        Authorization: (this.headers as Record<string, string>)['Authorization'] || '',
-      },
-      body: formData,
-    })
+      // Add product data as JSON string
+      // NOTE: Do NOT include sellerId - backend extracts it from JWT token
+      const productJsonString = JSON.stringify(productData)
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
+      // Validate product JSON size
+      const productJsonSize = new Blob([productJsonString]).size
+      if (productJsonSize > 50 * 1024) {
+        // 50KB limit for JSON
+        throw new Error(
+          `Product data too large: ${(productJsonSize / 1024).toFixed(1)}KB. Please reduce description length.`
+        )
+      }
 
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      return response.json()
-    } else {
-      await response.text()
-      // Backend returned plain text, but we need to return expected format
-      // Parse product ID from text if possible or return a placeholder
-      return {
-        productId: 0,
-        imageIds: [],
-      } as { productId: number; imageIds: number[] }
+      formData.append('product', productJsonString)
+
+      // Add images with enhanced validation and metadata
+      images.forEach((image, index) => {
+        console.log(`📷 Image ${index + 1}:`, image.name, `(${(image.size / 1024).toFixed(2)} KB)`)
+
+        // Validate each image thoroughly
+        if (!image.name || image.name.trim() === '') {
+          throw new Error(`Image ${index + 1} has no filename`)
+        }
+
+        if (image.size === 0) {
+          throw new Error(`Image ${index + 1} (${image.name}) is empty`)
+        }
+
+        if (image.size > 10 * 1024 * 1024) {
+          // 10MB limit
+          throw new Error(`Image ${index + 1} (${image.name}) exceeds 10MB limit`)
+        }
+
+        if (!image.type.startsWith('image/')) {
+          throw new Error(`File ${index + 1} (${image.name}) is not a valid image`)
+        }
+
+        // Clean filename to prevent multipart parsing issues
+        const cleanFilename = image.name.replace(/[^\w\-_.]/g, '_')
+
+        // Append with explicit filename to ensure proper multipart parsing
+        formData.append('images', image, cleanFilename)
+      })
+
+      // Log total request size for debugging
+      let totalSize = new Blob([JSON.stringify(productData)]).size
+      images.forEach((img) => (totalSize += img.size))
+      console.log(`📊 Total request size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`)
+
+      if (totalSize > 100 * 1024 * 1024) {
+        // 100MB limit
+        throw new Error(
+          `Total request size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds 100MB limit`
+        )
+      }
+
+      // Get auth token
+      const authToken = (this.headers as Record<string, string>)['Authorization'] || ''
+      if (!authToken) {
+        console.error('❌ No authorization token found!')
+        throw new Error('Authentication required. Please log in and try again.')
+      }
+
+      console.log('🔑 Auth token:', authToken.substring(0, 20) + '...')
+      console.log('🌐 Posting to:', `${this.baseURL}/api/v1/products/post-product`)
+
+      // Add timeout for large uploads
+      const controller = new AbortController()
+      const timeoutId = setTimeout(
+        () => {
+          console.error('[ApiClient] Request timeout after 5 minutes')
+          controller.abort()
+        },
+        5 * 60 * 1000
+      ) // 5 minutes timeout
+
+      let response: Response
+      try {
+        response = await fetch(`${this.baseURL}/api/v1/products/post-product`, {
+          method: 'POST',
+          headers: {
+            // JWT token contains user ID - backend extracts sellerId from this
+            Authorization: authToken,
+            // Don't set Content-Type - let browser set it with boundary
+          },
+          body: formData,
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeoutId)
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+
+        if (controller.signal.aborted) {
+          throw new Error(
+            'Upload timeout: Request took too long. Please try with fewer or smaller images.'
+          )
+        }
+
+        console.error('[ApiClient] Network error during createProduct:', fetchError)
+        throw fetchError
+      }
+
+      console.log('📡 Response status:', response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Backend error response:', errorText)
+        // Enhanced error handling for multipart issues
+        if (errorText.includes('Failed to parse multipart servlet request')) {
+          console.error('[ApiClient] Multipart parsing failed during createProduct')
+          console.error('[ApiClient] This could be due to:')
+          console.error('  1. Too many images in single request')
+          console.error('  2. Individual file size issues')
+          console.error('  3. Total request size exceeding backend limits')
+          console.error('  4. Servlet configuration issues')
+          console.error(
+            `[ApiClient] Current request: ${images.length} images, ~${(totalSize / 1024 / 1024).toFixed(2)}MB`
+          )
+
+          // Suggest specific solutions
+          if (images.length > 5) {
+            throw new Error(
+              `Failed to create product with ${images.length} images. Try uploading fewer images at once (max 5) or use smaller file sizes.`
+            )
+          } else {
+            throw new Error(
+              `Failed to create product due to multipart parsing error. Please check file sizes and formats.`
+            )
+          }
+        }
+
+        throw new Error(
+          `Failed to create product: ${response.status} - ${errorText || 'Server error'}`
+        )
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const result = await response.json()
+        console.log('✅ Product created successfully:', result)
+        return result
+      } else {
+        const textResponse = await response.text()
+        console.log('⚠️ Non-JSON response:', textResponse)
+        // Backend returned plain text, but we need to return expected format
+        // Parse product ID from text if possible or return a placeholder
+        return {
+          productId: 0,
+          imageIds: [],
+        } as { productId: number; imageIds: number[] }
+      }
+    } catch (error) {
+      console.error('❌ Error in createProduct:', error)
+
+      // Check for network errors
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error(
+          'Network error: Unable to connect to server. Please check your internet connection and try again.'
+        )
+      }
+
+      // Re-throw with more context
+      throw error
     }
   }
 
@@ -605,12 +791,86 @@ class ApiClient {
     // If images are involved, use multipart/form-data
     // We need to use a proxy here too because of CORS issues with multipart
     const formData = new FormData()
-    formData.append('product', JSON.stringify(productData))
+
+    // Validate and log the product data
+    const productJsonString = JSON.stringify(productData)
+    const productJsonSize = new Blob([productJsonString]).size
+
+    console.log('[ApiClient] Product JSON size:', productJsonSize, 'bytes')
+    console.log('[ApiClient] Product data keys:', Object.keys(productData))
+
+    // Check for potential issues with product data
+    if (productJsonSize > 50 * 1024) {
+      // 50KB limit for JSON
+      console.error('[ApiClient] Product JSON is too large:', productJsonSize, 'bytes')
+      throw new Error(
+        `Product data too large: ${(productJsonSize / 1024).toFixed(1)}KB. Please reduce description length.`
+      )
+    }
+
+    // Validate JSON string doesn't contain problematic characters
+    if (productJsonString.includes('\0') || productJsonString.includes('\uFEFF')) {
+      console.error('[ApiClient] Product JSON contains invalid characters')
+      throw new Error('Product data contains invalid characters. Please check your input.')
+    }
+
+    console.log('[ApiClient] Adding product JSON to FormData...')
+    formData.append('product', productJsonString)
 
     if (hasImages) {
-      images.forEach((image) => {
-        formData.append('images', image)
+      const totalImageSize = images.reduce((sum, img) => sum + img.size, 0)
+      console.log(`[ApiClient] Appending ${images.length} images to FormData`)
+      console.log(
+        `[ApiClient] Total image size: ${totalImageSize} bytes (${(totalImageSize / 1024 / 1024).toFixed(2)}MB)`
+      )
+
+      // Validate each image before adding to FormData
+      images.forEach((image, index) => {
+        console.log(
+          `[ApiClient] Image ${index}: ${image.name}, size: ${image.size} bytes, type: ${image.type}`
+        )
+
+        // Check for corrupted or invalid files
+        if (!image.name || image.name.trim() === '') {
+          throw new Error(`Image ${index} has no filename`)
+        }
+
+        if (image.size === 0) {
+          throw new Error(`Image ${index} (${image.name}) is empty`)
+        }
+
+        if (!image.type.startsWith('image/')) {
+          throw new Error(`File ${index} (${image.name}) is not a valid image`)
+        }
+
+        // Check for extremely long filenames that might cause issues
+        if (image.name.length > 255) {
+          console.warn(
+            `[ApiClient] Image ${index} has very long filename: ${image.name.length} chars`
+          )
+        }
+
+        // Clean filename to prevent multipart parsing issues
+        const cleanFilename = image.name.replace(/[^\w\-_.]/g, '_')
+
+        // Append with explicit filename to ensure proper multipart parsing
+        formData.append('images', image, cleanFilename)
       })
+
+      // Estimate total request size
+      const estimatedTotalSize = productJsonSize + totalImageSize + images.length * 200 // +200 bytes overhead per image
+      console.log(
+        `[ApiClient] Estimated total request size: ${estimatedTotalSize} bytes (${(estimatedTotalSize / 1024 / 1024).toFixed(2)}MB)`
+      )
+
+      if (estimatedTotalSize > 100 * 1024 * 1024) {
+        console.error(
+          `[ApiClient] Request size (${(estimatedTotalSize / 1024 / 1024).toFixed(2)}MB) exceeds 100MB limit!`
+        )
+        throw new Error(
+          `Request too large: ${(estimatedTotalSize / 1024 / 1024).toFixed(2)}MB exceeds server limit. Please reduce image sizes.`
+        )
+      }
     }
 
     // Build URL with query params for image removal
@@ -622,13 +882,48 @@ class ApiClient {
     }
 
     // Use fetch directly for multipart (don't go through this.request which adds JSON headers)
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        Authorization: (this.headers as Record<string, string>).Authorization || '',
-      },
-      body: formData,
+    console.log(`[ApiClient] Sending multipart request to: ${url}`)
+    console.log(`[ApiClient] Request headers:`, {
+      Authorization: !!(this.headers as Record<string, string>).Authorization,
     })
+
+    // Add timeout for large uploads
+    const controller = new AbortController()
+    const timeoutId = setTimeout(
+      () => {
+        console.error('[ApiClient] Request timeout after 5 minutes')
+        controller.abort()
+      },
+      5 * 60 * 1000
+    ) // 5 minutes timeout
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          Authorization: (this.headers as Record<string, string>).Authorization || '',
+          // Don't set Content-Type - let browser set it with boundary for multipart
+        },
+        body: formData,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+      console.log(`[ApiClient] Response status: ${response.status}`)
+      console.log(`[ApiClient] Response headers:`, Object.fromEntries(response.headers.entries()))
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+
+      if (controller.signal.aborted) {
+        throw new Error(
+          'Upload timeout: Request took too long. Please try with fewer or smaller images.'
+        )
+      }
+
+      console.error('[ApiClient] Fetch error:', fetchError)
+      throw fetchError
+    }
 
     if (!response.ok) {
       let errorData

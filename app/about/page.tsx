@@ -1,30 +1,26 @@
 import Link from 'next/link'
-import { Globe, Users, Shield, Sparkles, ChevronRight } from 'lucide-react'
+import { Users, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { Metadata } from 'next'
 
 const whyJoin = [
   {
-    icon: '🌍',
     title: 'Built for Expats, by Expats',
     description:
       'A marketplace designed around the real needs of global citizens starting a new chapter.',
   },
   {
-    icon: '🤝',
     title: 'Trust & Safety First',
     description:
       'Every seller is verified, and every transaction is protected for your peace of mind.',
   },
   {
-    icon: '🛒',
     title: 'Find What You Miss from Home',
     description:
       "Access authentic products and services you can't find locally, from people who understand your journey.",
   },
   {
-    icon: '🚀',
     title: 'Shape the Community',
     description:
       'Be among the first to join, give feedback, and help us build the best expat marketplace together.',
@@ -33,25 +29,21 @@ const whyJoin = [
 
 const values = [
   {
-    icon: Globe,
     title: 'Global Community',
     description:
       'Connecting expats worldwide with trusted sellers and authentic products from home.',
   },
   {
-    icon: Shield,
     title: 'Trust & Safety',
     description:
       'Every transaction is protected with our secure payment system and buyer protection guarantee.',
   },
   {
-    icon: Users,
     title: 'Expert Sellers',
     description:
       'Our verified sellers are expats who understand your needs and deliver quality products.',
   },
   {
-    icon: Sparkles,
     title: 'Enhanced Experience',
     description: 'Curated marketplace with powerful features for both buyers and sellers.',
   },
@@ -134,7 +126,6 @@ export default function AboutPage() {
                 key={idx}
                 className="bg-neutral-50 rounded-xl shadow-sm p-8 flex flex-col items-center text-center"
               >
-                <div className="text-4xl mb-4">{item.icon}</div>
                 <h3 className="text-lg font-semibold text-neutral-800 mb-2">{item.title}</h3>
                 <p className="text-neutral-600">{item.description}</p>
               </div>
@@ -159,8 +150,8 @@ export default function AboutPage() {
                 <CardContent className="p-8">
                   <h3 className="text-xl font-semibold text-neutral-800 mb-4">For Buyers</h3>
                   <p className="text-neutral-600 mb-4">
-                    Find authentic products from your home country, connect with verified sellers
-                    who understand your needs, and enjoy secure transactions with buyer protection.
+                    Find authentic products from your home country, connect with verified Expats who
+                    understand you, and enjoy secure transactions with buyer protection.
                   </p>
                   <ul className="space-y-2 text-neutral-600">
                     <li className="flex items-start gap-2">
@@ -219,13 +210,9 @@ export default function AboutPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {values.map((value, index) => {
-              const Icon = value.icon
               return (
                 <Card key={index} className="bg-white shadow-sm hover:shadow-md transition-shadow">
                   <CardContent className="p-6 text-center">
-                    <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Icon className="w-8 h-8 text-brand-primary" />
-                    </div>
                     <h3 className="text-lg font-semibold text-neutral-800 mb-2">{value.title}</h3>
                     <p className="text-neutral-600">{value.description}</p>
                   </CardContent>

@@ -77,7 +77,7 @@ export function useVerification(): UseVerificationReturn {
   const { isLoggedIn, user } = useAuth()
   const [isVerificationPopupOpen, setIsVerificationPopupOpen] = useState(false)
   const [currentAction, setCurrentAction] = useState<VerificationAction | null>(null)
-  const router = useRouter()
+  const _router = useRouter()
 
   /**
    * Checks if the user can perform the specified action
@@ -125,25 +125,28 @@ export function useVerification(): UseVerificationReturn {
         return true
       }
 
-      // If user can't perform action, still allow access
-      // The actual feature protection happens at the API level
+      // If user can't perform action, show verification toast and block
       if (!canPerformAction) {
-        // Only log in development mode
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[useVerification] User verification pending for '${action}' action`)
+        const actionMessages = {
+          buy: 'Please verify your account to add items to cart. Visit your account settings to complete verification.',
+          sell: 'Please verify your account to sell items. Visit your account settings to complete verification.',
+          contact:
+            'Please verify your account to contact sellers. Visit your account settings to complete verification.',
         }
 
-        // Don't block access - let the page load and show verification UI there
-        // setCurrentAction(action)
-        // setIsVerificationPopupOpen(true)
+        toast({
+          title: 'Verification Required',
+          description: actionMessages[action],
+          variant: 'default',
+        })
 
-        return true // Don't block page access - show verification prompt in UI
+        return false // Block the action
       }
 
       // User is verified and can proceed
       return true
     },
-    [isLoggedIn, user, router]
+    [isLoggedIn, user]
   )
 
   /**

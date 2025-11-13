@@ -21,10 +21,53 @@ export default function NewListingsSlider() {
         setLoading(true)
         const res = await apiClient.getNewestListings(0, 20)
         const content = extractContentFromResponse(res)
-        // Limit to 8 items max for optimal slider performance
-        setItems(
-          content.slice(0, 8).map((it) => transformBackendProduct(it as Record<string, unknown>))
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            `[NewListings] Fetched ${content.length} products, getting real click counts...`
+          )
+        }
+
+        // Get real view counts for new listings
+        const productsWithRealViews = await Promise.all(
+          content.slice(0, 8).map(async (it) => {
+            const product = it as Record<string, unknown>
+            const productId = product.productId as number
+
+            try {
+              // Get real click count data
+              const clickData = await apiClient.getProductClickCount(productId)
+              const realViews = clickData.clicks || 0
+
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`[NewListings] Product ${productId}: REAL clickCount=${realViews}`)
+              }
+
+              const transformed = transformBackendProduct(product)
+              return {
+                ...transformed,
+                views: realViews,
+              }
+            } catch {
+              // Fallback to hardcoded value if API call fails
+              const fallbackViews = (product.clickCount as number) || 0
+
+              if (process.env.NODE_ENV === 'development') {
+                console.warn(
+                  `[NewListings] Product ${productId}: Failed to get real click count, using fallback=${fallbackViews}`
+                )
+              }
+
+              const transformed = transformBackendProduct(product)
+              return {
+                ...transformed,
+                views: fallbackViews,
+              }
+            }
+          })
         )
+
+        setItems(productsWithRealViews)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load new listings')
       } finally {
@@ -42,7 +85,7 @@ export default function NewListingsSlider() {
   }
 
   return (
-    <section className="py-6 sm:py-8 lg:py-10">
+    <section className="py-3 sm:py-4 lg:py-5">
       <div className="mx-4 sm:mx-6 lg:mx-0 lg:pr-8">
         <SectionHeader title="New Arrivals" subtitle="Latest items from the expat community" />
 

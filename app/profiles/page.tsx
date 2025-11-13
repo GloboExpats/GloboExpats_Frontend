@@ -13,9 +13,11 @@ import {
   MessageCircle,
   Grid,
   List,
-  ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/use-auth'
+import { canUserContact } from '@/lib/verification-utils'
+import { toast } from '@/components/ui/use-toast'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +41,9 @@ export default function ProfilesPage() {
 }
 
 function ProfilesPageContent() {
+  const { user } = useAuth()
+  const canContact = canUserContact(user)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedLocation, setSelectedLocation] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState('')
@@ -119,19 +124,6 @@ function ProfilesPageContent() {
 
   return (
     <div className="bg-neutral-50 min-h-screen">
-      {/* Breadcrumb Navigation */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-neutral-600">
-            <Link href="/" className="hover:text-brand-primary">
-              Home
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-neutral-800">Expat Community</span>
-          </div>
-        </div>
-      </div>
-
       {/* Header */}
       <div className="bg-brand-primary text-white">
         <div className="container mx-auto px-4 py-12">
@@ -271,7 +263,12 @@ function ProfilesPageContent() {
             }
           >
             {filteredProfiles.map((profile) => (
-              <ProfileCard key={profile.id} profile={profile} viewMode={viewMode} />
+              <ProfileCard
+                key={profile.id}
+                profile={profile}
+                viewMode={viewMode}
+                canContact={canContact}
+              />
             ))}
           </div>
         ) : (
@@ -290,8 +287,34 @@ function ProfilesPageContent() {
 }
 
 // Profile Card Component
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ProfileCard({ profile, viewMode }: { profile: any; viewMode: 'grid' | 'list' }) {
+interface Profile {
+  id: string
+  name: string
+  avatar?: string
+  location?: string
+  description?: string
+  rating?: number
+  responseTime?: string
+  isVerified?: boolean
+  verified?: boolean
+  businessInfo?: {
+    type?: string
+  }
+  reviewCount?: number
+  memberSince?: string
+  bio?: string
+  specialties?: string[]
+}
+
+function ProfileCard({
+  profile,
+  viewMode,
+  canContact,
+}: {
+  profile: Profile
+  viewMode: 'grid' | 'list'
+  canContact: boolean
+}) {
   // Badge count calculation reserved for when profiles are loaded from API
   // const verificationBadgeCount = Object.values(profile.verificationBadges || {}).filter(
   //   Boolean
@@ -326,7 +349,7 @@ function ProfileCard({ profile, viewMode }: { profile: any; viewMode: 'grid' | '
               <div className="flex items-center gap-4 text-sm text-neutral-600 mb-2">
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  <span>{profile.rating}</span>
+                  <span>{profile.rating ?? 'N/A'}</span>
                   <span>({profile.reviewCount} reviews)</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -356,12 +379,30 @@ function ProfileCard({ profile, viewMode }: { profile: any; viewMode: 'grid' | '
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Link href={`/messages?seller=${encodeURIComponent(profile.name)}`}>
-                    <Button size="sm" variant="outline">
+                  {canContact ? (
+                    <Link href={`/messages?seller=${encodeURIComponent(profile.name)}`}>
+                      <Button size="sm" variant="outline">
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Message
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        toast({
+                          title: 'Verification Required',
+                          description:
+                            'Please verify your account to message sellers. Visit your account settings to complete verification.',
+                          variant: 'default',
+                        })
+                      }}
+                    >
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Message
                     </Button>
-                  </Link>
+                  )}
                   <Link href={`/expat/profile/${profile.id}`}>
                     <Button size="sm">View Profile</Button>
                   </Link>
@@ -394,7 +435,7 @@ function ProfileCard({ profile, viewMode }: { profile: any; viewMode: 'grid' | '
                   Verified
                 </Badge>
               )}
-              {profile.rating >= 4.8 && (
+              {(profile.rating ?? 0) >= 4.8 && (
                 <Badge className="bg-amber-100 text-amber-800 text-xs">
                   <Award className="w-3 h-3 mr-1" />
                   Top Rated
@@ -403,7 +444,7 @@ function ProfileCard({ profile, viewMode }: { profile: any; viewMode: 'grid' | '
             </div>
             <div className="flex items-center justify-center gap-1 text-sm text-neutral-600">
               <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-              <span>{profile.rating}</span>
+              <span>{profile.rating ?? 'N/A'}</span>
               <span>({profile.reviewCount})</span>
             </div>
           </div>

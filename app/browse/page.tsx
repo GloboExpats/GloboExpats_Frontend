@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,15 +67,15 @@ interface FilterProps {
 }
 
 const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts }: FilterProps) => {
-  const updateFilter = (
-    key: keyof FilterState,
-    value: string | number | string[] | [number, number]
-  ) => {
-    setFilters({
-      ...filters,
-      [key]: value,
-    })
-  }
+  const updateFilter = useCallback(
+    (key: keyof FilterState, value: string | number | string[] | [number, number]) => {
+      setFilters({
+        ...filters,
+        [key]: value,
+      })
+    },
+    [filters, setFilters]
+  )
 
   const hasActiveFilters =
     filters.selectedCategory ||
@@ -89,6 +89,19 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
   // Local state for price inputs to allow smooth editing
   const [minPriceInput, setMinPriceInput] = useState(filters.priceRange[0].toString())
   const [maxPriceInput, setMaxPriceInput] = useState(filters.priceRange[1].toString())
+
+  // Debounced price update function
+  const debouncedPriceUpdate = useMemo(
+    () =>
+      debounce((minValue: string, maxValue: string) => {
+        const numMin = minValue === '' ? 0 : parseInt(minValue, 10)
+        const numMax = maxValue === '' ? 10000000 : parseInt(maxValue, 10)
+        const validMin = isNaN(numMin) ? 0 : Math.max(0, numMin)
+        const validMax = isNaN(numMax) ? 10000000 : Math.max(0, numMax)
+        updateFilter('priceRange', [validMin, validMax])
+      }, 500),
+    [updateFilter]
+  )
 
   // Sync with external filter changes
   useEffect(() => {
@@ -162,12 +175,8 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
               // Allow empty string or numbers only
               if (value === '' || /^\d+$/.test(value)) {
                 setMinPriceInput(value)
+                debouncedPriceUpdate(value, maxPriceInput)
               }
-            }}
-            onBlur={() => {
-              const numValue = minPriceInput === '' ? 0 : parseInt(minPriceInput, 10)
-              const validValue = isNaN(numValue) ? 0 : Math.max(0, numValue)
-              updateFilter('priceRange', [validValue, filters.priceRange[1]])
             }}
             className="text-sm h-9"
           />
@@ -181,12 +190,8 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
               // Allow empty string or numbers only
               if (value === '' || /^\d+$/.test(value)) {
                 setMaxPriceInput(value)
+                debouncedPriceUpdate(minPriceInput, value)
               }
-            }}
-            onBlur={() => {
-              const numValue = maxPriceInput === '' ? 10000000 : parseInt(maxPriceInput, 10)
-              const validValue = isNaN(numValue) ? 10000000 : Math.max(0, numValue)
-              updateFilter('priceRange', [filters.priceRange[0], validValue])
             }}
             className="text-sm h-9"
           />
@@ -328,7 +333,7 @@ export default function BrowsePage() {
   const [sortBy, setSortBy] = useState('relevance')
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(initialPage)
-  const [itemsPerPage] = useState(12) // Fixed items per page
+  const [itemsPerPage] = useState(20) // 5 rows × 4 columns = 20 items per page
   const isApplyingUrlParams = useRef(false)
 
   // Backend data state
@@ -754,7 +759,7 @@ export default function BrowsePage() {
                 <div
                   className={
                     viewMode === 'grid'
-                      ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6 p-1'
+                      ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6 p-1'
                       : 'space-y-4'
                   }
                 >

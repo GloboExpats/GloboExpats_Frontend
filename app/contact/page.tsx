@@ -27,22 +27,10 @@ const contactReasons = [
 
 const offices = [
   {
-    location: 'Dubai, UAE',
-    address: 'Dubai Internet City, Building 3, Office 301',
-    phone: '+971 4 123 4567',
-    hours: 'Sun-Thu: 9:00 AM - 6:00 PM GST',
-  },
-  {
-    location: 'Singapore',
-    address: 'One Raffles Place, Tower 2, Level 20',
-    phone: '+65 6234 5678',
-    hours: 'Mon-Fri: 9:00 AM - 6:00 PM SGT',
-  },
-  {
-    location: 'London, UK',
-    address: "123 King's Cross, London WC1X 8RA",
-    phone: '+44 20 1234 5678',
-    hours: 'Mon-Fri: 9:00 AM - 5:00 PM GMT',
+    location: 'Dar es Salaam, Tanzania',
+    address: 'Mlimani City Tower, 14th Floor, Sam Nujoma Road',
+    phone: '+255 22 260 1234',
+    hours: 'Mon-Fri: 8:00 AM - 5:00 PM EAT',
   },
 ]
 
@@ -254,7 +242,7 @@ export default function ContactPage() {
                   <Phone className="w-5 h-5 text-brand-primary mt-0.5" />
                   <div>
                     <p className="font-medium text-neutral-800">Phone</p>
-                    <p className="text-neutral-600">+1 (555) 123-4567</p>
+                    <p className="text-neutral-600">+255 22 260 1234</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -325,10 +313,10 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* Office Locations */}
+        {/* Office Location */}
         <div className="mt-12">
-          <h2 className="text-2xl font-bold text-neutral-800 mb-6">Our Offices</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <h2 className="text-2xl font-bold text-neutral-800 mb-6">Our Office</h2>
+          <div className="grid md:grid-cols-1 gap-6 max-w-md">
             {offices.map((office, index) => (
               <Card key={index} className="bg-white shadow-sm">
                 <CardContent className="p-6">

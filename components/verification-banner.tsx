@@ -26,6 +26,23 @@ export const VerificationBanner = () => {
     }
   }, [])
 
+  // Auto-dismiss banner when user becomes verified
+  useEffect(() => {
+    if (user) {
+      const capabilities = getUserCapabilities(user)
+      if (
+        capabilities.isFullyVerified ||
+        user.verificationStatus?.isOrganizationEmailVerified ||
+        user.backendVerificationStatus === 'VERIFIED'
+      ) {
+        console.log('🎉 User verified, dismissing banner')
+        setIsDismissed(true)
+        // Clear the session storage since user is now verified
+        sessionStorage.removeItem('verification_banner_dismissed')
+      }
+    }
+  }, [user, user?.verificationStatus, user?.backendVerificationStatus])
+
   if (!isLoggedIn || !user) return null
 
   // Don't show on verification page itself (redundant)

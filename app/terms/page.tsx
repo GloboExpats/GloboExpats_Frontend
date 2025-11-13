@@ -202,9 +202,11 @@ export default function TermsOfServicePage() {
             <p>If you have any questions about these Terms, please contact us at:</p>
             <div className="bg-neutral-50 p-4 rounded-lg mt-4">
               <p className="font-medium">Globoexpats Legal Department</p>
-              <p>Email: legal@globoexpat.com</p>
-              <p>Phone: +971 4 123 4567</p>
-              <p>Address: Dubai Internet City, Building 3, Office 301, Dubai, UAE</p>
+              <p>Email: legal@globoexpats.com</p>
+              <p>Phone: +255 22 260 1234</p>
+              <p>
+                Address: Mlimani City Tower, 14th Floor, Sam Nujoma Road, Dar es Salaam, Tanzania
+              </p>
             </div>
 
             <div className="mt-12 p-6 bg-blue-50 rounded-lg">

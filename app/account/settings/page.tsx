@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import {
   User as UserIcon,
-  Bell,
   Shield,
   Eye,
   EyeOff,
@@ -18,7 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -89,13 +87,6 @@ export default function AccountSettings() {
     }
   }, [userProfile, profileLoading])
 
-  // Notification settings
-  const [notifications, setNotifications] = useState({
-    emailMessages: true,
-    emailOffers: true,
-    emailMarketing: false,
-  })
-
   // Password change state
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -111,11 +102,6 @@ export default function AccountSettings() {
 
   const handleProfileUpdate = (field: string, value: string) => {
     setProfileData((prev) => ({ ...prev, [field]: value }))
-    setHasChanges(true)
-  }
-
-  const handleNotificationUpdate = (field: string, value: boolean) => {
-    setNotifications((prev) => ({ ...prev, [field]: value }))
     setHasChanges(true)
   }
 
@@ -413,22 +399,18 @@ export default function AccountSettings() {
             <SelectContent>
               <SelectItem value="profile">Profile</SelectItem>
               <SelectItem value="verification">Verification</SelectItem>
-              <SelectItem value="notifications">Notifications</SelectItem>
               <SelectItem value="security">Security</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden md:block">
-          <TabsList className="grid w-full grid-cols-4 max-w-xl mb-8">
+          <TabsList className="grid w-full grid-cols-3 max-w-xl mb-8">
             <TabsTrigger value="profile">
               <UserIcon className="w-4 h-4 mr-2" /> Profile
             </TabsTrigger>
             <TabsTrigger value="verification">
               <Shield className="w-4 h-4 mr-2" /> Verification
-            </TabsTrigger>
-            <TabsTrigger value="notifications">
-              <Bell className="w-4 h-4 mr-2" /> Notifications
             </TabsTrigger>
             <TabsTrigger value="security">
               <Shield className="w-4 h-4 mr-2" /> Security
@@ -828,62 +810,6 @@ export default function AccountSettings() {
                   {isUploadingDocs ? 'Uploading...' : 'Submit for Verification'}
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Notifications Settings */}
-        <div className={activeTab === 'notifications' ? 'block' : 'hidden'}>
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-              <p className="text-sm text-neutral-500">Choose how we communicate with you.</p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="font-semibold text-neutral-800 mb-4">Email Notifications</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <Label htmlFor="emailMessages">New Messages</Label>
-                      <p className="text-sm text-neutral-600">
-                        Get notified when you receive a new message.
-                      </p>
-                    </div>
-                    <Switch
-                      id="emailMessages"
-                      checked={notifications.emailMessages}
-                      onCheckedChange={(val) => handleNotificationUpdate('emailMessages', val)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <Label htmlFor="emailOffers">Offers & Updates</Label>
-                      <p className="text-sm text-neutral-600">
-                        Receive offers on items and important updates.
-                      </p>
-                    </div>
-                    <Switch
-                      id="emailOffers"
-                      checked={notifications.emailOffers}
-                      onCheckedChange={(val) => handleNotificationUpdate('emailOffers', val)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <Label htmlFor="emailMarketing">Marketing & Promotions</Label>
-                      <p className="text-sm text-neutral-600">
-                        Get emails about new features and promotions.
-                      </p>
-                    </div>
-                    <Switch
-                      id="emailMarketing"
-                      checked={notifications.emailMarketing}
-                      onCheckedChange={(val) => handleNotificationUpdate('emailMarketing', val)}
-                    />
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

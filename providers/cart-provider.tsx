@@ -65,6 +65,7 @@
 import { createContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react'
 import { toast } from '@/components/ui/use-toast'
 import { useAuth } from '@/hooks/use-auth'
+import { canUserBuy } from '@/lib/verification-utils'
 import {
   setItemDebounced,
   getItem,
@@ -465,9 +466,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async (item: Omit<CartItem, 'quantity'>) => {
       if (!isLoggedIn) {
         toast({
-          title: 'Join the Expat Community!',
+          title: 'Login Required',
           description:
-            'Login to start shopping or create an account to unlock full marketplace access!',
+            'Please login to add items to your cart or create an account to get started!',
+          variant: 'default',
+        })
+        return
+      }
+
+      // Check if user is verified to buy items
+      if (!canUserBuy(user)) {
+        toast({
+          title: 'Verification Required',
+          description:
+            'Please verify your account to add items to cart. Visit your account settings to complete verification.',
           variant: 'default',
         })
         return
@@ -528,7 +540,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => ({ ...prev, isLoading: false }))
       }
     },
-    [isLoggedIn, persistCart, cart.items]
+    [isLoggedIn, persistCart, cart.items, user]
   )
 
   const removeItem = useCallback(

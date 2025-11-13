@@ -37,6 +37,8 @@ import {
   Loader2,
   ShieldCheck,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { apiClient } from '@/lib/api'
@@ -91,6 +93,34 @@ function DashboardContent() {
     totalInquiries: 0,
     totalRevenue: 0,
   })
+
+  // Pagination state for listings
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20 // 5 rows × 4 columns = 20 items per page
+
+  // Pagination calculations
+  const totalPages = Math.ceil(listings.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentListings = listings.slice(startIndex, endIndex)
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Handle page change with scroll to top
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    setTimeout(scrollToTop, 100) // Small delay to ensure content has updated
+  }
+
+  // Reset to first page when switching to listings tab
+  useEffect(() => {
+    if (activeTab === 'listings') {
+      setCurrentPage(1)
+    }
+  }, [activeTab])
 
   // Check for tab parameter in URL
   useEffect(() => {
@@ -212,26 +242,61 @@ function DashboardContent() {
           console.log(`   Total products in database: ${allProducts.length}`)
         }
 
-        // BACKEND ISSUE: DisplayItemsDTO.clickCount returns 1.0 (default) for all products
-        // The backend needs to JOIN product_clicks table to get real data
-        // Using clickCount directly to avoid N+1 queries and auth issues
-        const listingsWithViews = userListings.map((item) => {
-          const product = item as Record<string, unknown>
-          return {
-            ...product,
-            // Use clickCount from backend (currently returns 1.0 until backend fixes JOIN)
-            views: (product.clickCount as number) || 0,
-          }
-        })
+        // FIXED: Get REAL click counts using the working product-clickCount API
+        // DisplayItemsDTO.clickCount is hardcoded to 1, but product-clickCount API returns real data
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            `[Dashboard] Getting real click counts for ${userListings.length} user products...`
+          )
+        }
 
-        setListings(listingsWithViews as UserListing[])
+        const listingsWithRealViews = await Promise.all(
+          userListings.map(async (item) => {
+            const product = item as Record<string, unknown>
+            const productId = product.productId as number
 
-        // Calculate stats from user listings
-        const activeCount = listingsWithViews.filter((item) => {
+            try {
+              // Use the working click count API that returns real data
+              const clickData = await apiClient.getProductClickCount(productId)
+              const realViews = clickData.clicks || 0
+
+              if (process.env.NODE_ENV === 'development') {
+                console.log(
+                  `[Dashboard] Product ${productId}: REAL views=${realViews} (was hardcoded=${product.clickCount})`
+                )
+              }
+
+              return {
+                ...product,
+                views: realViews,
+              }
+            } catch (error) {
+              // Fallback to hardcoded value if API call fails (e.g., auth issues)
+              const fallbackViews = (product.clickCount as number) || 0
+
+              if (process.env.NODE_ENV === 'development') {
+                console.warn(
+                  `[Dashboard] Product ${productId}: Failed to get real click count, using fallback=${fallbackViews}`,
+                  error
+                )
+              }
+
+              return {
+                ...product,
+                views: fallbackViews,
+              }
+            }
+          })
+        )
+
+        setListings(listingsWithRealViews as UserListing[])
+
+        // Calculate stats from user listings with REAL view counts
+        const activeCount = listingsWithRealViews.filter((item) => {
           const p = item as Record<string, unknown>
           return p.productStatus !== 'SOLD'
         }).length
-        const totalViewsCount = listingsWithViews.reduce((sum: number, item) => {
+        const totalViewsCount = listingsWithRealViews.reduce((sum: number, item) => {
           const p = item as Record<string, unknown>
           const views = (p.views as number) || 0
           return sum + views
@@ -418,95 +483,167 @@ function DashboardContent() {
             </div>
 
             {listings.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {listings.map((listing) => (
-                  <Card key={listing.productId} className="overflow-hidden border border-[#E2E8F0]">
-                    <div className="aspect-video bg-[#F1F5F9] relative">
-                      {listing.productImages?.[0]?.imageUrl ? (
-                        <Image
-                          src={getFullImageUrl(listing.productImages[0].imageUrl)}
-                          alt={listing.productName}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <Package className="w-12 h-12 text-[#CBD5E1]" />
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {currentListings.map((listing) => (
+                    <Card
+                      key={listing.productId}
+                      className="overflow-hidden border border-[#E2E8F0]"
+                    >
+                      <div className="aspect-video bg-[#F1F5F9] relative">
+                        {listing.productImages?.[0]?.imageUrl ? (
+                          <Image
+                            src={getFullImageUrl(listing.productImages[0].imageUrl)}
+                            alt={listing.productName}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Package className="w-12 h-12 text-[#CBD5E1]" />
+                          </div>
+                        )}
+                        <Badge
+                          className={`absolute top-2 right-2 ${getStatusBadge(listing.productStatus || 'active')}`}
+                        >
+                          {listing.productStatus || 'active'}
+                        </Badge>
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-[#0F172A] mb-2 truncate">
+                          {listing.productName}
+                        </h3>
+                        <div className="mb-2">
+                          <PriceDisplay
+                            price={listing.productAskingPrice}
+                            originalCurrency={listing.productCurrency as CurrencyCode}
+                            size="lg"
+                            weight="bold"
+                            className="text-[#1E3A8A]"
+                            showOriginal
+                          />
                         </div>
-                      )}
-                      <Badge
-                        className={`absolute top-2 right-2 ${getStatusBadge(listing.productStatus || 'active')}`}
-                      >
-                        {listing.productStatus || 'active'}
-                      </Badge>
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold text-[#0F172A] mb-2 truncate">
-                        {listing.productName}
-                      </h3>
-                      <div className="mb-2">
-                        <PriceDisplay
-                          price={listing.productAskingPrice}
-                          originalCurrency={listing.productCurrency as CurrencyCode}
-                          size="lg"
-                          weight="bold"
-                          className="text-[#1E3A8A]"
-                          showOriginal
-                        />
-                      </div>
-                      <div className="flex items-center text-sm text-[#64748B] mb-3">
-                        <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-                        <span className="truncate">
-                          {cleanLocationString(listing.productLocation)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-[#64748B] mb-4">
-                        <div className="flex items-center">
-                          <Eye className="w-4 h-4 mr-1" />
-                          <span className="font-medium">{listing.views || 0} views</span>
+                        <div className="flex items-center text-sm text-[#64748B] mb-3">
+                          <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">
+                            {cleanLocationString(listing.productLocation)}
+                          </span>
                         </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline" className="flex-1" asChild>
-                          <Link href={`/product/${listing.productId}`}>
+                        <div className="flex items-center justify-between text-sm text-[#64748B] mb-4">
+                          <div className="flex items-center">
                             <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Link>
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="outline">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/edit-listing/${listing.productId}`}>
-                                <Edit className="w-4 h-4 mr-2" />
-                                Edit Listing
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setDeleteDialog({
-                                  isOpen: true,
-                                  productId: listing.productId.toString(),
-                                  productName: listing.productName,
-                                })
-                              }
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Listing
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                            <span className="font-medium">{listing.views || 0} views</span>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline" className="flex-1" asChild>
+                            <Link href={`/product/${listing.productId}`}>
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Link>
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/edit-listing/${listing.productId}`}>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit Listing
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setDeleteDialog({
+                                    isOpen: true,
+                                    productId: listing.productId.toString(),
+                                    productName: listing.productName,
+                                  })
+                                }
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Listing
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Pagination Component */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center space-x-2 mt-8">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="h-9 w-9 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        // Show first page, last page, current page, and pages around current page
+                        const isVisible =
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 2 && page <= currentPage + 2)
+
+                        if (!isVisible) {
+                          // Show ellipsis for gaps
+                          if (page === currentPage - 3 || page === currentPage + 3) {
+                            return (
+                              <span key={page} className="px-2 text-gray-500">
+                                ...
+                              </span>
+                            )
+                          }
+                          return null
+                        }
+
+                        return (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handlePageChange(page)}
+                            className={`h-9 w-9 p-0 ${
+                              currentPage === page ? 'bg-[#1E3A8A] hover:bg-[#1E3A8A]/90' : ''
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        )
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="h-9 w-9 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Pagination Info */}
+                <div className="text-center text-sm text-[#64748B] mt-4">
+                  Showing {startIndex + 1} to {Math.min(endIndex, listings.length)} of{' '}
+                  {listings.length} listings
+                </div>
+              </>
             ) : (
               <Card className="border border-[#E2E8F0]">
                 <CardContent className="py-12">

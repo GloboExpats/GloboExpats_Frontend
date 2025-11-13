@@ -11,12 +11,14 @@
 The price input fields displayed a hardcoded dollar sign icon (`$`) even when users selected different currencies like TZS, KES, or UGX.
 
 **Visual Evidence:**
+
 ```
 Selected Currency: TZS
 Input Display: $ TSh 2,500,000  ← Wrong! Shows $ instead of TSh
 ```
 
 **Expected Behavior:**
+
 ```
 Selected Currency: TZS
 Input Display: TSh 2,500,000  ← Correct! Shows TSh
@@ -60,12 +62,12 @@ Changed from static icon to dynamic text that updates based on selected currency
 
 ### Currency Symbol Mapping
 
-| Currency | Symbol Displayed |
-|----------|------------------|
-| **TZS** 🇹🇿 | TSh |
-| **USD** 🇺🇸 | $ |
-| **KES** 🇰🇪 | KSh |
-| **UGX** 🇺🇬 | USh |
+| Currency   | Symbol Displayed |
+| ---------- | ---------------- |
+| **TZS** 🇹🇿 | TSh              |
+| **USD** 🇺🇸 | $                |
+| **KES** 🇰🇪 | KSh              |
+| **UGX** 🇺🇬 | USh              |
 
 ---
 
@@ -76,12 +78,14 @@ Changed from static icon to dynamic text that updates based on selected currency
 **Lines 4, 821-829, 855-863:**
 
 **Imports:**
+
 ```tsx
 // Removed DollarSign icon
 import { X, Plus, AlertCircle } from 'lucide-react'
 ```
 
 **Asking Price Input:**
+
 ```tsx
 <div className="relative">
   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-neutral-500">
@@ -96,8 +100,8 @@ import { X, Plus, AlertCircle } from 'lucide-react'
   <Input
     id="price"
     type="number"
-    placeholder="2,500,000"  // Removed currency symbol from placeholder
-    className="pl-16"        // Increased left padding for text symbol
+    placeholder="2,500,000" // Removed currency symbol from placeholder
+    className="pl-16" // Increased left padding for text symbol
     value={formData.price}
     onChange={(e) => updateFormData({ price: e.target.value })}
   />
@@ -105,6 +109,7 @@ import { X, Plus, AlertCircle } from 'lucide-react'
 ```
 
 **Original Price Input:**
+
 ```tsx
 <div className="relative">
   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-neutral-500">
@@ -119,7 +124,7 @@ import { X, Plus, AlertCircle } from 'lucide-react'
   <Input
     id="originalPrice"
     type="number"
-    placeholder="3,000,000"  // Removed currency symbol from placeholder
+    placeholder="3,000,000" // Removed currency symbol from placeholder
     className="pl-16"
     value={formData.originalPrice}
     onChange={(e) => updateFormData({ originalPrice: e.target.value })}
@@ -140,6 +145,7 @@ Same dynamic currency symbol implementation applied to edit listing form.
 ### Before:
 
 **TZS Selected:**
+
 ```
 ┌────────────────────────────────────┐
 │ Asking Price * (TZS)               │
@@ -148,6 +154,7 @@ Same dynamic currency symbol implementation applied to edit listing form.
 ```
 
 **USD Selected:**
+
 ```
 ┌────────────────────────────────────┐
 │ Asking Price * (USD)               │
@@ -158,6 +165,7 @@ Same dynamic currency symbol implementation applied to edit listing form.
 ### After:
 
 **TZS Selected:**
+
 ```
 ┌────────────────────────────────────┐
 │ Asking Price * (TZS)               │
@@ -166,6 +174,7 @@ Same dynamic currency symbol implementation applied to edit listing form.
 ```
 
 **USD Selected:**
+
 ```
 ┌────────────────────────────────────┐
 │ Asking Price * (USD)               │
@@ -174,6 +183,7 @@ Same dynamic currency symbol implementation applied to edit listing form.
 ```
 
 **KES Selected:**
+
 ```
 ┌────────────────────────────────────┐
 │ Asking Price * (KES)               │
@@ -182,6 +192,7 @@ Same dynamic currency symbol implementation applied to edit listing form.
 ```
 
 **UGX Selected:**
+
 ```
 ┌────────────────────────────────────┐
 │ Asking Price * (UGX)               │
@@ -236,6 +247,7 @@ Products are stored with their prices in the **selected currency**:
 When displaying products, the platform uses the **Currency Converter** to show prices in the user's preferred currency:
 
 **Example:**
+
 ```
 Product stored as: 2,500,000 TZS
 User viewing in: USD
@@ -243,6 +255,7 @@ Displayed as: $1,000 (2,500,000 × 0.0004)
 ```
 
 This ensures:
+
 - ✅ Products listed in any currency are visible to all users
 - ✅ Prices automatically convert to user's preferred currency
 - ✅ Original currency is preserved for accuracy
@@ -252,7 +265,9 @@ This ensures:
 ## 🧪 Testing Scenarios
 
 ### Scenario 1: Symbol Updates on Currency Change
+
 **Steps:**
+
 1. Open sell page
 2. Select TZS → Verify symbol shows "TSh"
 3. Change to USD → Verify symbol updates to "$"
@@ -262,7 +277,9 @@ This ensures:
 **Expected:** ✅ Symbol updates immediately
 
 ### Scenario 2: Placeholder Consistency
+
 **Steps:**
+
 1. Select TZS
 2. Verify placeholder shows "2,500,000" (no TSh in placeholder)
 3. Verify input shows "TSh" as prefix
@@ -272,7 +289,9 @@ This ensures:
 **Expected:** ✅ Clean separation of symbol and value
 
 ### Scenario 3: Edit Listing Behavior
+
 **Steps:**
+
 1. Edit existing product with TZS currency
 2. Verify symbol shows "TSh"
 3. Change currency to USD
@@ -287,15 +306,18 @@ This ensures:
 ### Implementation Notes
 
 **Why Text Instead of Icon:**
+
 - ✅ Icons are static and can't change dynamically per currency
 - ✅ Text symbols match actual currency notation
 - ✅ More accurate representation (TSh, KSh, USh vs generic $)
 - ✅ Consistent with currency display throughout platform
 
 **Styling:**
+
 ```tsx
-className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-neutral-500"
+className = 'absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-neutral-500'
 ```
+
 - Position: Absolute left-4 (consistent with previous icon)
 - Vertical: Centered (top-1/2 -translate-y-1/2)
 - Size: text-base (16px, matches input text)
@@ -303,9 +325,11 @@ className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-n
 - Color: text-neutral-500 (subtle but readable)
 
 **Input Padding:**
+
 ```tsx
-className="pl-16"  // Increased from pl-12
+className = 'pl-16' // Increased from pl-12
 ```
+
 - Extra padding to accommodate text symbols like "TSh" and "KSh"
 - Prevents text overlap with user input
 
@@ -314,12 +338,14 @@ className="pl-16"  // Increased from pl-12
 ## 🎯 Key Benefits
 
 ### User Experience
+
 - ✅ **Clarity**: Correct currency symbol always visible
 - ✅ **Consistency**: Symbol matches selected currency
 - ✅ **Professionalism**: Clean, accurate representation
 - ✅ **Reduced errors**: Users know exactly which currency they're entering
 
 ### Developer Experience
+
 - ✅ **Simple logic**: Easy conditional rendering
 - ✅ **Maintainable**: Add new currencies easily
 - ✅ **Type-safe**: Leverages existing currency types
@@ -342,6 +368,7 @@ className="pl-16"  // Increased from pl-12
 Replaced the static dollar sign icon with dynamic text symbols that update based on the selected currency. This ensures users always see the correct currency symbol (TSh, $, KSh, or USh) in the input field, matching their selection and eliminating confusion.
 
 **Key Changes:**
+
 - ✅ Dynamic currency symbol text instead of static icon
 - ✅ Symbol updates automatically on currency change
 - ✅ Clean placeholder without redundant currency symbols

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Shield, CheckCircle2, Mail, AlertTriangle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2, Mail, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -12,14 +13,18 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function VerificationPage() {
-  const { user, verifyOrganizationEmail, completeVerificationForTesting, verificationStatus } =
-    useAuth()
+  const {
+    user: _user,
+    verifyOrganizationEmail,
+    completeVerificationForTesting,
+    verificationStatus,
+    refreshSession,
+  } = useAuth()
 
   const { toast } = useToast()
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [organizationEmail, setOrganizationEmail] = useState(
-    user?.organizationEmail || user?.email || ''
-  )
+  const [organizationEmail, setOrganizationEmail] = useState('')
   const [, setOtpSent] = useState(false)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
@@ -28,6 +33,26 @@ export default function VerificationPage() {
   // Get verification status
   const isOrganizationEmailVerified = verificationStatus?.isOrganizationEmailVerified || false
   const isFullyVerified = verificationStatus?.isFullyVerified || false
+
+  // Auto-redirect when verification status changes to verified
+  useEffect(() => {
+    if (isOrganizationEmailVerified || isFullyVerified) {
+      // Immediate redirect for already verified users
+      const timeoutId = setTimeout(() => {
+        toast({
+          title: 'Already Verified!',
+          description: 'Redirecting to homepage...',
+          variant: 'default',
+        })
+
+        setTimeout(() => {
+          router.push('/')
+        }, 1000)
+      }, 2000) // Reduced wait time for already verified users
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isOrganizationEmailVerified, isFullyVerified, router, toast])
 
   const handleVerifyOTP = async () => {
     if (!otp) {
@@ -43,15 +68,43 @@ export default function VerificationPage() {
       setSuccess('Email verified successfully')
       setOtpSent(false)
       setOtp('')
+
       toast({
         title: 'Success!',
-        description: 'Your email has been verified.',
+        description: 'Your email has been verified. Redirecting to homepage...',
       })
-    } catch {
-      setError('Invalid OTP. Please try again.')
+
+      // Give backend a moment to update verification status, then refresh session multiple times
+      setTimeout(async () => {
+        try {
+          await refreshSession()
+          console.log('✅ First session refresh after verification')
+
+          // Second refresh after another short delay to ensure state is updated
+          setTimeout(async () => {
+            try {
+              await refreshSession()
+              console.log('✅ Second session refresh after verification')
+            } catch (error) {
+              console.error('❌ Failed second refresh:', error)
+            }
+          }, 500)
+        } catch (error) {
+          console.error('❌ Failed to refresh session after verification:', error)
+        }
+      }, 1000)
+
+      // Redirect to homepage after successful verification
+      setTimeout(() => {
+        router.push('/')
+      }, 2500) // Give more time for session refresh
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid OTP. Please try again.'
+
+      setError(errorMessage)
       toast({
         title: 'Verification Failed',
-        description: 'Invalid OTP code. Please check and try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -60,16 +113,16 @@ export default function VerificationPage() {
   }
 
   const handleCompleteVerificationForTesting = async () => {
+    if (!organizationEmail) {
+      setError('Please enter your email address')
+      return
+    }
+
     setIsSubmitting(true)
     setError('')
     setSuccess('')
     try {
-      // Set the organization email to current user email if not set
-      if (!organizationEmail && user?.email) {
-        setOrganizationEmail(user.email)
-      }
-
-      await completeVerificationForTesting()
+      await completeVerificationForTesting(organizationEmail)
 
       // After OTP is sent, show success message
       setOtpSent(true)
@@ -78,11 +131,14 @@ export default function VerificationPage() {
         title: 'OTP Sent!',
         description: 'Check your email for the verification code.',
       })
-    } catch {
-      setError('Failed to send OTP. Please try again.')
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to send OTP. Please try again.'
+
+      setError(errorMessage)
       toast({
         title: 'Error',
-        description: 'Failed to send OTP. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -126,7 +182,7 @@ export default function VerificationPage() {
                 </div>
 
                 <Button
-                  onClick={() => (window.location.href = '/browse')}
+                  onClick={() => router.push('/browse')}
                   size="lg"
                   className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white px-8 py-3 rounded-lg"
                 >
@@ -146,9 +202,6 @@ export default function VerificationPage() {
         <Card className="border border-[#E2E8F0] bg-white">
           <CardHeader className="bg-white border-b border-[#E2E8F0] p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-[#1E3A8A]/10 rounded-lg">
-                <Shield className="w-5 h-5 text-[#1E3A8A]" />
-              </div>
               <CardTitle className="text-xl font-semibold text-[#0F172A]">
                 Email Verification
               </CardTitle>
@@ -178,19 +231,27 @@ export default function VerificationPage() {
             {/* Simple Verification Form */}
             {!isOrganizationEmailVerified && (
               <div className="space-y-6">
-                {/* Email Display */}
+                {/* Email Input */}
                 <div>
-                  <Label className="text-sm font-medium text-[#0F172A]">Your Email</Label>
-                  <div className="mt-1 p-3 bg-[#F8FAFB] border border-[#E2E8F0] rounded-md">
-                    <p className="text-sm font-medium text-[#0F172A]">{user?.email}</p>
-                  </div>
+                  <Label htmlFor="organizationEmail" className="text-sm font-medium text-[#0F172A]">
+                    Your Email
+                  </Label>
+                  <Input
+                    id="organizationEmail"
+                    type="email"
+                    placeholder="Input your organization email"
+                    value={organizationEmail}
+                    onChange={(e) => setOrganizationEmail(e.target.value)}
+                    disabled={isSubmitting}
+                    className="mt-1 h-11 border border-[#E2E8F0] focus:border-[#1E3A8A]"
+                  />
                 </div>
 
                 {/* Step 1: Send OTP */}
                 <div>
                   <Button
                     onClick={handleCompleteVerificationForTesting}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !organizationEmail}
                     size="lg"
                     className="w-full bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white h-11"
                   >
@@ -253,7 +314,7 @@ export default function VerificationPage() {
             {isOrganizationEmailVerified && (
               <div className="mt-6 space-y-4">
                 <Button
-                  onClick={() => (window.location.href = '/')}
+                  onClick={() => router.push('/')}
                   size="lg"
                   className="w-full bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white h-11"
                 >

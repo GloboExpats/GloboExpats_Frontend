@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useVerification } from '@/hooks/use-verification'
-import { Loader2, Shield, AlertCircle } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 
 interface RouteGuardProps {
@@ -42,6 +42,7 @@ export function RouteGuard({
   const router = useRouter()
   const { isLoggedIn, isLoading: authLoading, user } = useAuth()
   const { checkVerification } = useVerification()
+  const { toast } = useToast()
   const [accessGranted, setAccessGranted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Timeout tracking for debugging - can be used for timeout-related features
@@ -80,17 +81,27 @@ export function RouteGuard({
         const canProceed = checkVerification(requireVerification)
 
         if (!canProceed) {
-          // Show verification error but don't block forever
+          // Show verification error and redirect to verification page
           if (process.env.NODE_ENV === 'development') {
             console.log(`[RouteGuard] User verification pending for '${requireVerification}'`)
           }
 
-          // Set a timeout error message but still allow access
-          setTimeout(() => {
-            if (!accessGranted) {
-              setAccessGranted(true)
-            }
-          }, 1500)
+          // Redirect to verification page for sell actions
+          if (requireVerification === 'sell') {
+            toast({
+              title: 'Verification Required',
+              description:
+                "Please verify your account to list items for sale. You'll be redirected to the verification page.",
+              variant: 'default',
+            })
+            router.push('/account/verification')
+            return
+          }
+
+          // For other verification types, set error message
+          setError(
+            'Verification required. Please complete account verification to access this page.'
+          )
           return
         }
       }
@@ -109,6 +120,7 @@ export function RouteGuard({
     fallbackUrl,
     checkVerification,
     accessGranted,
+    toast,
   ])
 
   // Show loading state
@@ -126,24 +138,27 @@ export function RouteGuard({
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="mb-4">{error}</AlertDescription>
-          </Alert>
-          <div className="mt-4 flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/">Go Home</Link>
-            </Button>
-            {requireVerification && (
-              <Button asChild>
-                <Link href="/account/verification">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Get Verified
-                </Link>
-              </Button>
-            )}
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+        <div className="max-w-lg w-full">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+            <div className="text-center">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Verification Required</h2>
+                <p className="text-gray-600">
+                  Please complete account verification to access this page.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button asChild variant="outline" className="min-w-24">
+                  <Link href="/">Go Home</Link>
+                </Button>
+                {requireVerification && (
+                  <Button asChild className="min-w-24">
+                    <Link href="/account/verification">Get Verified</Link>
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

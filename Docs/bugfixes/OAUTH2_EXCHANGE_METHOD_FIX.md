@@ -24,17 +24,18 @@ Error: Request method 'POST' is not supported
 
 ### Mismatches Identified
 
-| Aspect | Frontend (Incorrect) | Backend (Actual) |
-|--------|---------------------|------------------|
-| HTTP Method | `POST` | `GET` |
-| Parameter Name | `auth_code` | `code` |
-| Parameter Location | Request body | Query parameter |
+| Aspect             | Frontend (Incorrect) | Backend (Actual) |
+| ------------------ | -------------------- | ---------------- |
+| HTTP Method        | `POST`               | `GET`            |
+| Parameter Name     | `auth_code`          | `code`           |
+| Parameter Location | Request body         | Query parameter  |
 
 ## Fix Implementation
 
 ### 1. Updated API Client (`lib/api.ts`) - HTTP Method Fix
 
 **Before:**
+
 ```typescript
 async exchangeOAuthCode(authCode: string): Promise<ApiResponse<unknown>> {
   return this.request('/api/v1/oauth2/exchange', {
@@ -45,6 +46,7 @@ async exchangeOAuthCode(authCode: string): Promise<ApiResponse<unknown>> {
 ```
 
 **After:**
+
 ```typescript
 async exchangeOAuthCode(authCode: string): Promise<ApiResponse<unknown>> {
   const params = new URLSearchParams({ code: authCode })
@@ -57,6 +59,7 @@ async exchangeOAuthCode(authCode: string): Promise<ApiResponse<unknown>> {
 ### 2. Fixed Response Handling (`lib/auth-service.ts`) - Response Structure Fix
 
 **Problem**: After fixing the HTTP method, a new error occurred:
+
 ```
 TypeError: Cannot destructure property 'token' of '(intermediate value).data' as it is undefined
 ```
@@ -64,20 +67,23 @@ TypeError: Cannot destructure property 'token' of '(intermediate value).data' as
 **Cause**: The API client's `request()` method returns backend responses directly, not wrapped in a `response.data` structure. The code was trying to access `response.data.token` when it should access `response.token` directly.
 
 **Before:**
+
 ```typescript
 const response = await apiClient.exchangeOAuthCode(authCode)
-const data = response.data as {  // ❌ response.data is undefined
+const data = response.data as {
+  // ❌ response.data is undefined
   token?: string
   // ...
 }
 ```
 
 **After:**
+
 ```typescript
 const response = await apiClient.exchangeOAuthCode(authCode)
 // Backend may return data directly or wrapped in response.data
 // Handle both cases defensively
-const responseData = (response as any)?.data || response  // ✅ Works for both cases
+const responseData = (response as any)?.data || response // ✅ Works for both cases
 const data = responseData as {
   token?: string
   // ...
@@ -93,6 +99,7 @@ This follows the same defensive pattern used in `loginUser()` function.
 **Cause**: OAuth users don't have passwords, so calling the standard login endpoint fails. The auth provider's `login()` method calls `loginUser()` which makes a POST to `/api/v1/auth/login` expecting email/password credentials.
 
 **Before:**
+
 ```typescript
 const userData = await exchangeAuthCode(authCode)
 // ❌ This tries to login again with email/password
@@ -106,6 +113,7 @@ await login({
 ```
 
 **After:**
+
 ```typescript
 // Exchange auth code for token (token is already set in exchangeAuthCode)
 await exchangeAuthCode(authCode)
@@ -114,6 +122,7 @@ await exchangeAuthCode(authCode)
 ```
 
 **Why This Works**:
+
 - `exchangeAuthCode()` already stores the JWT token in localStorage
 - The `AuthProvider` has a `useEffect` that detects token presence and automatically rebuilds the session by calling `/api/v1/userManagement/user-details`
 - This eliminates the need for a second authentication call
@@ -122,6 +131,7 @@ await exchangeAuthCode(authCode)
 ### 4. Updated Documentation
 
 Fixed incorrect API documentation in:
+
 - `Docs/features/GOOGLE_OAUTH_IMPLEMENTATION.md`
 - `Docs/api/BACKEND_API_REFERENCE.md`
 - `Docs/api/API_QUICK_REFERENCE.md`

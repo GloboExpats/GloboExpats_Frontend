@@ -15,6 +15,7 @@ When unauthenticated users tried to access product pages, the application would 
 3. Generic error messages displayed instead of proper auth flow
 
 **Error Symptoms**:
+
 - "Error: Product not found" shown on product pages
 - Console errors about failed API calls
 - No redirect to login page
@@ -57,6 +58,7 @@ The issue occurred in multiple locations where API calls were made without check
 ```
 
 **Features**:
+
 - Consistent auth error detection across app
 - Automatic redirect to login with return URL
 - User-friendly error messages
@@ -67,6 +69,7 @@ The issue occurred in multiple locations where API calls were made without check
 **File**: `app/product/[id]/page.tsx`
 
 **Changes**:
+
 ```typescript
 import { handleAuthError } from '@/lib/auth-redirect'
 
@@ -77,6 +80,7 @@ if (handleAuthError(err, router, `/product/${id}`)) {
 ```
 
 **Behavior**:
+
 - ✅ Detects 401/403 errors from API
 - ✅ Redirects to `/login?returnUrl=/product/{id}`
 - ✅ User returns to product page after login
@@ -87,6 +91,7 @@ if (handleAuthError(err, router, `/product/${id}`)) {
 **File**: `app/browse/page.tsx`
 
 **Changes**:
+
 ```typescript
 const error = err as Error & { isAuthError?: boolean; statusCode?: number }
 if (error.isAuthError || error.statusCode === 401) {
@@ -96,6 +101,7 @@ if (error.isAuthError || error.statusCode === 401) {
 ```
 
 **Rationale**:
+
 - Browse page is public (in `PUBLIC_ROUTES`)
 - Shouldn't force login for anonymous browsing
 - Shows helpful message if auth needed for full features
@@ -107,22 +113,26 @@ if (error.isAuthError || error.statusCode === 401) {
 ### Test Cases
 
 **1. Unauthenticated User - Product Page**
+
 - ✅ Access `/product/8` without login
 - ✅ If backend requires auth: redirect to `/login?returnUrl=/product/8`
 - ✅ After login: return to `/product/8`
 - ✅ If backend allows public: show product normally
 
 **2. Authenticated User - Product Page**
+
 - ✅ Access product page with valid JWT
 - ✅ Product loads successfully
 - ✅ No authentication errors
 
 **3. Browse Page - Unauthenticated**
+
 - ✅ Can browse products without login
 - ✅ If API requires auth: shows friendly message
 - ✅ Doesn't force login for public browsing
 
 **4. Token Expiry**
+
 - ✅ JWT expires during session
 - ✅ Next API call triggers auth error
 - ✅ User redirected to login
@@ -144,6 +154,7 @@ apiError.isAuthError = response.status === 401 || response.status === 403
 ```
 
 **New utilities leverage this metadata**:
+
 - Pages no longer need to manually check status codes
 - Consistent error handling across app
 - Easy to extend for other error types
@@ -155,6 +166,7 @@ apiError.isAuthError = response.status === 401 || response.status === 403
 ### For Existing Pages with API Calls
 
 **Before**:
+
 ```typescript
 try {
   const data = await apiClient.getData()
@@ -164,6 +176,7 @@ try {
 ```
 
 **After (Simple)**:
+
 ```typescript
 import { handleAuthError } from '@/lib/auth-redirect'
 
@@ -178,6 +191,7 @@ try {
 ```
 
 **After (Advanced)**:
+
 ```typescript
 import { handleApiError } from '@/lib/auth-redirect'
 
@@ -187,7 +201,7 @@ try {
   const message = handleApiError(err, {
     router,
     returnPath: '/current-path',
-    onError: (msg) => toast.error(msg)
+    onError: (msg) => toast.error(msg),
   })
   if (message) setError(message)
 }
@@ -207,16 +221,19 @@ try {
 ## Future Improvements
 
 ### Short-term
+
 - [ ] Add auth error handling to remaining pages that make API calls
 - [ ] Add toast notifications for auth errors
 - [ ] Create error boundary for auth errors
 
 ### Medium-term
+
 - [ ] Implement refresh token flow (automatic token renewal)
 - [ ] Add session expiry warnings before logout
 - [ ] Centralized error handling HOC/middleware
 
 ### Long-term
+
 - [ ] Offline support with service workers
 - [ ] Optimistic UI updates with error rollback
 - [ ] Real-time session sync across tabs

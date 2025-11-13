@@ -1,4 +1,5 @@
 # Testing Guide - Platform Optimizations
+
 **Version**: 1.0  
 **Date**: 2025-10-21
 
@@ -7,12 +8,14 @@
 ## 🎯 Quick Testing Commands
 
 ### 1. Verify Optimizations Applied
+
 ```bash
 # Run automated verification
 bash scripts/verify-optimizations.sh
 ```
 
 ### 2. TypeScript Validation
+
 ```bash
 # Check for type errors
 npm run type-check
@@ -21,6 +24,7 @@ npm run type-check
 ```
 
 ### 3. Linting Check
+
 ```bash
 # Check code quality
 npm run lint
@@ -29,6 +33,7 @@ npm run lint
 ```
 
 ### 4. Development Build
+
 ```bash
 # Start dev server
 npm run dev
@@ -38,6 +43,7 @@ npm run dev
 ```
 
 ### 5. Production Build
+
 ```bash
 # Clean previous builds
 npm run clean
@@ -49,6 +55,7 @@ npm run build
 ```
 
 ### 6. Bundle Analysis
+
 ```bash
 # Analyze bundle sizes
 npm run build:analyze
@@ -64,6 +71,7 @@ npm run build:analyze
 ### Core Functionality Tests
 
 #### Homepage
+
 - [ ] Page loads without errors
 - [ ] Hero carousel displays and rotates
 - [ ] Product listings show correctly
@@ -74,6 +82,7 @@ npm run build:analyze
 - [ ] No console errors
 
 #### Product Pages
+
 - [ ] Product details display correctly
 - [ ] Product images load and can navigate
 - [ ] Seller information shows
@@ -84,6 +93,7 @@ npm run build:analyze
 - [ ] No layout shifts during load
 
 #### Browse/Search
+
 - [ ] Products grid displays
 - [ ] Filters work correctly
 - [ ] Search functionality works
@@ -93,6 +103,7 @@ npm run build:analyze
 - [ ] Responsive on mobile
 
 #### Authentication
+
 - [ ] Login page loads
 - [ ] Registration page loads
 - [ ] Form validation works
@@ -101,6 +112,7 @@ npm run build:analyze
 - [ ] Logo displays correctly ("Globoexpats")
 
 #### Cart & Checkout
+
 - [ ] Cart page displays items
 - [ ] Quantity updates work
 - [ ] Remove item functions
@@ -109,6 +121,7 @@ npm run build:analyze
 - [ ] Success page displays
 
 #### User Account
+
 - [ ] Account dashboard loads
 - [ ] Orders page displays
 - [ ] Wishlist works
@@ -121,6 +134,7 @@ npm run build:analyze
 ## 🖼️ Image Optimization Tests
 
 ### Visual Tests
+
 1. **Hero Images**
    - [ ] Load progressively with blur
    - [ ] Display in WebP/AVIF format (check DevTools)
@@ -139,6 +153,7 @@ npm run build:analyze
    - [ ] Fallback to initials when missing
 
 ### Performance Tests
+
 ```bash
 # Check image optimization in production build
 npm run build
@@ -156,6 +171,7 @@ npm start
 ## ⚡ Performance Testing
 
 ### Lighthouse Audit
+
 1. Open Chrome DevTools
 2. Go to Lighthouse tab
 3. Run audit for:
@@ -165,18 +181,22 @@ npm start
    - SEO
 
 **Target Scores**:
+
 - Performance: >90
 - Accessibility: >90
 - Best Practices: >90
 - SEO: >90
 
 ### Web Vitals
+
 Monitor these metrics:
+
 - **LCP** (Largest Contentful Paint): <2.5s
 - **FID** (First Input Delay): <100ms
 - **CLS** (Cumulative Layout Shift): <0.1
 
 ### Bundle Size Analysis
+
 ```bash
 npm run build:analyze
 
@@ -194,6 +214,7 @@ npm run build:analyze
 ### Check for Breaking Changes
 
 #### 1. API Integration
+
 ```bash
 # Verify all API calls work
 # Test in browser console:
@@ -211,12 +232,14 @@ await fetch('/api/v1/displayItem/top-picks?page=0&size=12')
 ```
 
 #### 2. State Management
+
 - [ ] Auth context works
 - [ ] Cart context updates
 - [ ] Currency context functions
 - [ ] No context errors in console
 
 #### 3. Routing
+
 - [ ] All routes accessible
 - [ ] Dynamic routes work ([id], [slug])
 - [ ] Redirects function correctly
@@ -229,18 +252,21 @@ await fetch('/api/v1/displayItem/top-picks?page=0&size=12')
 ### Test Error Handling
 
 #### 1. Network Errors
+
 - [ ] Offline behavior (disconnect network)
 - [ ] Slow network (throttle to 3G)
 - [ ] API timeout handling
 - [ ] Retry logic works
 
 #### 2. Auth Errors
+
 - [ ] Expired token handling
 - [ ] Invalid token handling
 - [ ] Unauthenticated redirects
 - [ ] Permission denied messages
 
 #### 3. Form Errors
+
 - [ ] Validation messages show
 - [ ] Server errors display
 - [ ] Duplicate submission prevented
@@ -251,13 +277,16 @@ await fetch('/api/v1/displayItem/top-picks?page=0&size=12')
 ## 📱 Mobile Testing
 
 ### Responsive Design
+
 Test on these viewports:
+
 - [ ] iPhone SE (375px)
 - [ ] iPhone 12 Pro (390px)
 - [ ] iPad (768px)
 - [ ] Desktop (1920px)
 
 ### Touch Interactions
+
 - [ ] Buttons tap correctly
 - [ ] Swipe gestures work
 - [ ] Modals dismiss properly
@@ -269,6 +298,7 @@ Test on these viewports:
 ## 🌐 Browser Testing
 
 Test in these browsers:
+
 - [ ] Chrome (latest)
 - [ ] Firefox (latest)
 - [ ] Safari (latest)
@@ -279,6 +309,7 @@ Test in these browsers:
 ## ⚙️ Environment Testing
 
 ### Development
+
 ```bash
 NODE_ENV=development npm run dev
 # Test hot reload
@@ -287,6 +318,7 @@ NODE_ENV=development npm run dev
 ```
 
 ### Production
+
 ```bash
 npm run build
 npm start
@@ -300,7 +332,9 @@ npm start
 ## 📊 Monitoring & Logging
 
 ### Console Checks
+
 No errors should appear in console for:
+
 - [ ] Homepage load
 - [ ] Navigation
 - [ ] Form submissions
@@ -308,6 +342,7 @@ No errors should appear in console for:
 - [ ] Image loads
 
 ### Network Checks
+
 - [ ] No failed requests (except expected auth errors)
 - [ ] Proper cache headers
 - [ ] Compression enabled (check Content-Encoding)
@@ -318,6 +353,7 @@ No errors should appear in console for:
 ## ✅ Sign-Off Checklist
 
 Before deploying to production:
+
 - [ ] All automated tests pass
 - [ ] Manual testing completed
 - [ ] Performance targets met
@@ -360,6 +396,7 @@ If you find issues:
 ## 📞 Support
 
 For optimization-related questions:
+
 - Check `Docs/optimization/AUDIT_FINDINGS.md`
 - Check `Docs/optimization/OPTIMIZATION_SUMMARY.md`
 - Review git commit history for changes
@@ -369,6 +406,7 @@ For optimization-related questions:
 ## 🎉 Success Criteria
 
 Optimization is successful if:
+
 1. ✅ All tests pass
 2. ✅ Bundle size reduced by >50%
 3. ✅ Page load time improved by >40%

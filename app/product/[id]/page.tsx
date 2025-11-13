@@ -1,22 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
   Star,
   MapPin,
-  Shield,
-  Heart,
   ChevronLeft,
   ChevronRight,
-  Truck,
-  RotateCcw,
-  CreditCard,
   MessageCircle,
-  ExternalLink,
-  TrendingUp,
   Loader2,
+  TrendingUp,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,11 +21,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProductActions } from '@/components/product-actions'
 import { useParams, useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
-import { transformBackendProduct } from '@/lib/image-utils'
-import type { FeaturedItem } from '@/lib/types'
-import PriceDisplay from '@/components/price-display'
 import { parseNumericPrice } from '@/lib/utils'
+import { parseProductDescription, categorizeSpecifications } from '@/lib/description-parser'
+import { FeaturedItem } from '@/lib/types'
+import { transformBackendProduct } from '@/lib/image-utils'
+import PriceDisplay from '@/components/price-display'
 import { handleAuthError } from '@/lib/auth-redirect'
+import { useAuth } from '@/hooks/use-auth'
+import { canUserContact } from '@/lib/verification-utils'
 import { toast } from '@/components/ui/use-toast'
 
 export default function ProductPage() {
@@ -45,8 +43,14 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentImage, setCurrentImage] = useState(0)
-  const [isSaved, setIsSaved] = useState(false)
   const [sellerProfileImage, setSellerProfileImage] = useState<string | null>(null)
+  const [imagesPreloaded, setImagesPreloaded] = useState(false)
+  const [currentThumbnailPage, setCurrentThumbnailPage] = useState(0)
+  const [imageLoading, setImageLoading] = useState(false)
+
+  // Auth and verification
+  const { user } = useAuth()
+  const canContact = canUserContact(user)
 
   // Transform backend data to FeaturedItem format
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -189,6 +193,24 @@ export default function ProductPage() {
           statusCode: apiError.statusCode,
         })
 
+        // Handle 404 Product not found errors - show user-friendly message
+        if (
+          apiError.statusCode === 404 ||
+          errorMessage.includes('Product not found') ||
+          errorMessage.includes('not found') ||
+          errorMessage.includes('removed or is no longer available')
+        ) {
+          console.log('📦 Product not found, showing user-friendly message')
+          toast({
+            title: '📦 Product Not Available',
+            description:
+              'This item is no longer available. It may have been sold or removed by the seller.',
+            variant: 'destructive',
+          })
+          setError('Product not found')
+          return
+        }
+
         // Handle authentication errors - show toast
         if (
           apiError.isAuthError ||
@@ -203,10 +225,9 @@ export default function ProductPage() {
           // Don't log as error - this is expected flow for unauthenticated users
           console.log('🔐 Auth required, showing toast notification')
           toast({
-            title: 'Login Required',
+            title: '🔐 Login Required',
             description:
-              'Please login to view product details or create an account to explore our marketplace!',
-            variant: 'default',
+              'Sign in to explore this item or join our expat community to start shopping!',
           })
           setError(null) // Don't show error in UI
           return
@@ -232,10 +253,40 @@ export default function ProductPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  // Multiple product images for gallery
-  const productImages = product
-    ? [product.image, ...(product.images || [])]
-    : ['/assets/images/products/placeholder.jpg']
+  // Multiple product images for gallery (memoized to prevent re-renders)
+  const productImages = useMemo(
+    () =>
+      product
+        ? [product.image, ...(product.images || [])]
+        : ['/assets/images/products/placeholder.jpg'],
+    [product]
+  )
+
+  // Preload all images for smooth switching
+  useEffect(() => {
+    if (!product || imagesPreloaded) return
+
+    const preloadImages = async () => {
+      const imagePromises = productImages.map((src) => {
+        return new Promise((resolve, reject) => {
+          const img = new window.Image()
+          img.src = src
+          img.onload = resolve
+          img.onerror = reject
+        })
+      })
+
+      try {
+        await Promise.all(imagePromises)
+        setImagesPreloaded(true)
+        console.log('✅ All product images preloaded')
+      } catch (error) {
+        console.warn('⚠️ Some images failed to preload:', error)
+      }
+    }
+
+    preloadImages()
+  }, [product, productImages, imagesPreloaded])
 
   // Loading state
   if (loading) {
@@ -289,72 +340,75 @@ export default function ProductPage() {
   }
 
   const nextImage = () => {
-    setCurrentImage((prev) => (prev + 1) % productImages.length)
+    setImageLoading(true)
+    const nextIndex = (currentImage + 1) % productImages.length
+    setCurrentImage(nextIndex)
+    // Auto-update thumbnail page if needed
+    const newPage = Math.floor(nextIndex / 14)
+    if (newPage !== currentThumbnailPage) {
+      setCurrentThumbnailPage(newPage)
+    }
   }
 
   const prevImage = () => {
-    setCurrentImage((prev) => (prev - 1 + productImages.length) % productImages.length)
+    setImageLoading(true)
+    const prevIndex = (currentImage - 1 + productImages.length) % productImages.length
+    setCurrentImage(prevIndex)
+    // Auto-update thumbnail page if needed
+    const newPage = Math.floor(prevIndex / 14)
+    if (newPage !== currentThumbnailPage) {
+      setCurrentThumbnailPage(newPage)
+    }
+  }
+
+  const selectImage = (index: number) => {
+    if (index !== currentImage) {
+      setImageLoading(true)
+      setCurrentImage(index)
+    }
   }
 
   return (
     <div className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-8 sm:pb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-          {/* Image Gallery */}
-          <div className="lg:col-span-3">
-            <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0 overflow-hidden">
-              <CardContent className="p-3 sm:p-6">
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  {/* Thumbnail Images - Bottom on mobile, Left on desktop with scrolling */}
-                  <div className="flex sm:flex-col justify-start gap-3 w-full sm:w-28 flex-shrink-0 order-2 sm:order-1 overflow-x-auto sm:overflow-x-hidden sm:overflow-y-scroll pb-2 sm:pb-0 sm:max-h-[480px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    {productImages.map((image, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setCurrentImage(index)}
-                        className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border-2 transition-all duration-200 flex-shrink-0 bg-gray-100 ${
-                          index === currentImage
-                            ? 'border-brand-primary shadow-md'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <Image
-                          src={image || '/placeholder.svg'}
-                          alt={`Thumbnail ${index + 1}`}
-                          fill
-                          sizes="(max-width: 640px) 96px, 112px"
-                          className="object-cover"
-                          loading={index < 3 ? 'eager' : 'lazy'}
-                          placeholder="blur"
-                          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                        />
-                      </button>
-                    ))}
-                  </div>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+          {/* Image Gallery - Enhanced Layout */}
+          <div className="xl:col-span-2">
+            <Card className="bg-white shadow-lg rounded-2xl border-0 overflow-hidden">
+              <CardContent className="p-4 sm:p-6">
+                {/* Main Image Container - Reduced Size */}
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 mb-3">
+                  <div className="aspect-[5/3] relative">
+                    <Image
+                      src={productImages[currentImage]}
+                      alt={`Product image ${currentImage + 1}`}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 600px"
+                      className="object-contain p-3 sm:p-5 transition-opacity duration-300"
+                      priority
+                      quality={90}
+                      loading="eager"
+                      onLoad={() => setImageLoading(false)}
+                      onLoadStart={() => setImageLoading(true)}
+                    />
 
-                  {/* Main Image */}
-                  <div className="flex-1 relative overflow-hidden rounded-lg sm:rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 min-h-[300px] sm:min-h-[400px] order-1 sm:order-2">
-                    <div className="flex items-center justify-center p-4 sm:p-8 h-full">
-                      <Image
-                        src={productImages[currentImage]}
-                        alt={`Product image ${currentImage + 1}`}
-                        width={640}
-                        height={640}
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 70vw, 640px"
-                        className="max-w-full max-h-64 sm:max-h-96 object-contain"
-                        priority={currentImage === 0}
-                        placeholder="blur"
-                        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                        quality={90}
-                      />
-                    </div>
+                    {/* Loading Spinner */}
+                    {imageLoading && (
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                          <span className="text-sm font-medium">Loading...</span>
+                        </div>
+                      </div>
+                    )}
 
-                    {/* Navigation Arrows - Now visible on mobile too */}
+                    {/* Navigation Arrows */}
                     {productImages.length > 1 && (
                       <>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 w-8 h-8 sm:w-10 sm:h-10"
+                          className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 w-8 h-8 sm:w-10 sm:h-10"
                           onClick={prevImage}
                         >
                           <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
@@ -362,7 +416,7 @@ export default function ProductPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 w-8 h-8 sm:w-10 sm:h-10"
+                          className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white backdrop-blur-sm rounded-full shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 w-8 h-8 sm:w-10 sm:h-10"
                           onClick={nextImage}
                         >
                           <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-700" />
@@ -371,16 +425,102 @@ export default function ProductPage() {
                     )}
 
                     {/* Image Counter */}
-                    <div className="absolute bottom-2 sm:bottom-4 right-2 sm:right-4 bg-black/70 text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
+                    <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 bg-black/75 text-white px-2.5 py-1 rounded-lg text-xs font-medium backdrop-blur-sm">
                       {currentImage + 1} / {productImages.length}
                     </div>
                   </div>
                 </div>
+
+                {/* Enhanced Thumbnail Gallery - 2 rows of 7 each - Reduced Size */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                    {productImages
+                      .slice(currentThumbnailPage * 14, currentThumbnailPage * 14 + 7)
+                      .map((image, index) => {
+                        const actualIndex = currentThumbnailPage * 14 + index
+                        return (
+                          <button
+                            key={actualIndex}
+                            onClick={() => selectImage(actualIndex)}
+                            className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${
+                              actualIndex === currentImage
+                                ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <Image
+                              src={image || '/placeholder.svg'}
+                              alt={`Thumbnail ${actualIndex + 1}`}
+                              fill
+                              sizes="(max-width: 640px) 80px, 96px"
+                              className="object-cover"
+                              loading="lazy"
+                              quality={100}
+                            />
+                          </button>
+                        )
+                      })}
+                  </div>
+
+                  {/* Second row */}
+                  {productImages.slice(
+                    currentThumbnailPage * 14 + 7,
+                    currentThumbnailPage * 14 + 14
+                  ).length > 0 && (
+                    <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                      {productImages
+                        .slice(currentThumbnailPage * 14 + 7, currentThumbnailPage * 14 + 14)
+                        .map((image, index) => {
+                          const actualIndex = currentThumbnailPage * 14 + 7 + index
+                          return (
+                            <button
+                              key={actualIndex}
+                              onClick={() => selectImage(actualIndex)}
+                              className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${
+                                actualIndex === currentImage
+                                  ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <Image
+                                src={image || '/placeholder.svg'}
+                                alt={`Thumbnail ${actualIndex + 1}`}
+                                fill
+                                sizes="(max-width: 640px) 80px, 96px"
+                                className="object-cover"
+                                loading="lazy"
+                                quality={100}
+                              />
+                            </button>
+                          )
+                        })}
+                    </div>
+                  )}
+
+                  {/* Pagination Dots */}
+                  {Math.ceil(productImages.length / 14) > 1 && (
+                    <div className="flex justify-center gap-1.5 pt-1.5">
+                      {Array.from({ length: Math.ceil(productImages.length / 14) }).map(
+                        (_, pageIndex) => (
+                          <button
+                            key={pageIndex}
+                            onClick={() => setCurrentThumbnailPage(pageIndex)}
+                            className={`w-3 h-3 rounded-full transition-all duration-200 ${
+                              pageIndex === currentThumbnailPage
+                                ? 'bg-brand-primary scale-125'
+                                : 'bg-gray-300 hover:bg-gray-400'
+                            }`}
+                          />
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
-            {/* Product Details Tabs - MOVED UP */}
-            <div className="mt-4 sm:mt-6">
+            {/* Product Details Tabs - Moved up with reduced spacing */}
+            <div className="mt-3 sm:mt-4">
               <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0">
                 <CardContent className="p-4 sm:p-6">
                   <Tabs defaultValue="description" className="w-full">
@@ -414,9 +554,15 @@ export default function ProductPage() {
                         </h3>
                         <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
                           <p className="text-sm sm:text-base text-gray-600 leading-relaxed whitespace-pre-wrap">
-                            {product.description ||
-                              rawProductData?.productDescription ||
-                              'No description available for this product.'}
+                            {(() => {
+                              const rawDesc =
+                                product.description || rawProductData?.productDescription || ''
+                              const parsedDesc = parseProductDescription(rawDesc)
+                              return (
+                                parsedDesc.description ||
+                                'No description available for this product.'
+                              )
+                            })()}
                           </p>
                         </div>
                       </div>
@@ -428,41 +574,96 @@ export default function ProductPage() {
                           Technical Specifications
                         </h3>
                         <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                            <div className="space-y-4">
-                              <div className="bg-white rounded-lg p-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-gray-800">Condition</span>
-                                  <span className="text-gray-600 capitalize">
-                                    {rawProductData?.productCondition ||
-                                      product?.condition ||
-                                      'Not specified'}
-                                  </span>
+                          {(() => {
+                            const rawDesc =
+                              product.description || rawProductData?.productDescription || ''
+                            const parsedDesc = parseProductDescription(rawDesc)
+                            const hasSpecs = Object.keys(parsedDesc.specifications).length > 0
+                            const categorizedSpecs = hasSpecs
+                              ? categorizeSpecifications(parsedDesc.specifications)
+                              : {}
+
+                            return (
+                              <div className="space-y-6">
+                                {/* Basic Product Info */}
+                                <div>
+                                  <h4 className="text-base font-semibold text-gray-800 mb-3">
+                                    Product Information
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="bg-white rounded-lg p-4">
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-gray-800">Condition</span>
+                                        <span className="text-gray-600 capitalize">
+                                          {rawProductData?.productCondition ||
+                                            product?.condition ||
+                                            'Not specified'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4">
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-gray-800">Category</span>
+                                        <span className="text-gray-600">
+                                          {rawProductData?.category?.categoryName ||
+                                            rawProductData?.categoryName ||
+                                            product?.category ||
+                                            'Not specified'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4">
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-gray-800">Warranty</span>
+                                        <span className="text-gray-600">
+                                          {rawProductData?.productWarranty || 'No warranty'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
+
+                                {/* Dynamic Specifications */}
+                                {hasSpecs && (
+                                  <>
+                                    {Object.entries(categorizedSpecs).map(([category, specs]) => (
+                                      <div key={category}>
+                                        <h4 className="text-base font-semibold text-gray-800 mb-3">
+                                          {category}
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          {specs.map((spec) => (
+                                            <div key={spec.key} className="bg-white rounded-lg p-4">
+                                              <div className="flex justify-between items-start">
+                                                <span className="font-medium text-gray-800">
+                                                  {spec.label}
+                                                </span>
+                                                <span className="text-gray-600 text-right ml-2">
+                                                  {spec.value}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
+
+                                {!hasSpecs && (
+                                  <div className="text-center py-8">
+                                    <div className="text-gray-400 mb-2">📋</div>
+                                    <p className="text-gray-500">
+                                      No detailed specifications available for this item.
+                                    </p>
+                                    <p className="text-sm text-gray-400">
+                                      Check the description tab for more details.
+                                    </p>
+                                  </div>
+                                )}
                               </div>
-                              <div className="bg-white rounded-lg p-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-gray-800">Warranty</span>
-                                  <span className="text-gray-600">
-                                    {rawProductData?.productWarranty || 'No warranty'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-4">
-                              <div className="bg-white rounded-lg p-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-gray-800">Category</span>
-                                  <span className="text-gray-600">
-                                    {rawProductData?.category?.categoryName ||
-                                      rawProductData?.categoryName ||
-                                      product?.category ||
-                                      'Not specified'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                            )
+                          })()}
                         </div>
                       </div>
                     </TabsContent>
@@ -497,24 +698,33 @@ export default function ProductPage() {
             </div>
           </div>
 
-          {/* Product Details */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 px-3 py-1 font-medium">
-                    Featured
-                  </Badge>
+          {/* Product Information Sidebar */}
+          <div className="xl:col-span-1 space-y-4 lg:space-y-6">
+            <Card className="bg-white shadow-lg rounded-2xl border-0">
+              <CardContent className="p-4 lg:p-6">
+                {/* Product Title and Badge */}
+                <div className="mb-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <Badge className="bg-orange-500 text-white border-0 px-3 py-1.5 font-medium text-sm">
+                      Featured
+                    </Badge>
+                  </div>
+
+                  <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2 leading-tight">
+                    {product.title}
+                  </h1>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="w-4 h-4" />
+                    <span>{product.location}</span>
+                  </div>
                 </div>
 
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-3 sm:mb-4 leading-tight">
-                  {product.title}
-                </h1>
-
-                {/* Price */}
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-                  <div className="flex items-baseline gap-2 sm:gap-3 mb-2">
-                    <span className="text-2xl sm:text-3xl font-bold">
+                {/* Price Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 mb-6">
+                  <div className="space-y-2 mb-2">
+                    {/* Current Price */}
+                    <div className="text-2xl lg:text-3xl font-bold text-gray-900">
                       <PriceDisplay
                         price={parseNumericPrice(product.price)}
                         size="xl"
@@ -522,26 +732,62 @@ export default function ProductPage() {
                         variant="secondary"
                         showOriginal
                       />
-                    </span>
-                    {product.originalPrice && parseNumericPrice(product.originalPrice) > 0 && (
-                      <span className="text-lg">
-                        <PriceDisplay
-                          price={parseNumericPrice(product.originalPrice)}
-                          size="md"
-                          variant="muted"
-                          className="line-through"
-                        />
-                      </span>
-                    )}
+                    </div>
+
+                    {/* Original Price with strikethrough */}
+                    {product.originalPrice &&
+                      parseNumericPrice(product.originalPrice) >
+                        parseNumericPrice(product.price) && (
+                        <div className="flex items-center gap-2">
+                          <PriceDisplay
+                            price={parseNumericPrice(product.originalPrice)}
+                            size="md"
+                            variant="muted"
+                            className="line-through text-base text-gray-500"
+                            showOriginal
+                          />
+                          <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
+                            {Math.round(
+                              ((parseNumericPrice(product.originalPrice) -
+                                parseNumericPrice(product.price)) /
+                                parseNumericPrice(product.originalPrice)) *
+                                100
+                            )}
+                            % OFF
+                          </span>
+                        </div>
+                      )}
                   </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-green-600 font-medium">
+                  <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
                     <TrendingUp className="h-4 w-4" />
                     <span>Great value compared to market price</span>
                   </div>
                 </div>
 
+                {/* Key Product Details */}
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Condition</span>
+                    <span className="text-sm font-semibold text-gray-900 capitalize">
+                      {rawProductData?.productCondition || product?.condition || 'Not specified'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Category</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {rawProductData?.categoryName || product?.category || 'Not specified'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Warranty</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {rawProductData?.productWarranty || 'No warranty'}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Action Buttons */}
-                <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+                <div className="space-y-3 mb-6">
                   {/* Debug: Log productId */}
                   {(() => {
                     console.log('🔍 Product Page Debug:', {
@@ -552,6 +798,7 @@ export default function ProductPage() {
                     })
                     return null
                   })()}
+
                   <ProductActions
                     productId={rawProductData?.productId as number}
                     sellerName={product.listedBy}
@@ -564,132 +811,118 @@ export default function ProductPage() {
                     currency="TZS"
                   />
 
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="w-full border-gray-200 hover:bg-gray-50 transition-all duration-200 h-11 sm:h-12 text-sm sm:text-base"
-                      onClick={() => setIsSaved(!isSaved)}
-                    >
-                      <Heart
-                        className={`w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 transition-all duration-200 ${
-                          isSaved ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-500'
-                        }`}
+                  <div className="space-y-3">
+                    {canContact ? (
+                      <Button
+                        size="lg"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 sm:h-12 text-sm sm:text-base font-medium"
+                        asChild
+                      >
+                        <Link
+                          href={`/messages?seller=${encodeURIComponent(product.listedBy)}&product=${encodeURIComponent(product.title)}`}
+                        >
+                          <MessageCircle className="w-5 h-5 mr-2" />
+                          Message
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        size="lg"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 sm:h-12 text-sm sm:text-base font-medium"
+                        onClick={() => {
+                          toast({
+                            title: 'Verification Required',
+                            description:
+                              'Please verify your account to contact sellers. Visit your account settings to complete verification.',
+                            variant: 'default',
+                          })
+                        }}
+                      >
+                        <MessageCircle className="w-5 h-5 mr-2" />
+                        Message
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Seller Information */}
+            {canContact ? (
+              <Card className="bg-white shadow-lg rounded-2xl border-0">
+                <CardContent className="p-4 lg:p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Seller Information</h3>
+
+                  <div className="flex items-start gap-4 mb-4">
+                    <Avatar className="w-14 h-14 border-2 border-blue-100 shadow-md flex-shrink-0">
+                      <AvatarImage
+                        src={sellerProfileImage || '/placeholder.svg'}
+                        alt={product.listedBy}
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).src = '/placeholder.svg'
+                        }}
                       />
-                      {isSaved ? 'Saved' : 'Save'}
-                    </Button>
+                      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold text-lg">
+                        {product.listedBy?.slice(0, 2).toUpperCase() || 'UN'}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-lg text-gray-900 truncate mb-1">
+                        {product.listedBy || 'Unknown Seller'}
+                      </h4>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                        <span className="font-medium text-gray-700">{product.rating}</span>
+                        <span className="text-gray-500 text-sm">({product.reviews} reviews)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {product.isVerified && (
+                    <div className="bg-green-50 rounded-xl p-4 border border-green-200 mb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-green-700">Verified Seller</span>
+                      </div>
+                      <p className="text-sm text-green-600">
+                        This seller has been verified by our security team
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Seller Actions */}
+                  <div className="grid grid-cols-1 gap-3">
                     <Button
                       variant="outline"
-                      size="lg"
-                      className="w-full border-gray-200 hover:bg-gray-50 transition-all duration-200 h-11 sm:h-12 text-sm sm:text-base"
+                      className="w-full justify-center border-gray-300 hover:bg-gray-50 h-11"
                       asChild
                     >
-                      <Link
-                        href={`/messages?seller=${encodeURIComponent(product.listedBy)}&product=${encodeURIComponent(product.title)}`}
-                      >
-                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                        Message
+                      <Link href={`/seller/${encodeURIComponent(product.listedBy)}`}>
+                        View Profile
                       </Link>
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Seller Info */}
-            <Card className="bg-white shadow-lg rounded-xl sm:rounded-2xl border-0">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                  <Avatar className="w-12 h-12 sm:w-16 sm:h-16 border-2 border-blue-100 shadow-lg flex-shrink-0">
-                    <AvatarImage
-                      src={sellerProfileImage || '/placeholder.svg'}
-                      alt={product.listedBy}
-                      onError={(e) => {
-                        // Fallback to placeholder if image fails to load
-                        ;(e.target as HTMLImageElement).src = '/placeholder.svg'
-                      }}
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold">
-                      {product.listedBy?.slice(0, 2).toUpperCase() || 'UN'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base sm:text-lg text-gray-800 truncate">
-                      {product.listedBy || 'Unknown Seller'}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="bg-white shadow-lg rounded-2xl border-0">
+                <CardContent className="p-4 lg:p-6">
+                  <div className="text-center py-8">
+                    <h3 className="text-lg font-semibold text-neutral-800 mb-2">
+                      Verify Your Account
                     </h3>
-                    <div className="flex items-center gap-1 text-xs sm:text-sm mb-1">
-                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                      <span className="font-medium text-gray-700">{product.rating}</span>
-                      <span className="text-gray-500">({product.reviews} reviews)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600 truncate">{product.location}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {product.isVerified && (
-                  <div className="bg-green-50 rounded-lg p-3 sm:p-3 border border-green-200">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-5 h-5 text-green-600" />
-                      <span className="font-medium text-green-700">Verified Seller</span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-green-600 mt-1">
-                      This seller has been verified by our security team
+                    <p className="text-neutral-600 mb-4">
+                      Complete account verification to view seller information and contact details
                     </p>
+                    <Link href="/account/verification">
+                      <Button className="bg-brand-primary hover:bg-brand-primary/90">
+                        Verify Account
+                      </Button>
+                    </Link>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Trust Indicators */}
-            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg rounded-xl sm:rounded-2xl border-0">
-              <CardContent className="p-4 sm:p-6">
-                <h3 className="font-semibold text-base sm:text-lg text-gray-800 mb-3 sm:mb-4">
-                  Purchase Protection
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2.5 sm:gap-3 text-gray-700">
-                    <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
-                      <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-medium text-sm sm:text-base block">
-                        7-day return policy
-                      </span>
-                      <span className="text-xs sm:text-sm text-gray-500">
-                        Full refund guarantee
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5 sm:gap-3 text-gray-700">
-                    <div className="bg-green-100 p-2 rounded-lg flex-shrink-0">
-                      <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-medium text-sm sm:text-base block">
-                        Secure payments
-                      </span>
-                      <span className="text-xs sm:text-sm text-gray-500">
-                        Your payment is protected
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2.5 sm:gap-3 text-gray-700">
-                    <div className="bg-purple-100 p-2 rounded-lg flex-shrink-0">
-                      <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-medium text-sm sm:text-base block">Fast shipping</span>
-                      <span className="text-xs sm:text-sm text-gray-500">
-                        Quick and reliable delivery
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -766,8 +999,10 @@ export default function ProductPage() {
                           </span>
                         </div>
 
-                        {similarProduct.isVerified && (
-                          <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
+                        {canContact && similarProduct.isVerified && (
+                          <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                            Verified
+                          </span>
                         )}
                       </div>
 

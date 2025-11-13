@@ -23,6 +23,9 @@ import { useToast } from '@/components/ui/use-toast'
 import { ITEM_CONDITIONS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
 import { CURRENCIES as CURRENCY_CONFIG } from '@/lib/currency-converter'
 import { getFullImageUrl } from '@/lib/image-utils'
+import { getCategoryFields } from '@/lib/category-fields'
+import { Badge } from '@/components/ui/badge'
+import { parseProductDescription } from '@/lib/description-parser'
 import { ArrowLeft, AlertCircle, Loader2, Upload, X, Star, Trash2 } from 'lucide-react'
 
 interface FormData {
@@ -35,6 +38,7 @@ interface FormData {
   askingPrice: string
   originalPrice: string
   productWarranty: string
+  categoryFields: Record<string, string>
 }
 
 interface ProductImage {
@@ -80,6 +84,7 @@ function EditListingContent() {
     askingPrice: '',
     originalPrice: '',
     productWarranty: '',
+    categoryFields: {},
   })
 
   // Fetch product data and categories
@@ -153,16 +158,35 @@ function EditListingContent() {
           locationValue = 'dar-es-salaam'
         }
 
+        // Parse description to extract specifications
+        const rawDescription = String(product.productDescription || '')
+        interface Category {
+          categoryId: number
+          categoryName: string
+        }
+        const categoryName =
+          (categoriesResponse as Category[]).find(
+            (cat) => cat.categoryId === Number(product.categoryId)
+          )?.categoryName || ''
+        const parsedDescription = parseProductDescription(rawDescription, categoryName)
+
+        console.log('📝 Parsed specifications for editing:', {
+          categoryName,
+          rawDescription: rawDescription.substring(0, 100) + '...',
+          parsedSpecs: parsedDescription.specifications,
+        })
+
         setFormData({
           productName: String(product.productName || ''),
           categoryId: Number(product.categoryId || 0),
           condition: String(product.productCondition || ''),
           location: locationValue,
-          productDescription: String(product.productDescription || ''),
+          productDescription: parsedDescription.description,
           currency: String(product.productCurrency || 'TZS'),
           askingPrice: String(product.productAskingPrice || ''),
           originalPrice: String(product.productOriginalPrice || ''),
           productWarranty: String(product.productWarranty || '1 year manufacturer warranty'),
+          categoryFields: parsedDescription.specifications,
         })
 
         console.log('📋 Form data loaded:', {
@@ -172,7 +196,22 @@ function EditListingContent() {
         })
       } catch (error) {
         console.error('Failed to load product:', error)
-        setErrors(['Failed to load product data. Please try again.'])
+
+        const apiError = error as Error & { statusCode?: number }
+        const errorMessage = error instanceof Error ? error.message : String(error)
+
+        // Handle 404 Product not found errors specifically
+        if (
+          apiError.statusCode === 404 ||
+          errorMessage.includes('Product not found') ||
+          errorMessage.includes('not found')
+        ) {
+          setErrors([
+            'This product could not be found. It may have been deleted or is no longer available for editing.',
+          ])
+        } else {
+          setErrors(['Failed to load product data. Please try again.'])
+        }
       } finally {
         setLoading(false)
       }
@@ -186,13 +225,15 @@ function EditListingContent() {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
 
-    // Validate file size (5MB max)
+    // Validate file size (10MB limit per file)
     const validFiles: File[] = []
     const invalidFiles: string[] = []
 
     files.forEach((file) => {
-      if (file.size > 5 * 1024 * 1024) {
-        invalidFiles.push(`${file.name} exceeds 5MB`)
+      if (file.size > 10 * 1024 * 1024) {
+        invalidFiles.push(
+          `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds 10MB limit`
+        )
       } else if (!file.type.startsWith('image/')) {
         invalidFiles.push(`${file.name} is not an image`)
       } else {
@@ -205,11 +246,26 @@ function EditListingContent() {
       return
     }
 
-    // Limit total images (current + new) to 10
+    // Limit total images (current + new) to 50
     const totalImages =
       currentImages.length - imagesToRemove.length + newImages.length + validFiles.length
-    if (totalImages > 10) {
-      setErrors([`Maximum 10 images allowed. You would have ${totalImages} images.`])
+    if (totalImages > 50) {
+      setErrors([`Maximum 50 images allowed. You would have ${totalImages} images.`])
+      return
+    }
+
+    // Check total file size to prevent "Maximum upload size exceeded" error
+    const existingNewImagesSize = newImages.reduce((sum, file) => sum + file.size, 0)
+    const newFilesSize = validFiles.reduce((sum, file) => sum + file.size, 0)
+    const totalSize = existingNewImagesSize + newFilesSize
+
+    if (totalSize > 100 * 1024 * 1024) {
+      // 100MB limit
+      const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1)
+      setErrors([
+        `Total file size (${totalSizeMB}MB) would exceed the 100MB upload limit. ` +
+          'Please select smaller images or reduce the number of images.',
+      ])
       return
     }
 
@@ -277,6 +333,35 @@ function EditListingContent() {
     return new File([blob], filename, { type: blob.type })
   }
 
+  // Format description with category fields
+  const formatDescriptionWithCategoryFields = (
+    description: string,
+    categoryFields: Record<string, string>,
+    category: string
+  ): string => {
+    let enhancedDescription = description
+
+    // Add category fields as structured data if they exist
+    if (Object.keys(categoryFields).length > 0) {
+      const fields = getCategoryFields(category)
+      const nonEmptyFields = Object.entries(categoryFields).filter(
+        ([_, value]) => value.trim() !== ''
+      )
+
+      if (nonEmptyFields.length > 0) {
+        enhancedDescription += '\n\n--- SPECIFICATIONS ---\n'
+
+        nonEmptyFields.forEach(([fieldKey, value]) => {
+          const fieldConfig = fields.find((f) => f.key === fieldKey)
+          const label = fieldConfig?.label || fieldKey
+          enhancedDescription += `${label}: ${value}\n`
+        })
+      }
+    }
+
+    return enhancedDescription
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrors([])
@@ -329,12 +414,21 @@ function EditListingContent() {
         productWarranty: 255,
       }
 
+      // Format description with category fields
+      const selectedCategory = categories.find((cat) => cat.categoryId === formData.categoryId)
+      const categoryName = selectedCategory?.categoryName || ''
+      const enhancedDescription = formatDescriptionWithCategoryFields(
+        formData.productDescription.trim(),
+        formData.categoryFields,
+        categoryName
+      )
+
       const updateData = {
         productName: formData.productName.trim().substring(0, MAX_LENGTHS.productName),
         categoryId: formData.categoryId,
         condition: formData.condition.substring(0, MAX_LENGTHS.condition),
         location: formData.location.substring(0, MAX_LENGTHS.location),
-        productDescription: formData.productDescription.trim(),
+        productDescription: enhancedDescription,
         currency: 'TZS',
         askingPrice: Math.round(askingPriceInTZS),
         originalPrice: Math.round(originalPriceInTZS),
@@ -357,10 +451,29 @@ function EditListingContent() {
         try {
           // Download all current images (excluding marked for removal)
           const activeImages = currentImages.filter((img) => !imagesToRemove.includes(img.imageId))
+
+          console.log(`📥 Downloading ${activeImages.length} existing images...`)
           const reorderedFiles = await Promise.all(
-            activeImages.map((img, index) =>
-              downloadImageAsFile(img.imageUrl, `image-${index}.jpg`)
-            )
+            activeImages.map(async (img, index) => {
+              try {
+                const file = await downloadImageAsFile(img.imageUrl, `reordered-image-${index}.jpg`)
+                console.log(`✅ Downloaded image ${index}: ${file.name} (${file.size} bytes)`)
+
+                // Validate the downloaded file
+                if (file.size === 0) {
+                  throw new Error(`Downloaded file ${file.name} is empty`)
+                }
+                if (file.size > 10 * 1024 * 1024) {
+                  // 10MB limit
+                  throw new Error(`Downloaded file ${file.name} is too large: ${file.size} bytes`)
+                }
+
+                return file
+              } catch (fileError) {
+                console.error(`❌ Failed to download image ${index}:`, fileError)
+                throw new Error(`Failed to download image ${index}: ${fileError}`)
+              }
+            })
           )
 
           // Add new images at the end
@@ -370,11 +483,27 @@ function EditListingContent() {
           imageIdsToDelete = currentImages.map((img) => img.imageId)
 
           console.log(
-            `📸 Re-uploading ${reorderedFiles.length} existing + ${newImages.length} new images in correct order`
+            `📸 Successfully prepared ${reorderedFiles.length} existing + ${newImages.length} new images for upload`
           )
+
+          // Validate total payload size
+          const totalSize = imagesToUpload.reduce((sum, file) => sum + file.size, 0)
+          console.log(
+            `📊 Total upload size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`
+          )
+
+          if (totalSize > 100 * 1024 * 1024) {
+            // 100MB limit
+            throw new Error(
+              `Total file size (${(totalSize / 1024 / 1024).toFixed(1)}MB) exceeds the 100MB limit. ` +
+                'Please reduce the number of images or compress them to smaller sizes.'
+            )
+          }
         } catch (downloadError) {
-          console.error('❌ Failed to download images for reordering:', downloadError)
-          throw new Error('Failed to reorder images. Please try again.')
+          console.error('❌ Failed to prepare images for reordering:', downloadError)
+          throw new Error(
+            `Failed to reorder images: ${downloadError instanceof Error ? downloadError.message : 'Unknown error'}`
+          )
         }
       }
 
@@ -382,12 +511,35 @@ function EditListingContent() {
       console.log('🖼️ Images to remove:', imageIdsToDelete)
       console.log('📸 Images to upload:', imagesToUpload.length)
 
-      const result = await apiClient.updateProduct(
-        productId,
-        updateData,
-        imagesToUpload.length > 0 ? imagesToUpload : undefined,
-        imageIdsToDelete.length > 0 ? imageIdsToDelete : undefined
-      )
+      // Temporary workaround: If we have both image uploads and deletions,
+      // split into two operations to avoid multipart complexity issues
+      let result: unknown
+      if (imagesToUpload.length > 0 && imageIdsToDelete.length > 0) {
+        console.log('🔄 Complex image operation detected - splitting into two requests...')
+
+        // First, update product data without images
+        console.log('1️⃣ Updating product data only...')
+        await apiClient.updateProduct(productId, updateData)
+
+        // Then, handle image operations separately
+        console.log('2️⃣ Handling image operations...')
+        result = await apiClient.updateProduct(
+          productId,
+          {}, // Empty product data for image-only operation
+          imagesToUpload,
+          imageIdsToDelete
+        )
+
+        console.log('✅ Split operation completed successfully')
+      } else {
+        // Single operation when only one type of change is needed
+        result = await apiClient.updateProduct(
+          productId,
+          updateData,
+          imagesToUpload.length > 0 ? imagesToUpload : undefined,
+          imageIdsToDelete.length > 0 ? imageIdsToDelete : undefined
+        )
+      }
 
       console.log('✅ Product updated successfully!', result)
 
@@ -491,7 +643,7 @@ function EditListingContent() {
             <CardHeader>
               <CardTitle>Product Images</CardTitle>
               <p className="text-sm text-[#64748B] mt-1">
-                Manage your product photos (maximum 10 images, 5MB each)
+                Manage your product photos (maximum 30 images, 5MB each)
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -629,9 +781,22 @@ function EditListingContent() {
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#1E3A8A] hover:bg-blue-50 transition-colors">
                     <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                     <p className="text-sm text-gray-600 mb-1">Click to add more images</p>
-                    <p className="text-xs text-gray-400">
-                      {currentImages.length - imagesToRemove.length + newImages.length}/10 images
-                    </p>
+                    <div className="text-xs text-gray-400 space-y-1">
+                      <p>
+                        {currentImages.length - imagesToRemove.length + newImages.length}/50 images
+                      </p>
+                      {newImages.length > 0 && (
+                        <p className="font-medium">
+                          New images:{' '}
+                          {(
+                            newImages.reduce((sum, file) => sum + file.size, 0) /
+                            1024 /
+                            1024
+                          ).toFixed(1)}
+                          MB / 100MB
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <Input
                     id="image-upload"
@@ -648,8 +813,9 @@ function EditListingContent() {
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="text-sm text-[#1E3A8A] font-medium mb-1">Image Guidelines:</p>
                 <ul className="text-xs text-[#64748B] space-y-1">
-                  <li>• Maximum 10 images per product</li>
-                  <li>• Each image must be under 5MB</li>
+                  <li>• Maximum 50 images per product</li>
+                  <li>• Each image must be under 10MB</li>
+                  <li>• Total upload size limit: 100MB</li>
                   <li>• Supported formats: JPG, PNG, WebP</li>
                   <li>
                     • <strong className="text-blue-600">First image = Main photo</strong> (shown on
@@ -755,6 +921,17 @@ function EditListingContent() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Category-Specific Fields */}
+          <CategorySpecificFields
+            category={
+              categories.find((cat) => cat.categoryId === formData.categoryId)?.categoryName || ''
+            }
+            categoryFields={formData.categoryFields}
+            updateFormData={(updates: Partial<FormData>) =>
+              setFormData((prev) => ({ ...prev, ...updates }))
+            }
+          />
 
           {/* Pricing */}
           <Card>
@@ -885,5 +1062,104 @@ function EditListingContent() {
         </form>
       </div>
     </div>
+  )
+}
+
+// Dynamic Category Fields Component
+function CategorySpecificFields({
+  category,
+  categoryFields,
+  updateFormData,
+}: {
+  category: string
+  categoryFields: Record<string, string>
+  updateFormData: (updates: Partial<FormData>) => void
+}) {
+  const fields = getCategoryFields(category)
+
+  if (!category || fields.length === 0) {
+    return null
+  }
+
+  const updateCategoryField = (fieldKey: string, value: string) => {
+    const newCategoryFields = { ...categoryFields, [fieldKey]: value }
+    updateFormData({ categoryFields: newCategoryFields })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-[#1E3A8A] rounded-full"></div>
+          {category} Specifications
+          <Badge variant="secondary" className="ml-2 text-xs">
+            {fields.filter((f) => f.required).length} required
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {fields.map((field) => (
+            <div key={field.key} className="space-y-3">
+              <Label className="text-sm sm:text-base font-semibold text-neutral-800">
+                {field.label} {field.required && '*'}
+              </Label>
+
+              {field.type === 'select' ? (
+                <Select
+                  onValueChange={(value) => updateCategoryField(field.key, value)}
+                  value={categoryFields[field.key] || ''}
+                >
+                  <SelectTrigger className="h-11 sm:h-12 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white">
+                    <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {field.options?.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : field.type === 'textarea' ? (
+                <Textarea
+                  placeholder={field.placeholder}
+                  className="border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white resize-none"
+                  value={categoryFields[field.key] || ''}
+                  onChange={(e) => updateCategoryField(field.key, e.target.value)}
+                  maxLength={field.maxLength}
+                  rows={3}
+                />
+              ) : (
+                <Input
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  className="h-11 sm:h-12 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
+                  value={categoryFields[field.key] || ''}
+                  onChange={(e) => updateCategoryField(field.key, e.target.value)}
+                  maxLength={field.maxLength}
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                />
+              )}
+
+              {field.maxLength && field.type !== 'number' && (
+                <p className="text-xs text-neutral-500">
+                  {(categoryFields[field.key] || '').length}/{field.maxLength}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+          <p className="text-sm text-blue-700">
+            <strong>Tip:</strong> Adding detailed {category.toLowerCase()} specifications helps
+            buyers find exactly what they're looking for and increases your chances of a quick sale.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

@@ -22,17 +22,20 @@ Comprehensive investigation of the backend API reveals that **view tracking is N
 **Backend status:** ❌ **ENDPOINT NOT FOUND**
 
 **Verification:**
+
 ```bash
 $ curl -s 'https://dev.globoexpats.com/v3/api-docs' | jq '.paths | keys' | grep view
 # Result: No matching endpoints found
 ```
 
 **Full backend endpoint list (40 endpoints total):**
+
 - ✅ `/api/v1/products/get-all-products`
 - ✅ `/api/v1/products/product-clickCount/{productId}` (GET only)
 - ❌ `/api/v1/products/{productId}/view` (MISSING!)
 
 **Impact:**
+
 - Product views are NEVER tracked in the database
 - All click count data is lost
 - Analytics features cannot work
@@ -44,6 +47,7 @@ $ curl -s 'https://dev.globoexpats.com/v3/api-docs' | jq '.paths | keys' | grep 
 **API Tested:** `GET /api/v1/displayItem/newest`
 
 **Actual Response:**
+
 ```json
 {
   "productId": 12,
@@ -58,6 +62,7 @@ $ curl -s 'https://dev.globoexpats.com/v3/api-docs' | jq '.paths | keys' | grep 
 ```
 
 **Expected Response:**
+
 ```json
 {
   "productId": 12,
@@ -74,6 +79,7 @@ $ curl -s 'https://dev.globoexpats.com/v3/api-docs' | jq '.paths | keys' | grep 
 **Schema Analysis:**
 
 From `DisplayItemsDTO` in Swagger UI:
+
 ```typescript
 interface DisplayItemsDTO {
   productId: number (int64)
@@ -102,6 +108,7 @@ interface DisplayItemsDTO {
 **Authentication:** Required (JWT Bearer token)
 
 **Response Schema:**
+
 ```typescript
 interface ProductClicksDTO {
   clicks: number (int32)
@@ -110,9 +117,10 @@ interface ProductClicksDTO {
 ```
 
 **Likely Returns:**
+
 ```json
 {
-  "clicks": 1,      // ← Default value
+  "clicks": 1, // ← Default value
   "userId": 6
 }
 ```
@@ -126,6 +134,7 @@ interface ProductClicksDTO {
 ### **Missing Database Table or Tracking Logic**
 
 **Option A: Table Exists But Not Used**
+
 ```sql
 -- Possible existing table (not being written to):
 CREATE TABLE product_clicks (
@@ -140,6 +149,7 @@ CREATE TABLE product_clicks (
 ```
 
 **Option B: No Tracking Table At All**
+
 ```sql
 -- products table only has default value:
 CREATE TABLE products (
@@ -161,14 +171,16 @@ CREATE TABLE products (
 **Authentication:** Optional (track anonymous users too)
 
 **Request Body:**
+
 ```json
 {
   "timestamp": "2025-10-28T15:00:00Z",
-  "userId": 6  // Optional, null for anonymous
+  "userId": 6 // Optional, null for anonymous
 }
 ```
 
 **Implementation:**
+
 ```java
 @PostMapping("/api/v1/products/{productId}/view")
 public ResponseEntity<Void> trackProductView(
@@ -181,14 +193,15 @@ public ResponseEntity<Void> trackProductView(
 ```
 
 **Database Operation:**
+
 ```sql
 -- Insert click record
 INSERT INTO product_clicks (product_id, user_id, clicked_at)
 VALUES (?, ?, CURRENT_TIMESTAMP);
 
 -- OR increment counter (less detailed but faster)
-UPDATE products 
-SET click_count = click_count + 1 
+UPDATE products
+SET click_count = click_count + 1
 WHERE product_id = ?;
 ```
 
@@ -197,8 +210,9 @@ WHERE product_id = ?;
 ### **2. Fix DisplayItemsDTO Query to JOIN Click Data** 🔧
 
 **Current Query (Wrong):**
+
 ```sql
-SELECT 
+SELECT
   p.product_id,
   p.product_name,
   1.0 as click_count,  -- ❌ Hardcoded!
@@ -209,8 +223,9 @@ FROM products p
 ```
 
 **Required Query (Correct):**
+
 ```sql
-SELECT 
+SELECT
   p.product_id,
   p.product_name,
   COALESCE(COUNT(pc.click_id), 0) as click_count,  -- ✅ Real data!
@@ -224,8 +239,9 @@ GROUP BY p.product_id, p.product_name, p.seller_id, p.product_asking_price
 ```
 
 **Alternative (If Using Counter Field):**
+
 ```sql
-SELECT 
+SELECT
   p.product_id,
   p.product_name,
   p.click_count,  -- ✅ Already aggregated
@@ -248,7 +264,7 @@ public ResponseEntity<ProductClicksDTO> getClickCount(@PathVariable Long product
     // Query actual click count from database
     Integer clicks = productClickRepository.countByProductId(productId);
     Long userId = SecurityUtils.getCurrentUserId();
-    
+
     return ResponseEntity.ok(new ProductClicksDTO(clicks, userId));
 }
 ```
@@ -262,21 +278,24 @@ public ResponseEntity<ProductClicksDTO> getClickCount(@PathVariable Long product
 The frontend is **already correctly implemented** to handle the backend's limitations:
 
 **1. Dashboard (Optimized):**
+
 ```typescript
 // Uses DisplayItemsDTO.clickCount directly (no N+1 queries)
 const listingsWithViews = userListings.map((item) => ({
   ...item,
-  views: item.clickCount || 0  // Shows backend data (currently 1.0)
+  views: item.clickCount || 0, // Shows backend data (currently 1.0)
 }))
 ```
 
 **Benefits:**
+
 - ⚡ Fast (no extra API calls)
 - 🔐 No auth issues
 - 📦 Scalable to any number of products
 - ✅ Will automatically work when backend fixes data
 
 **2. Analytics Route (Prepared):**
+
 ```typescript
 // Commented out non-existent endpoint call
 // Ready to uncomment when backend implements it
@@ -339,9 +358,9 @@ curl 'https://dev.globoexpats.com/api/v1/displayItem/newest?page=0&size=10' | \
 SHOW TABLES LIKE '%click%';
 
 -- Or check schema:
-SELECT TABLE_NAME 
-FROM information_schema.TABLES 
-WHERE TABLE_SCHEMA = 'your_database_name' 
+SELECT TABLE_NAME
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'your_database_name'
 AND TABLE_NAME LIKE '%click%';
 ```
 
@@ -349,7 +368,7 @@ AND TABLE_NAME LIKE '%click%';
 
 ```sql
 -- If table exists:
-SELECT 
+SELECT
   product_id,
   COUNT(*) as total_clicks,
   COUNT(DISTINCT user_id) as unique_viewers,
@@ -381,16 +400,19 @@ DESCRIBE products;
 ### **Option A: Click Tracking Table (Detailed)**
 
 **Pros:**
+
 - ✅ Detailed analytics (timestamp, user_id, etc.)
 - ✅ Can query unique viewers vs total clicks
 - ✅ Can analyze click patterns over time
 
 **Cons:**
+
 - ⚠️ Requires JOINs in DisplayItemsDTO query
 - ⚠️ Table grows over time (millions of rows)
 - ⚠️ Needs database indexes on product_id
 
 **Optimization:**
+
 ```sql
 -- Required indexes:
 CREATE INDEX idx_product_clicks_product ON product_clicks(product_id);
@@ -401,45 +423,50 @@ CREATE INDEX idx_product_clicks_time ON product_clicks(clicked_at);
 ### **Option B: Counter in Products Table (Fast)**
 
 **Pros:**
+
 - ✅ No JOINs needed
 - ✅ Fast queries (direct column access)
 - ✅ Simple implementation
 
 **Cons:**
+
 - ❌ No detailed analytics
 - ❌ Can't distinguish unique vs repeat viewers
 - ❌ Lost historical data
 
 **Implementation:**
+
 ```sql
-ALTER TABLE products 
+ALTER TABLE products
 ADD COLUMN click_count INT DEFAULT 0;
 
 -- Update on view:
-UPDATE products 
-SET click_count = click_count + 1 
+UPDATE products
+SET click_count = click_count + 1
 WHERE product_id = ?;
 ```
 
 ### **Option C: Hybrid Approach (Recommended)**
 
 **Strategy:**
+
 1. Track all clicks in `product_clicks` table (detailed data)
 2. Cache aggregated counts in `products.click_count` column (fast access)
 3. Update cache periodically or on demand
 
 **Implementation:**
+
 ```sql
 -- Hourly aggregation job:
 UPDATE products p
 SET click_count = (
-  SELECT COUNT(*) 
-  FROM product_clicks pc 
+  SELECT COUNT(*)
+  FROM product_clicks pc
   WHERE pc.product_id = p.product_id
 )
 WHERE p.product_id IN (
-  SELECT DISTINCT product_id 
-  FROM product_clicks 
+  SELECT DISTINCT product_id
+  FROM product_clicks
   WHERE clicked_at > NOW() - INTERVAL 1 HOUR
 );
 ```
@@ -449,21 +476,25 @@ WHERE p.product_id IN (
 ## Migration Path
 
 ### **Phase 1: Implement Tracking (Backend Team)**
+
 1. Create `product_clicks` table (if doesn't exist)
 2. Implement `POST /api/v1/products/{productId}/view` endpoint
 3. Test that clicks are being recorded
 
 ### **Phase 2: Fix DisplayItemsDTO (Backend Team)**
+
 1. Modify SQL query to JOIN or use counter
 2. Verify click counts vary per product
 3. Test all endpoints returning DisplayItemsDTO
 
 ### **Phase 3: Enable Frontend Analytics (Already Done)**
+
 1. ✅ Frontend already uses DisplayItemsDTO.clickCount
 2. Uncomment analytics POST call when backend ready
 3. Verify end-to-end tracking works
 
 ### **Phase 4: Optimization (Backend Team)**
+
 1. Add database indexes
 2. Implement caching strategy
 3. Set up monitoring for click tracking
@@ -472,13 +503,13 @@ WHERE p.product_id IN (
 
 ## Summary
 
-| Component | Status | Action Required |
-|-----------|--------|-----------------|
-| **POST /products/{id}/view** | ❌ Missing | Backend must implement endpoint |
-| **DisplayItemsDTO.clickCount** | ⚠️ Returns 1.0 | Backend must fix SQL query |
-| **GET /product-clickCount/{id}** | ⚠️ Returns default | Backend must return real data |
-| **Frontend Dashboard** | ✅ Optimized | No action needed |
-| **Frontend Analytics** | ✅ Prepared | Ready to enable when backend ready |
+| Component                        | Status             | Action Required                    |
+| -------------------------------- | ------------------ | ---------------------------------- |
+| **POST /products/{id}/view**     | ❌ Missing         | Backend must implement endpoint    |
+| **DisplayItemsDTO.clickCount**   | ⚠️ Returns 1.0     | Backend must fix SQL query         |
+| **GET /product-clickCount/{id}** | ⚠️ Returns default | Backend must return real data      |
+| **Frontend Dashboard**           | ✅ Optimized       | No action needed                   |
+| **Frontend Analytics**           | ✅ Prepared        | Ready to enable when backend ready |
 
 ---
 
@@ -492,7 +523,7 @@ WHERE p.product_id IN (
    - Impact: Critical for analytics
 
 2. **Fix DisplayItemsDTO query**
-   - Priority: HIGH  
+   - Priority: HIGH
    - Effort: 1-2 hours
    - Impact: Shows real view counts everywhere
 
@@ -504,6 +535,7 @@ WHERE p.product_id IN (
 ### **For Frontend Team (COMPLETE)**
 
 ✅ All frontend work is done and optimized!
+
 - Dashboard uses DisplayItemsDTO efficiently
 - No N+1 query issues
 - Ready for backend data when available

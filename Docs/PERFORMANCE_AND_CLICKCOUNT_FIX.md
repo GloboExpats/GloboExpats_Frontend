@@ -3,16 +3,19 @@
 ## Critical Issues Resolved
 
 ### 1. ⚡ **Severe Performance Issue** - N+1 Query Problem
+
 **Symptom**: Dashboard taking 10+ seconds to load
 **Root Cause**: Making 8+ individual authenticated API calls for click counts
 **Impact**: Poor user experience, server overload, authentication failures
 
 ### 2. 🔐 **Authentication Errors**
+
 **Symptom**: Repeated "Authentication required" errors in console
 **Root Cause**: Race condition - API calls firing before token is set
 **Impact**: Failed requests, showing 0 views, console spam
 
 ### 3. 🐛 **Incorrect View Counts**
+
 **Symptom**: All products showing "1 views" or "0 views"
 **Root Cause**: Backend `DisplayItemsDTO.clickCount` returns default value (1.0)
 **Impact**: Inaccurate analytics, misleading dashboard stats
@@ -24,6 +27,7 @@
 ### **Removed N+1 Authenticated API Calls**
 
 **Before** (Causing Issues):
+
 ```typescript
 // PROBLEM: 8 products = 8 separate authenticated API calls
 const listingsWithViews = await Promise.all(
@@ -35,24 +39,25 @@ const listingsWithViews = await Promise.all(
 ```
 
 **After** (Optimized):
+
 ```typescript
 // SOLUTION: Use data already in DisplayItemsDTO (no extra calls)
 const listingsWithViews = userListings.map((item) => {
   return {
     ...product,
-    views: (product.clickCount as number) || 0 // ✅ No API call!
+    views: (product.clickCount as number) || 0, // ✅ No API call!
   }
 })
 ```
 
 ### **Performance Improvement**
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| API Calls | 9 (1 + 8 for click counts) | 1 | **89% reduction** |
-| Dashboard Load Time | ~10 seconds | ~1 second | **90% faster** |
-| Auth Errors | 8 per page load | 0 | **100% eliminated** |
-| Server Load | High (N+1 queries) | Low | **Significantly reduced** |
+| Metric              | Before                     | After     | Improvement               |
+| ------------------- | -------------------------- | --------- | ------------------------- |
+| API Calls           | 9 (1 + 8 for click counts) | 1         | **89% reduction**         |
+| Dashboard Load Time | ~10 seconds                | ~1 second | **90% faster**            |
+| Auth Errors         | 8 per page load            | 0         | **100% eliminated**       |
+| Server Load         | High (N+1 queries)         | Low       | **Significantly reduced** |
 
 ---
 
@@ -60,7 +65,7 @@ const listingsWithViews = userListings.map((item) => {
 
 ### ❌ **Why NOT Use `/api/v1/products/product-clickCount/{productId}`**
 
-1. **N+1 Query Antipattern**: 
+1. **N+1 Query Antipattern**:
    - 100 products = 100 extra API calls
    - Exponential performance degradation
    - Server resource waste
@@ -117,7 +122,7 @@ The backend team needs to modify the SQL query for `DisplayItemsDTO` to JOIN act
 
 ```sql
 -- CURRENT (Wrong):
-SELECT 
+SELECT
   p.product_id,
   p.product_name,
   1.0 as click_count,  -- ❌ Hardcoded default
@@ -125,7 +130,7 @@ SELECT
 FROM products p
 
 -- REQUIRED (Correct):
-SELECT 
+SELECT
   p.product_id,
   p.product_name,
   COALESCE(COUNT(pc.click_id), 0) as click_count,  -- ✅ Real data
@@ -138,6 +143,7 @@ GROUP BY p.product_id
 ### **Affected Backend Endpoints**
 
 All endpoints returning `DisplayItemsDTO` need this fix:
+
 - `GET /api/v1/displayItem/top-picks`
 - `GET /api/v1/displayItem/newest`
 - `GET /api/v1/displayItem/itemDetails/{productId}`
@@ -165,16 +171,17 @@ LIMIT 10;
 
 ## Files Modified
 
-| File | Change | Impact |
-|------|--------|--------|
+| File                           | Change                                                | Impact                  |
+| ------------------------------ | ----------------------------------------------------- | ----------------------- |
 | `app/expat/dashboard/page.tsx` | Removed N+1 API calls, use DisplayItemsDTO.clickCount | ⚡ 90% faster load time |
-| `app/expat/dashboard/page.tsx` | Removed `getAuthToken` import | 🧹 Clean up unused code |
+| `app/expat/dashboard/page.tsx` | Removed `getAuthToken` import                         | 🧹 Clean up unused code |
 
 ---
 
 ## Testing Results
 
 ### ✅ **Before Deploy (Production)**
+
 ```
 [Auth] Session rebuilt successfully
 API request failed: Authentication required ❌ (x8 times)
@@ -183,6 +190,7 @@ Dashboard Load Time: ~10s
 ```
 
 ### ✅ **After Deploy (Expected)**
+
 ```
 [Auth] Session rebuilt successfully
 [Dashboard] Found 8 listings for current user
@@ -196,6 +204,7 @@ No authentication errors ✅
 ## Current Behavior
 
 ### **Dashboard Display**
+
 - **Active Listings**: ✅ Shows correct count (8)
 - **Total Views**: Shows sum of `clickCount` values (currently 8 × 1.0 = 8)
 - **Individual Product Views**: Each shows "1 views" (backend default)
@@ -205,6 +214,7 @@ No authentication errors ✅
 ### **When Backend Fixes Data**
 
 Once the backend team implements the SQL JOIN fix:
+
 - **No frontend changes needed** ✅
 - Total Views will automatically show real sum (e.g., 45 + 23 + 67 = 135)
 - Individual products will show varied counts
@@ -215,34 +225,42 @@ Once the backend team implements the SQL JOIN fix:
 ## Alternative Solutions Considered & Rejected
 
 ### ❌ **Option 1: Batch API Endpoint**
+
 **Idea**: Create `POST /api/v1/products/batch-click-counts` accepting array of IDs
 
 **Rejected Because**:
+
 - Still requires extra API call
 - Backend would just query same data that should be in DisplayItemsDTO
 - Adds complexity without addressing root cause
 - Requires backend work anyway
 
 ### ❌ **Option 2: Client-Side Caching**
+
 **Idea**: Cache click counts in localStorage/React state
 
 **Rejected Because**:
+
 - Doesn't solve N+1 problem on first load
 - Adds state management complexity
 - Stale data issues
 - Still makes unnecessary API calls initially
 
 ### ❌ **Option 3: Server-Side Rendering (SSR)**
+
 **Idea**: Fetch click counts server-side in Next.js
 
 **Rejected Because**:
+
 - Still makes N API calls (just on server instead of client)
 - Increases server load
 - Doesn't address root cause
 - Adds complexity
 
 ### ✅ **Chosen Solution: Use Existing Data**
+
 **Why**:
+
 - Zero extra API calls
 - Instant performance improvement
 - Scalable to any number of products
@@ -254,17 +272,20 @@ Once the backend team implements the SQL JOIN fix:
 ## Recommendations
 
 ### **Immediate** (Done)
+
 - ✅ Remove N+1 API calls
 - ✅ Use DisplayItemsDTO.clickCount directly
 - ✅ Document backend issue
 
 ### **Backend Team** (Required)
+
 - 🔧 Fix DisplayItemsDTO SQL query to JOIN product_clicks table
 - 🔧 Verify `POST /api/v1/products/{id}/view` is recording clicks
 - 🔧 Test that click counts update correctly
 - 🔧 Consider adding database index on product_clicks.product_id
 
 ### **Future Enhancements** (Optional)
+
 - 📊 Add real-time view count updates via WebSocket
 - 💾 Implement Redis caching for frequently accessed products
 - 📈 Add analytics dashboard with click trends
@@ -296,12 +317,12 @@ Once the backend team implements the SQL JOIN fix:
 
 ### **Success Metrics**
 
-| Metric | Target | Status |
-|--------|--------|--------|
-| Dashboard load time | < 2s | ✅ ~1s |
-| Auth errors per page | 0 | ✅ 0 |
-| API calls for 10 products | 1 | ✅ 1 |
-| User complaints | 0 | ✅ 0 |
+| Metric                    | Target | Status |
+| ------------------------- | ------ | ------ |
+| Dashboard load time       | < 2s   | ✅ ~1s |
+| Auth errors per page      | 0      | ✅ 0   |
+| API calls for 10 products | 1      | ✅ 1   |
+| User complaints           | 0      | ✅ 0   |
 
 ---
 
@@ -332,11 +353,12 @@ git push origin main
 **Subject**: DisplayItemsDTO.clickCount Returns Default Values - SQL JOIN Required
 
 **Message**:
+
 ```
 Hi Backend Team,
 
-We've discovered that the `DisplayItemsDTO.clickCount` field returns a 
-hardcoded default value (1.0) for all products instead of actual click 
+We've discovered that the `DisplayItemsDTO.clickCount` field returns a
+hardcoded default value (1.0) for all products instead of actual click
 tracking data.
 
 Current behavior:
@@ -357,7 +379,7 @@ Affected endpoints:
 - GET /api/v1/displayItem/newest
 - All other endpoints returning DisplayItemsDTO
 
-Please let us know when this is fixed so we can verify the data 
+Please let us know when this is fixed so we can verify the data
 displays correctly on the frontend.
 
 Thanks!
@@ -368,14 +390,15 @@ Thanks!
 ## Conclusion
 
 This fix achieves:
+
 - ⚡ **90% faster dashboard load times**
 - 🔐 **100% elimination of auth errors**
 - 📦 **89% reduction in API calls**
 - 🏗️ **Better scalability** (works with any number of products)
 - 📈 **Improved UX** (instant page load)
 
-The click count values (currently all "1") are a **backend data issue** that 
-requires backend team action. The frontend is now optimized and ready to 
+The click count values (currently all "1") are a **backend data issue** that
+requires backend team action. The frontend is now optimized and ready to
 display real data once the backend fixes the SQL JOIN.
 
 **Status**: ✅ **Frontend Complete** | ⏳ **Awaiting Backend Fix**

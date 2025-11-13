@@ -3,17 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import {
-  Package,
-  Heart,
-  Settings,
-  History,
-  Shield,
-  ChevronRight,
-  Bell,
-  Download,
-  MessageCircle,
-} from 'lucide-react'
+import { Package, Settings, History, Shield, ChevronRight, MessageCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -33,22 +23,14 @@ const accountMenuItems = [
     icon: Package,
     href: '/account/orders',
     description: 'Track, return, or buy things again',
-    count: 12,
-  },
-  {
-    id: 'wishlist',
-    label: 'Wishlist',
-    icon: Heart,
-    href: '/account/wishlist',
-    description: 'View your saved items',
-    count: 8,
+    count: 0,
   },
   {
     id: 'settings',
     label: 'Settings',
     icon: Settings,
     href: '/account/settings',
-    description: 'Profile, security & notifications',
+    description: 'Profile & security',
   },
   {
     id: 'verification',
@@ -59,57 +41,30 @@ const accountMenuItems = [
   },
 ]
 
-const recentOrders = [
-  {
-    id: 'ORD-2024-001',
-    date: 'March 15, 2024',
-    total: '$299.99',
-    status: 'Delivered',
-    items: 2,
-    image: '/images/iphone-15-pro.jpg',
-    seller: 'TechExpat Dubai',
-    product: 'iPhone 15 Pro Max',
-  },
-  {
-    id: 'ORD-2024-002',
-    date: 'March 10, 2024',
-    total: '$149.99',
-    status: 'In Transit',
-    items: 1,
-    image: '/images/macbook-air.jpg',
-    seller: 'ElectroWorld',
-    product: 'MacBook Air M2',
-  },
-  {
-    id: 'ORD-2024-003',
-    date: 'February 28, 2024',
-    total: '$89.99',
-    status: 'Delivered',
-    items: 1,
-    image: '/images/sony-headphones.jpg',
-    seller: 'AudioExperts',
-    product: 'Sony WH-1000XM5',
-  },
-]
+interface Order {
+  id: string
+  date: string
+  status: string
+  image: string
+  product: string
+  seller: string
+  items: number
+  total: number
+}
+
+const recentOrders: Order[] = [] // Empty array - no placeholder orders
 
 const _accountStats = [
   {
     label: 'Total Orders',
-    value: 12,
+    value: 0,
     href: '/account/orders',
     icon: Package,
     color: 'text-blue-600',
   },
   {
-    label: 'Wishlist Items',
-    value: 8,
-    href: '/account/wishlist',
-    icon: Heart,
-    color: 'text-red-600',
-  },
-  {
     label: 'Reviews Written',
-    value: 3,
+    value: 0,
     href: '/account/orders?tab=reviews',
     icon: MessageCircle,
     color: 'text-green-600',
@@ -131,13 +86,6 @@ export default function AccountDashboard() {
       href: '/account/orders',
       icon: Package,
       color: 'text-blue-600',
-    },
-    {
-      label: 'Wishlist Items',
-      value: backendStats?.wishlistItems ?? 0,
-      href: '/account/wishlist',
-      icon: Heart,
-      color: 'text-red-600',
     },
     {
       label: 'Reviews Written',
@@ -178,8 +126,8 @@ export default function AccountDashboard() {
     <div className="min-h-screen bg-neutral-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-neutral-800 mb-2">My Account</h1>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-neutral-800 mb-1">My Account</h1>
           <p className="text-neutral-600">Manage your account settings and view your activity</p>
         </div>
 
@@ -209,19 +157,15 @@ export default function AccountDashboard() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-2 mb-6">
-                  <Link href="/messages" className="w-full">
-                    <Button size="sm" variant="outline" className="w-full">
-                      <MessageCircle className="w-4 h-4 mr-1" />
-                      <span className="hidden sm:inline">Messages</span>
-                      <span className="sm:hidden">Msg</span>
-                    </Button>
-                  </Link>
-                  <Link href="/notifications" className="w-full">
-                    <Button size="sm" variant="outline" className="w-full">
-                      <Bell className="w-4 h-4 mr-1" />
-                      <span className="hidden sm:inline">Alerts</span>
-                      <span className="sm:hidden">Alert</span>
+                <div className="flex justify-center mb-6">
+                  <Link href="/messages">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full px-6 py-2 bg-neutral-50 hover:bg-neutral-100 border-neutral-300"
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Messages
                     </Button>
                   </Link>
                 </div>
@@ -353,141 +297,102 @@ export default function AccountDashboard() {
                   </Link>
                 </div>
 
-                {recentOrders.map((order) => (
-                  <Card
-                    key={order.id}
-                    className="bg-white shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-neutral-800 truncate">{order.id}</h3>
-                          <p className="text-sm text-neutral-600">Placed on {order.date}</p>
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <Card
+                      key={order.id}
+                      className="bg-white shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-neutral-800 truncate">{order.id}</h3>
+                            <p className="text-sm text-neutral-600">Placed on {order.date}</p>
+                          </div>
+                          <Badge
+                            variant={order.status === 'Delivered' ? 'default' : 'outline'}
+                            className={
+                              order.status === 'Delivered'
+                                ? 'bg-green-100 text-green-800'
+                                : order.status === 'In Transit'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : ''
+                            }
+                          >
+                            {order.status}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={order.status === 'Delivered' ? 'default' : 'outline'}
-                          className={
-                            order.status === 'Delivered'
-                              ? 'bg-green-100 text-green-800'
-                              : order.status === 'In Transit'
-                                ? 'bg-blue-100 text-blue-800'
-                                : ''
-                          }
-                        >
-                          {order.status}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <Image
-                          src={order.image}
-                          alt="Order item"
-                          width={64}
-                          height={64}
-                          className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-neutral-800 truncate">{order.product}</h4>
-                          <p className="text-sm text-neutral-600 truncate">
-                            Sold by: {order.seller}
-                          </p>
-                          <p className="text-sm text-neutral-600">{order.items} items</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-semibold text-brand-primary text-lg">{order.total}</p>
-                          <div className="flex gap-2 mt-2">
-                            <Link href={`/account/orders/${order.id}`}>
-                              <Button variant="outline" size="sm">
-                                View Details
-                              </Button>
-                            </Link>
-                            {order.status === 'Delivered' && (
-                              <Button variant="ghost" size="sm">
-                                Buy Again
-                              </Button>
-                            )}
+                        <div className="flex items-center gap-4">
+                          <Image
+                            src={order.image}
+                            alt="Order item"
+                            width={64}
+                            height={64}
+                            className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-neutral-800 truncate">
+                              {order.product}
+                            </h4>
+                            <p className="text-sm text-neutral-600 truncate">
+                              Sold by: {order.seller}
+                            </p>
+                            <p className="text-sm text-neutral-600">{order.items} items</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-semibold text-brand-primary text-lg">
+                              {order.total}
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              <Link href={`/account/orders/${order.id}`}>
+                                <Button variant="outline" size="sm">
+                                  View Details
+                                </Button>
+                              </Link>
+                              {order.status === 'Delivered' && (
+                                <Button variant="ghost" size="sm">
+                                  Buy Again
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card className="bg-white shadow-sm">
+                    <CardContent className="p-8 text-center">
+                      <Package className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-neutral-800 mb-2">No orders yet</h3>
+                      <p className="text-neutral-600 mb-4">
+                        Start shopping to see your orders here
+                      </p>
+                      <Link href="/browse">
+                        <Button>Browse Products</Button>
+                      </Link>
                     </CardContent>
                   </Card>
-                ))}
+                )}
               </TabsContent>
 
               <TabsContent value="activity" className="space-y-4">
                 <Card className="bg-white shadow-sm">
                   <CardHeader className="pb-4">
-                    <div className="flex justify-between items-center">
-                      <CardTitle>Recent Activity</CardTitle>
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                      </Button>
-                    </div>
+                    <CardTitle>Recent Activity</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 hover:bg-neutral-50 rounded-lg">
-                        <div className="p-2 bg-blue-100 rounded-full flex-shrink-0">
-                          <History className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-800 truncate">
-                            Viewed iPhone 15 Pro Max
-                          </p>
-                          <p className="text-xs text-neutral-600">2 hours ago</p>
-                        </div>
-                        <Link href="/product/1">
-                          <Button variant="ghost" size="sm" className="flex-shrink-0">
-                            View Item
-                          </Button>
-                        </Link>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 hover:bg-neutral-50 rounded-lg">
-                        <div className="p-2 bg-green-100 rounded-full flex-shrink-0">
-                          <Package className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-800 truncate">
-                            Order #ORD-2024-001 delivered
-                          </p>
-                          <p className="text-xs text-neutral-600">3 days ago</p>
-                        </div>
-                        <Link href="/account/orders/ORD-2024-001">
-                          <Button variant="ghost" size="sm" className="flex-shrink-0">
-                            View Order
-                          </Button>
-                        </Link>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 hover:bg-neutral-50 rounded-lg">
-                        <div className="p-2 bg-purple-100 rounded-full flex-shrink-0">
-                          <Heart className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-800 truncate">
-                            Added MacBook Air to wishlist
-                          </p>
-                          <p className="text-xs text-neutral-600">1 week ago</p>
-                        </div>
-                        <Link href="/account/wishlist">
-                          <Button variant="ghost" size="sm" className="flex-shrink-0">
-                            View Wishlist
-                          </Button>
-                        </Link>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 hover:bg-neutral-50 rounded-lg">
-                        <div className="p-2 bg-yellow-100 rounded-full flex-shrink-0">
-                          <MessageCircle className="w-4 h-4 text-yellow-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-800 truncate">
-                            Left review for Sony headphones
-                          </p>
-                          <p className="text-xs text-neutral-600">2 weeks ago</p>
-                        </div>
-                        <Link href="/product/3">
-                          <Button variant="ghost" size="sm" className="flex-shrink-0">
-                            View Review
-                          </Button>
+                    <div className="flex justify-center">
+                      <div className="max-w-md mx-auto bg-neutral-50 rounded-full p-8 text-center">
+                        <History className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-neutral-800 mb-2">
+                          No activity yet
+                        </h3>
+                        <p className="text-neutral-600 mb-4">
+                          Your recent activity will appear here as you browse and shop
+                        </p>
+                        <Link href="/browse">
+                          <Button variant="outline">Start Browsing</Button>
                         </Link>
                       </div>
                     </div>

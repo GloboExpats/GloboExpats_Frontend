@@ -72,11 +72,13 @@ export default function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2 sm:gap-3">
                 <MapPin className="h-4 w-4 sm:h-5 sm:w-5 mt-0.5 text-[#FF9800] flex-shrink-0" />
-                <span className="text-neutral-300">123 Ocean Road, Dar es Salaam, Tanzania</span>
+                <span className="text-neutral-300">
+                  Mlimani City Tower, 14th Floor, Sam Nujoma Road, Dar es Salaam
+                </span>
               </li>
               <li className="flex items-start gap-2 sm:gap-3">
                 <Phone className="h-4 w-4 sm:h-5 sm:w-5 mt-0.5 text-[#FF9800] flex-shrink-0" />
-                <span className="text-neutral-300">+255 754 123 456</span>
+                <span className="text-neutral-300">+255 22 260 1234</span>
               </li>
               <li className="flex items-start gap-2 sm:gap-3">
                 <Mail className="h-4 w-4 sm:h-5 sm:w-5 mt-0.5 text-[#FF9800] flex-shrink-0" />

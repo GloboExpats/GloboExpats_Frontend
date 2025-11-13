@@ -8,9 +8,11 @@ export default function Breadcrumb() {
   const pathname = usePathname()
   const pathSegments = pathname.split('/').filter((segment) => segment)
 
-  // Don't show breadcrumb on auth pages where users already know where they are
-  const authPages = ['/login', '/register', '/reset-password']
-  if (pathSegments.length === 0 || authPages.includes(pathname)) {
+  // Don't show breadcrumb on auth pages and product pages
+  const hiddenPages = ['/login', '/register', '/reset-password']
+  const isProductPage = pathSegments[0] === 'product'
+
+  if (pathSegments.length === 0 || hiddenPages.includes(pathname) || isProductPage) {
     return null
   }
 

@@ -21,7 +21,7 @@ useEffect(() => {
       apiClient.setAuthToken(token)
       console.log('[Dashboard] Auth token set for API requests')
     }
-    
+
     // Now fetch click counts with authentication
     const clickData = await apiClient.getProductClickCount(productId)
   }
@@ -56,6 +56,7 @@ useEffect(() => {
 ## What Was Fixed
 
 ### Before (0 views - Auth Error)
+
 ```
 ❌ Auth token not set in API client
 ❌ All API requests fail with 302 redirect
@@ -64,6 +65,7 @@ useEffect(() => {
 ```
 
 ### After (Real Counts)
+
 ```
 ✅ Auth token set before API calls
 ✅ Authenticated requests succeed
@@ -73,15 +75,16 @@ useEffect(() => {
 
 ## Files Modified (Final State)
 
-| File | Change |
-|------|--------|
+| File                           | Change                                                |
+| ------------------------------ | ----------------------------------------------------- |
 | `app/expat/dashboard/page.tsx` | Added `getAuthToken()` and `apiClient.setAuthToken()` |
-| `lib/api.ts` | Enhanced logging for click count responses |
-| `lib/auth-service.ts` | Imported for token management |
+| `lib/api.ts`                   | Enhanced logging for click count responses            |
+| `lib/auth-service.ts`          | Imported for token management                         |
 
 ## Testing Checklist
 
 ### ✅ Dashboard View Counts
+
 1. Login to platform
 2. Navigate to `/expat/dashboard`
 3. Check console for: `[Dashboard] Auth token set for API requests`
@@ -89,13 +92,17 @@ useEffect(() => {
 5. Verify "Total Views" stat shows sum of all product views
 
 ### ✅ No Authentication Errors
+
 Console should NOT show:
+
 - ❌ "Authentication required. Please log in to continue"
 - ❌ "[API] Detected 0 redirect"
 - ❌ "API request failed"
 
 ### ✅ Successful API Calls
+
 Console SHOULD show:
+
 - ✅ `[API] Click count for product X: Y`
 - ✅ Each product ID with corresponding click count
 
@@ -106,6 +113,7 @@ Console SHOULD show:
 **DisplayItemsDTO.clickCount**: Always `1.0` (default value)
 
 **GET /api/v1/products/product-clickCount/{productId}**:
+
 - **If backend is working**: Returns actual click data `{clicks: 45, userId: 6}`
 - **If backend has same issue**: Returns `{clicks: 1, userId: X}` (default)
 
@@ -153,11 +161,13 @@ If all products still show "1 views" after this fix, it means:
 **API Calls**: O(N) where N = number of user's products
 
 **Optimization Strategy**:
+
 - Parallel execution via `Promise.all()`
 - Only for current user's products (limited N)
 - Cached in component state
 
 **Typical Performance**:
+
 - 5 products: ~500ms total
 - 10 products: ~800ms total
 - 20 products: ~1.2s total
@@ -167,6 +177,7 @@ All calls execute in parallel, so total time ≈ slowest single request.
 ## Known Limitations
 
 ### ⚠️ Backend Data Issue
+
 If backend's `product-clickCount` endpoint also returns default values (1.0), this frontend fix won't help. The backend team must:
 
 1. JOIN the `product_clicks` table with `products` table
@@ -174,13 +185,17 @@ If backend's `product-clickCount` endpoint also returns default values (1.0), th
 3. Return real counts instead of defaults
 
 ### ⚠️ Unauthenticated Users
+
 The `product-clickCount` endpoint requires authentication. For public pages:
+
 - Use `DisplayItemsDTO.clickCount` (even though it's inaccurate)
 - Or implement a public click count endpoint
 - Or cache aggregated data in products table
 
 ### ⚠️ Real-time Updates
+
 View counts won't update in real-time. Users must:
+
 - Refresh the page
 - Navigate away and back
 - Wait for next component mount
@@ -194,11 +209,11 @@ View counts won't update in real-time. Users must:
 ✅ **Real Data**: Products show varied view counts (not all 0, not all 1)  
 ✅ **Accurate Stats**: "Total Views" = sum of individual product views  
 ✅ **Stability**: Graceful error handling with fallbacks  
-✅ **Performance**: Parallel API calls complete in < 2 seconds  
+✅ **Performance**: Parallel API calls complete in < 2 seconds
 
 ---
 
 **Status**: ✅ **COMPLETE**  
 **Auth Issue**: ✅ **RESOLVED**  
 **Data Accuracy**: ⏳ **Depends on backend returning real data**  
-**Next Test**: Verify in browser that products show varied counts  
+**Next Test**: Verify in browser that products show varied counts

@@ -191,8 +191,10 @@ export default function PrivacyPolicyPage() {
             <div className="bg-neutral-50 p-4 rounded-lg mt-4">
               <p className="font-medium">Globoexpats Privacy Team</p>
               <p>Email: privacy@globoexpats.com</p>
-              <p>Phone: +971 4 123 4567</p>
-              <p>Address: Dubai Internet City, Building 3, Office 301, Dubai, UAE</p>
+              <p>Phone: +255 22 260 1234</p>
+              <p>
+                Address: Mlimani City Tower, 14th Floor, Sam Nujoma Road, Dar es Salaam, Tanzania
+              </p>
             </div>
 
             <h2 className="text-2xl font-semibold text-neutral-800 mt-8 mb-4">

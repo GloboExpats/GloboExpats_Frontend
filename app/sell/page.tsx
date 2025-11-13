@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus, AlertCircle } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,12 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { RouteGuard } from '@/components/route-guard'
 import { apiClient } from '@/lib/api'
-import { ITEM_CONDITIONS, SELLING_TIPS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
+import { ITEM_CONDITIONS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
 import { CURRENCIES as CURRENCY_CONFIG } from '@/lib/currency-converter'
+import { getCategoryFields } from '@/lib/category-fields'
+import { getStepTips, getCategoryTips, getStepName } from '@/lib/step-tips'
 import { useToast } from '@/components/ui/use-toast'
 import Image from 'next/image'
 
@@ -36,6 +37,7 @@ interface FormData {
   originalPrice: string
   currency: string
   warranty: string
+  categoryFields: Record<string, string> // Dynamic fields based on category
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -51,6 +53,7 @@ const INITIAL_FORM_DATA: FormData = {
   originalPrice: '',
   currency: 'TZS',
   warranty: '',
+  categoryFields: {},
 }
 
 const STEP_TITLES = ['Basic Details', 'Photos & Description', 'Pricing & Publish']
@@ -71,7 +74,7 @@ function SellPageContent() {
   const { toast } = useToast()
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
   const [currentStep, setCurrentStep] = useState(1)
-  const [errors, setErrors] = useState<string[]>([])
+  const [isPublishing, setIsPublishing] = useState(false)
   const [backendCategories, setBackendCategories] = useState<
     Array<{ categoryId: number; categoryName: string }>
   >([])
@@ -107,13 +110,19 @@ function SellPageContent() {
     newFiles.forEach((file) => {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setErrors(['Please upload only image files'])
+        toast({
+          title: '🖼️ Image Files Only',
+          description: 'Please upload JPG or PNG images to showcase your item!',
+        })
         return
       }
 
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(['Image file size must be less than 5MB'])
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: '📦 File Too Large',
+          description: 'Please use images under 10MB for faster loading!',
+        })
         return
       }
 
@@ -121,6 +130,22 @@ function SellPageContent() {
       const imageUrl = URL.createObjectURL(file)
       newImageUrls.push(imageUrl)
     })
+
+    // Check total file size before adding new files
+    const currentSize = formData.images.reduce((sum, file) => sum + file.size, 0)
+    const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0)
+    const totalSize = currentSize + newFilesSize
+
+    if (totalSize > 100 * 1024 * 1024) {
+      // 100MB limit
+      const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1)
+      toast({
+        title: '📦 Upload Size Limit',
+        description: `Total file size (${totalSizeMB}MB) would exceed the 100MB upload limit. Please use smaller images or fewer images.`,
+        variant: 'destructive',
+      })
+      return
+    }
 
     // Update form data
     const updatedImages = [...formData.images, ...newFiles]
@@ -164,51 +189,118 @@ function SellPageContent() {
   }
 
   const validateStep = (step: number) => {
-    const newErrors: string[] = []
+    let errorMessage = ''
 
     switch (step) {
       case 1:
-        if (!formData.title.trim()) newErrors.push('Please enter a title')
-        if (!formData.category) newErrors.push('Please select a category')
-        if (!formData.condition) newErrors.push('Please select condition')
-        if (!formData.location) newErrors.push('Please choose location')
+        if (!formData.title.trim()) {
+          errorMessage = 'Please enter a title for your item'
+        } else if (!formData.category) {
+          errorMessage = 'Please select a category'
+        } else if (!formData.condition) {
+          errorMessage = 'Please select the item condition'
+        } else if (!formData.location) {
+          errorMessage = 'Please choose a location'
+        }
         break
       case 2:
-        if (formData.images.length === 0) newErrors.push('Please upload at least one image')
-        if (!formData.description.trim()) newErrors.push('Please add description')
+        if (formData.images.length === 0) {
+          errorMessage = 'Please upload at least one image'
+        } else if (!formData.description.trim()) {
+          errorMessage = 'Please add a description'
+        }
         break
       case 3:
-        if (!formData.price) newErrors.push('Please set a price')
+        if (!formData.price) {
+          errorMessage = 'Please set a price for your item'
+        }
         break
     }
 
-    setErrors(newErrors)
-    return newErrors.length === 0
+    if (errorMessage) {
+      toast({
+        title: '📝 Almost There!',
+        description: errorMessage,
+      })
+      return false
+    }
+
+    return true
+  }
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const nextStep = () => {
     if (validateStep(currentStep) && currentStep < 3) {
       setCurrentStep(currentStep + 1)
-      setErrors([])
+      scrollToTop()
     }
   }
 
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
-      setErrors([])
+      scrollToTop()
     }
   }
 
+  // Normalize UI condition values to backend enum
+  // Backend supports: NEW, LIKE_NEW, USED (others mapped to USED)
+  const normalizeConditionForBackend = (cond: string): string => {
+    const c = (cond || '').toLowerCase()
+    if (c === 'new') return 'NEW'
+    if (c === 'like-new') return 'LIKE_NEW'
+    // Map all other granular states to USED
+    return 'USED'
+  }
+
+  // Format description with category fields
+  const formatDescriptionWithCategoryFields = (
+    description: string,
+    categoryFields: Record<string, string>,
+    category: string
+  ): string => {
+    let enhancedDescription = description
+
+    // Add category fields as structured data if they exist
+    if (Object.keys(categoryFields).length > 0) {
+      const fields = getCategoryFields(category)
+      const nonEmptyFields = Object.entries(categoryFields).filter(
+        ([_, value]) => value.trim() !== ''
+      )
+
+      if (nonEmptyFields.length > 0) {
+        enhancedDescription += '\n\n--- SPECIFICATIONS ---\n'
+
+        nonEmptyFields.forEach(([fieldKey, value]) => {
+          const fieldConfig = fields.find((f) => f.key === fieldKey)
+          const label = fieldConfig?.label || fieldKey
+          enhancedDescription += `${label}: ${value}\n`
+        })
+      }
+    }
+
+    return enhancedDescription
+  }
+
   const publishListing = async () => {
-    if (!validateStep(3)) return
+    // Validate all steps before publishing
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+      return
+    }
 
     try {
-      setErrors([])
+      setIsPublishing(true)
 
-      // Validate we have images
+      // Double-check we have images (should be caught by validation)
       if (formData.images.length === 0) {
-        setErrors(['Please upload at least one image for your product'])
+        toast({
+          title: '📸 Photos Needed',
+          description: 'Add at least one photo to showcase your item to buyers!',
+        })
+        setIsPublishing(false)
         return
       }
 
@@ -220,17 +312,32 @@ function SellPageContent() {
       )
 
       if (!selectedCategory) {
-        setErrors(['Please select a valid category'])
+        toast({
+          title: '🏷️ Category Required',
+          description: 'Please choose a category to help buyers find your item!',
+        })
+        setIsPublishing(false)
         return
       }
 
       const categoryId = selectedCategory.categoryId
 
-      // Find the main image index
+      // Enforce backend limit of max 30 images
+      const MAX_IMAGES = 30
+      let selectedImages = [...formData.images]
+      if (selectedImages.length > MAX_IMAGES) {
+        toast({
+          title: '📸 Too many photos',
+          description: `Backend allows up to ${MAX_IMAGES} images. Extra images will be ignored.`,
+        })
+        selectedImages = selectedImages.slice(0, MAX_IMAGES)
+      }
+
+      // Find the main image index among imageUrls
       const mainImageIndex = formData.mainImage ? formData.imageUrls.indexOf(formData.mainImage) : 0
 
       // Reorder images array to put main image first
-      const reorderedImages = [...formData.images]
+      const reorderedImages = [...selectedImages]
       if (mainImageIndex > 0 && mainImageIndex < reorderedImages.length) {
         const [mainImage] = reorderedImages.splice(mainImageIndex, 1)
         reorderedImages.unshift(mainImage)
@@ -242,19 +349,34 @@ function SellPageContent() {
 
       // If user entered in USD/KES/UGX, divide by exchange rate to get TZS
       // If already in TZS, no conversion needed (rate = 1)
-      const askingPriceInTZS = parseFloat(formData.price) / conversionRate
-      const originalPriceInTZS = formData.originalPrice
-        ? parseFloat(formData.originalPrice) / conversionRate
+      const parsedAsking = parseFloat(String(formData.price).replace(/[^0-9.]/g, ''))
+      const parsedOriginal = formData.originalPrice
+        ? parseFloat(String(formData.originalPrice).replace(/[^0-9.]/g, ''))
         : 0
+
+      const askingPriceInTZS = (isNaN(parsedAsking) ? 0 : parsedAsking) / conversionRate
+      const originalPriceInTZS = (isNaN(parsedOriginal) ? 0 : parsedOriginal) / conversionRate
 
       // Transform form data to match backend expectations
       // Always store in TZS (base currency)
+      const enhancedDescription = formatDescriptionWithCategoryFields(
+        formData.description.trim(),
+        formData.categoryFields,
+        formData.category
+      )
+
+      const sanitizeLocationForBackend = (loc: string): string => {
+        if (!loc) return ''
+        // Remove emojis and non-ASCII (e.g., flags), trim extra spaces
+        return loc.replace(/[^\x20-\x7E]/g, '').trim()
+      }
+
       const productData = {
         productName: formData.title.trim(),
         categoryId: categoryId,
-        condition: formData.condition,
-        location: formData.location,
-        productDescription: formData.description.trim(),
+        condition: normalizeConditionForBackend(formData.condition),
+        location: sanitizeLocationForBackend(formData.location),
+        productDescription: enhancedDescription,
         currency: 'TZS', // Always store as TZS in backend
         askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
         originalPrice: Math.round(originalPriceInTZS),
@@ -262,7 +384,57 @@ function SellPageContent() {
       }
 
       // Call the backend API with reordered images (main image first)
-      const result = await apiClient.createProduct(productData, reorderedImages)
+      interface ProductCreationResult {
+        productId: number
+        message?: string
+      }
+      let result: ProductCreationResult
+
+      // Check if we have many images and implement batch upload if needed
+      if (reorderedImages.length > 10) {
+        console.warn(`[Sell] Many images (${reorderedImages.length}) - implementing batch approach`)
+
+        // First, create product with first batch of images (including main image)
+        const firstBatch = reorderedImages.slice(0, 5) // First 5 images including main
+        console.log(`[Sell] Creating product with first batch: ${firstBatch.length} images`)
+
+        result = await apiClient.createProduct(productData, firstBatch)
+
+        // If successful and we have more images, add them in batches using update
+        if (result.productId && reorderedImages.length > 5) {
+          const remainingImages = reorderedImages.slice(5)
+          console.log(`[Sell] Adding remaining ${remainingImages.length} images in batches`)
+
+          // Split remaining images into smaller batches
+          const batchSize = 5
+          for (let i = 0; i < remainingImages.length; i += batchSize) {
+            const batch = remainingImages.slice(i, i + batchSize)
+            console.log(
+              `[Sell] Adding batch ${Math.floor(i / batchSize) + 1}: ${batch.length} images`
+            )
+
+            try {
+              await apiClient.updateProduct(result.productId.toString(), {}, batch)
+              console.log(`[Sell] Successfully added batch ${Math.floor(i / batchSize) + 1}`)
+            } catch (batchError) {
+              console.error(
+                `[Sell] Failed to add batch ${Math.floor(i / batchSize) + 1}:`,
+                batchError
+              )
+              // Continue with other batches even if one fails
+            }
+          }
+        }
+
+        console.log('[Sell] Batch upload completed')
+        // Result already contains the product info from the first batch
+      } else {
+        // Normal single request for 10 or fewer images
+        console.log(
+          `[Sell] Creating product with ${reorderedImages.length} images in single request`
+        )
+        result = await apiClient.createProduct(productData, reorderedImages)
+      }
 
       // CRITICAL CHECK: Verify product ID was returned
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -305,10 +477,20 @@ function SellPageContent() {
       setCurrentStep(1)
     } catch (error) {
       console.error('❌ Failed to publish listing:', error)
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to publish listing. Please try again.'
+      let errorMessage = 'Failed to publish listing. Please try again.'
 
-      setErrors([errorMessage])
+      if (error instanceof Error) {
+        if (
+          error.message.includes('multipart servlet request') ||
+          error.message.includes('Failed to parse multipart')
+        ) {
+          errorMessage = `Upload failed due to image processing issues. Try with fewer images (max 10) or smaller file sizes (max 10MB each).`
+        } else if (error.message.includes('images')) {
+          errorMessage = error.message
+        } else {
+          errorMessage = error.message
+        }
+      }
 
       // Show error toast
       toast({
@@ -316,6 +498,8 @@ function SellPageContent() {
         description: errorMessage,
         variant: 'destructive',
       })
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -373,19 +557,6 @@ function SellPageContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3">
-            {errors.length > 0 && (
-              <Alert variant="destructive" className="mb-8">
-                <AlertCircle className="h-5 w-5" />
-                <AlertDescription>
-                  <ul className="list-disc list-inside space-y-1">
-                    {errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-
             <StepContent
               currentStep={currentStep}
               formData={formData}
@@ -415,15 +586,27 @@ function SellPageContent() {
               ) : (
                 <Button
                   onClick={publishListing}
-                  className="w-full sm:w-auto px-8 py-3 text-base bg-[#1E3A8A] hover:bg-[#1e3a8a]/90 text-white order-1 sm:order-2"
+                  disabled={isPublishing}
+                  className="w-full sm:w-auto px-8 py-3 text-base bg-[#1E3A8A] hover:bg-[#1e3a8a]/90 text-white order-1 sm:order-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  Publish Listing
+                  {isPublishing ? (
+                    <span className="flex items-center gap-2">
+                      Publishing
+                      <span className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></span>
+                      </span>
+                    </span>
+                  ) : (
+                    'Publish Listing'
+                  )}
                 </Button>
               )}
             </div>
           </div>
 
-          <SellingSidebar currentStep={currentStep} />
+          <SellingSidebar currentStep={currentStep} selectedCategory={formData.category} />
         </div>
       </div>
     </div>
@@ -535,7 +718,10 @@ function Step1Content({
         <div className="space-y-3">
           <Label className="text-base font-semibold text-neutral-800">Category *</Label>
           <Select
-            onValueChange={(value) => updateFormData({ category: value })}
+            onValueChange={(value) => {
+              // Clear category fields when category changes
+              updateFormData({ category: value, categoryFields: {} })
+            }}
             value={formData.category}
           >
             <SelectTrigger className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white">
@@ -601,6 +787,102 @@ function Step1Content({
   )
 }
 
+// Dynamic Category Fields Component
+function CategorySpecificFields({
+  category,
+  categoryFields,
+  updateFormData,
+}: {
+  category: string
+  categoryFields: Record<string, string>
+  updateFormData: (updates: Partial<FormData>) => void
+}) {
+  const fields = getCategoryFields(category)
+
+  if (!category || fields.length === 0) {
+    return null
+  }
+
+  const updateCategoryField = (fieldKey: string, value: string) => {
+    const newCategoryFields = { ...categoryFields, [fieldKey]: value }
+    updateFormData({ categoryFields: newCategoryFields })
+  }
+
+  return (
+    <div className="space-y-6 border-t border-[#E2E8F0] pt-6">
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 bg-[#1E3A8A] rounded-full"></div>
+        <h3 className="text-lg font-semibold text-[#0F172A]">{category} Details</h3>
+        <Badge variant="secondary" className="ml-2 text-xs">
+          {fields.filter((f) => f.required).length} required
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {fields.map((field) => (
+          <div key={field.key} className="space-y-3">
+            <Label className="text-sm sm:text-base font-semibold text-neutral-800">
+              {field.label} {field.required && '*'}
+            </Label>
+
+            {field.type === 'select' ? (
+              <Select
+                onValueChange={(value) => updateCategoryField(field.key, value)}
+                value={categoryFields[field.key] || ''}
+              >
+                <SelectTrigger className="h-11 sm:h-12 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white">
+                  <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {field.options?.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : field.type === 'textarea' ? (
+              <Textarea
+                placeholder={field.placeholder}
+                className="border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white resize-none"
+                value={categoryFields[field.key] || ''}
+                onChange={(e) => updateCategoryField(field.key, e.target.value)}
+                maxLength={field.maxLength}
+                rows={3}
+              />
+            ) : (
+              <Input
+                type={field.type}
+                placeholder={field.placeholder}
+                className="h-11 sm:h-12 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
+                value={categoryFields[field.key] || ''}
+                onChange={(e) => updateCategoryField(field.key, e.target.value)}
+                maxLength={field.maxLength}
+                min={field.min}
+                max={field.max}
+                step={field.step}
+              />
+            )}
+
+            {field.maxLength && field.type !== 'number' && (
+              <p className="text-xs text-neutral-500">
+                {(categoryFields[field.key] || '').length}/{field.maxLength}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-700">
+          <strong>Tip:</strong> Adding detailed {category.toLowerCase()} specifications helps buyers
+          find exactly what they're looking for and increases your chances of a quick sale.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 // Step 2: Photos & Description
 function Step2Content({
   formData,
@@ -639,9 +921,18 @@ function Step2Content({
             <Plus className="h-4 w-4" />
             Add Images
           </label>
-          <p className="text-xs text-[#94A3B8] mt-2">
-            Upload up to 10 images • Max 5MB per image • JPG, PNG, or WebP
-          </p>
+          <div className="text-xs text-[#94A3B8] mt-2 space-y-1">
+            <p>Upload up to 50 images • Max 10MB per image • JPG, PNG, or WebP</p>
+            {formData.images.length > 0 && (
+              <p className="font-medium">
+                Total size:{' '}
+                {(formData.images.reduce((sum, file) => sum + file.size, 0) / 1024 / 1024).toFixed(
+                  1
+                )}
+                MB / 100MB
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Image Preview Grid */}
@@ -713,6 +1004,13 @@ function Step2Content({
         />
         <p className="text-sm text-neutral-500">{formData.description.length}/500 characters</p>
       </div>
+
+      {/* Dynamic Category-Specific Fields */}
+      <CategorySpecificFields
+        category={formData.category}
+        categoryFields={formData.categoryFields}
+        updateFormData={updateFormData}
+      />
     </>
   )
 }
@@ -852,21 +1150,58 @@ function Step3Content({
 }
 
 // Sidebar component
-function SellingSidebar({ currentStep }: { currentStep: number }) {
+function SellingSidebar({
+  currentStep,
+  selectedCategory,
+}: {
+  currentStep: number
+  selectedCategory?: string
+}) {
+  const stepTips = getStepTips(currentStep)
+  const categoryTips = selectedCategory ? getCategoryTips(selectedCategory) : []
+  const stepName = getStepName(currentStep)
+
   return (
     <aside className="hidden lg:block lg:col-span-1">
-      <div className="sticky top-8 space-y-8">
+      <div className="sticky top-8 space-y-6">
         <Card className="border border-[#E2E8F0] bg-white rounded-lg">
           <CardHeader className="border-b border-[#E2E8F0] p-4">
-            <CardTitle className="text-sm font-semibold text-[#0F172A]">Selling Tips</CardTitle>
+            <CardTitle className="text-sm font-semibold text-[#0F172A]">{stepName} Tips</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 p-4">
-            {SELLING_TIPS.map((tip, index) => (
+          <CardContent className="space-y-5 p-4">
+            {stepTips.map((tip, index) => (
               <div key={index} className="space-y-2">
-                <h4 className="text-base font-bold text-[#0F172A]">{tip.title}</h4>
-                <p className="text-sm text-[#64748B] leading-relaxed">{tip.description}</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[#1E3A8A]/10 flex items-center justify-center">
+                    <tip.icon className="w-3 h-3 text-[#1E3A8A]" />
+                  </div>
+                  <h4 className="text-sm font-bold text-[#0F172A]">{tip.title}</h4>
+                </div>
+                <p className="text-xs text-[#64748B] leading-relaxed pl-8">{tip.description}</p>
               </div>
             ))}
+
+            {/* Category-specific tips */}
+            {categoryTips.length > 0 && (
+              <>
+                <div className="border-t border-[#E2E8F0] pt-4 mt-4">
+                  <h5 className="text-xs font-semibold text-[#1E3A8A] mb-3 uppercase tracking-wider">
+                    {selectedCategory} Specific
+                  </h5>
+                </div>
+                {categoryTips.map((tip, index) => (
+                  <div key={`category-${index}`} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                        <tip.icon className="w-3 h-3 text-amber-600" />
+                      </div>
+                      <h4 className="text-sm font-bold text-[#0F172A]">{tip.title}</h4>
+                    </div>
+                    <p className="text-xs text-[#64748B] leading-relaxed pl-8">{tip.description}</p>
+                  </div>
+                ))}
+              </>
+            )}
           </CardContent>
         </Card>
 

@@ -5,6 +5,44 @@ export const runtime = 'nodejs'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://10.123.22.21:8081'
 
+// Helper function to create a clean FormData for backend
+function createCleanFormData(originalFormData: FormData): FormData {
+  const cleanFormData = new FormData()
+
+  for (const [key, value] of originalFormData.entries()) {
+    if (key === 'product') {
+      // Ensure product data is clean JSON string
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value)
+          const cleanJsonString = JSON.stringify(parsed) // Re-stringify to ensure clean format
+          cleanFormData.append(key, cleanJsonString)
+        } catch (e) {
+          console.error('[Proxy] Invalid product JSON, using original:', e)
+          cleanFormData.append(key, value)
+        }
+      } else {
+        cleanFormData.append(key, value)
+      }
+    } else if (key === 'images' && value instanceof File) {
+      // Ensure file has proper metadata
+      const file = value as File
+      if (file.size > 0 && file.name && file.type) {
+        cleanFormData.append(key, file, file.name) // Explicitly set filename
+      } else {
+        console.warn(
+          `[Proxy] Skipping invalid file: ${file.name || 'unnamed'}, size: ${file.size}, type: ${file.type}`
+        )
+      }
+    } else {
+      // Other fields (like imageIds)
+      cleanFormData.append(key, value)
+    }
+  }
+
+  return cleanFormData
+}
+
 /**
  * Proxy endpoint for updating products
  * This avoids CORS issues when making PATCH requests directly from browser
@@ -46,17 +84,117 @@ export async function PATCH(
       console.log('[Proxy] Received multipart/form-data request')
       const formData = await req.formData()
 
-      // Forward the form data as-is to backend
-      backendFormData = new FormData()
+      // Create clean FormData for backend
+      console.log('[Proxy] Creating clean FormData for backend...')
+      backendFormData = createCleanFormData(formData)
 
-      // Copy all form fields
+      // Validate the clean FormData
+      let productData = null
+      let imageCount = 0
+
       for (const [key, value] of formData.entries()) {
-        backendFormData.append(key, value)
         if (key === 'product') {
-          console.log('[Proxy] Product data:', value)
+          productData = value
+          console.log(
+            '[Proxy] Product data size:',
+            typeof value === 'string' ? value.length : 'not string',
+            'bytes'
+          )
+
+          // Validate product JSON
+          if (typeof value === 'string') {
+            try {
+              const parsed = JSON.parse(value)
+              console.log('[Proxy] Product data keys:', Object.keys(parsed))
+
+              // Check for extremely large descriptions that might cause issues
+              if (parsed.productDescription && parsed.productDescription.length > 10000) {
+                console.warn(
+                  '[Proxy] Very long product description:',
+                  parsed.productDescription.length,
+                  'chars'
+                )
+              }
+            } catch (e) {
+              console.error('[Proxy] Invalid product JSON:', e)
+              return NextResponse.json(
+                { error: 'Invalid product data', message: 'Product data is not valid JSON' },
+                { status: 400 }
+              )
+            }
+          }
+
+          backendFormData.append(key, value)
         } else if (key === 'images') {
-          console.log('[Proxy] Image file:', value instanceof File ? value.name : 'unknown')
+          imageCount++
+          if (value instanceof File) {
+            console.log(
+              `[Proxy] Image ${imageCount}: ${value.name}, size: ${value.size} bytes, type: ${value.type}`
+            )
+
+            // Validate image file
+            if (value.size === 0) {
+              console.error(`[Proxy] Empty file detected: ${value.name}`)
+              return NextResponse.json(
+                { error: 'Invalid file', message: `File ${value.name} is empty` },
+                { status: 400 }
+              )
+            }
+
+            if (value.size > 10 * 1024 * 1024) {
+              // 10MB limit
+              console.error(`[Proxy] File too large: ${value.name} (${value.size} bytes)`)
+              return NextResponse.json(
+                { error: 'File too large', message: `File ${value.name} exceeds 10MB limit` },
+                { status: 400 }
+              )
+            }
+
+            if (!value.type.startsWith('image/')) {
+              console.error(`[Proxy] Invalid file type: ${value.name} (${value.type})`)
+              return NextResponse.json(
+                { error: 'Invalid file type', message: `File ${value.name} is not an image` },
+                { status: 400 }
+              )
+            }
+          } else {
+            console.log(`[Proxy] Image ${imageCount}: non-file value`, typeof value)
+          }
+
+          backendFormData.append(key, value)
+        } else {
+          // Other form fields (like imageIds for removal)
+          console.log(`[Proxy] Other field: ${key} = ${value}`)
+          backendFormData.append(key, value)
         }
+      }
+
+      console.log(`[Proxy] Total images: ${imageCount}`)
+      console.log(`[Proxy] Has product data: ${!!productData}`)
+
+      // Estimate total size
+      let totalSize = 0
+      for (const [_key, value] of formData.entries()) {
+        if (value instanceof File) {
+          totalSize += value.size
+        } else if (typeof value === 'string') {
+          totalSize += new Blob([value]).size
+        }
+      }
+      console.log(
+        `[Proxy] Estimated total size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)}MB)`
+      )
+
+      if (totalSize > 100 * 1024 * 1024) {
+        // 100MB limit
+        console.error(`[Proxy] Request too large: ${totalSize} bytes`)
+        return NextResponse.json(
+          {
+            error: 'Request too large',
+            message: `Total request size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds 100MB limit`,
+          },
+          { status: 413 }
+        )
       }
     } else {
       // JSON request - convert to multipart
@@ -77,14 +215,55 @@ export async function PATCH(
     console.log('[Proxy] Calling backend:', url.toString())
     console.log('[Proxy] Sending as multipart/form-data')
 
-    const backendResponse = await fetch(url.toString(), {
-      method: 'PATCH',
-      headers: {
-        // Don't set Content-Type - let fetch set it with boundary
-        Authorization: token,
+    // Add timeout for backend requests
+    const controller = new AbortController()
+    const timeoutId = setTimeout(
+      () => {
+        console.error('[Proxy] Backend request timeout after 5 minutes')
+        controller.abort()
       },
-      body: backendFormData,
-    })
+      5 * 60 * 1000
+    ) // 5 minutes timeout
+
+    let backendResponse: Response
+    try {
+      backendResponse = await fetch(url.toString(), {
+        method: 'PATCH',
+        headers: {
+          // Don't set Content-Type - let fetch set it with boundary
+          Authorization: token,
+          // Add some headers that might help with multipart parsing
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: backendFormData,
+        signal: controller.signal,
+        // Add keepalive for large uploads
+        keepalive: false,
+      })
+
+      clearTimeout(timeoutId)
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+
+      if (controller.signal.aborted) {
+        console.error('[Proxy] Request aborted due to timeout')
+        return NextResponse.json(
+          { error: 'Request timeout', message: 'Backend request timed out after 5 minutes' },
+          { status: 504 }
+        )
+      }
+
+      console.error('[Proxy] Network error calling backend:', fetchError)
+      return NextResponse.json(
+        {
+          error: 'Network error',
+          message: 'Failed to connect to backend server',
+          details: fetchError instanceof Error ? fetchError.message : 'Unknown network error',
+        },
+        { status: 502 }
+      )
+    }
 
     console.log(`[Proxy] Backend response status: ${backendResponse.status}`)
 
@@ -98,6 +277,28 @@ export async function PATCH(
         errorData = JSON.parse(errorText)
       } catch {
         errorData = { message: errorText || 'Failed to update product' }
+      }
+
+      // If it's a multipart parsing error and we have images, suggest trying without images
+      if (errorText.includes('Failed to parse multipart servlet request')) {
+        console.error('[Proxy] Multipart parsing failed on backend - this could be due to:')
+        console.error('  1. Backend multipart size limits')
+        console.error('  2. Corrupted file data during transmission')
+        console.error('  3. Backend servlet configuration issues')
+        console.error('  4. Network issues during large file upload')
+
+        // Count images in the form data
+        let imageCount = 0
+        for (const [key] of backendFormData.entries()) {
+          if (key === 'images') imageCount++
+        }
+
+        if (imageCount > 0) {
+          console.error(`[Proxy] Request contained ${imageCount} images`)
+          console.error(
+            '[Proxy] Consider trying the split operation approach (text update first, then images)'
+          )
+        }
       }
 
       return NextResponse.json(

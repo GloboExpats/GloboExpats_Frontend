@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Star, MapPin, ArrowRight, Tag, ShoppingCart } from 'lucide-react'
+import { Star, MapPin, ArrowRight, Tag, ShoppingCart, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -64,6 +64,9 @@ export function ProductCard({
 
     // Track analytics if callback provided
     if (onViewDetails) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[ProductCard] Tracking click for product ${product.id}: "${product.title}"`)
+      }
       onViewDetails(product.id)
     }
     // Navigate to product page
@@ -113,7 +116,7 @@ export function ProductCard({
           <div
             className={cn(
               'relative overflow-hidden flex-shrink-0 bg-white',
-              viewMode === 'list' ? 'w-48 aspect-square rounded-l-xl' : 'aspect-square rounded-t-xl'
+              viewMode === 'list' ? 'w-48 aspect-[4/3] rounded-l-xl' : 'aspect-[4/3] rounded-t-xl'
             )}
           >
             <Image
@@ -179,7 +182,7 @@ export function ProductCard({
               )}
             </div>
 
-            {/* Seller Info - Fixed height */}
+            {/* Rating and Views Info - Fixed height */}
             <div
               className={cn(
                 'flex items-center justify-between min-h-[1rem]',
@@ -213,15 +216,39 @@ export function ProductCard({
                   ({product.reviews || 0})
                 </span>
               </div>
-              {!compact && (
+
+              {/* Views Count */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Eye
+                  className={cn(
+                    'text-neutral-400',
+                    compact ? 'w-3 h-3 sm:w-3.5 sm:h-3.5' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'
+                  )}
+                  aria-hidden="true"
+                />
                 <span
-                  className="text-xs text-neutral-600 truncate max-w-[80px] sm:max-w-[100px] ml-1"
+                  className={cn(
+                    'text-neutral-500 font-medium',
+                    compact ? 'text-xs sm:text-sm' : 'text-sm'
+                  )}
+                  aria-label={`${product.views || 0} views`}
+                >
+                  {product.views || 0}
+                </span>
+              </div>
+            </div>
+
+            {/* Seller Info - Only show in non-compact mode */}
+            {!compact && (
+              <div className="flex justify-start mb-1.5">
+                <span
+                  className="text-xs text-neutral-600 truncate max-w-[120px] sm:max-w-[150px]"
                   aria-label={`Listed by ${product.listedBy}`}
                 >
                   {product.listedBy}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Location - Fixed height */}
             <div

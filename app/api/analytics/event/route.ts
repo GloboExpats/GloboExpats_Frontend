@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     // Forward product click events to backend for tracking
     // Backend endpoint requires authentication via Bearer token
     if (payload?.type === 'product_click' && payload?.productId) {
-      console.log(`[analytics:event] 🔄 Forwarding to backend: product ${payload.productId}`)
+      console.log(`[analytics:event] 🔄 Attempting to track view for product ${payload.productId}`)
 
       try {
         // Get auth token from request cookies or headers
@@ -24,9 +24,20 @@ export async function POST(req: Request) {
         // Extract token from cookie if not in Authorization header
         let token = authHeader?.replace('Bearer ', '')
         if (!token && cookieHeader) {
-          const authTokenMatch = cookieHeader.match(/authToken=([^;]+)/)
-          if (authTokenMatch) {
-            token = authTokenMatch[1]
+          // Try different cookie formats
+          const tokenPatterns = [
+            /expat_auth_token=([^;]+)/,
+            /authToken=([^;]+)/,
+            /auth_token=([^;]+)/,
+            /token=([^;]+)/,
+          ]
+
+          for (const pattern of tokenPatterns) {
+            const match = cookieHeader.match(pattern)
+            if (match) {
+              token = decodeURIComponent(match[1])
+              break
+            }
           }
         }
 
@@ -42,6 +53,7 @@ export async function POST(req: Request) {
           headers['Authorization'] = `Bearer ${token}`
         }
 
+        // Try the view tracking endpoint first
         const backendUrl = `${BACKEND_URL}/api/v1/products/${payload.productId}/view`
         console.log(`[analytics:event] 🌐 Calling: ${backendUrl}`)
 
@@ -52,15 +64,23 @@ export async function POST(req: Request) {
             timestamp: payload.ts,
             source: payload.source,
           }),
+          signal: AbortSignal.timeout(3000), // 3 second timeout (reduced)
         })
 
         const responseText = await backendResponse.text().catch(() => '')
 
         if (backendResponse.ok) {
           console.log(`[analytics:event] ✅ SUCCESS: Tracked view for product ${payload.productId}`)
+        } else if (backendResponse.status === 404) {
+          console.warn(
+            `[analytics:event] ⚠️ ENDPOINT NOT IMPLEMENTED: Backend view tracking endpoint not available yet`
+          )
+          console.warn(
+            `[analytics:event] ℹ️  Product views will be tracked when backend implements POST /api/v1/products/{id}/view`
+          )
         } else {
           console.warn(
-            `[analytics:event] ⚠️  FAILED: ${backendResponse.status} ${backendResponse.statusText}`
+            `[analytics:event] ⚠️ FAILED: ${backendResponse.status} ${backendResponse.statusText}`
           )
           if (responseText) {
             console.warn(`[analytics:event] Response body:`, responseText.substring(0, 200))
@@ -68,6 +88,10 @@ export async function POST(req: Request) {
         }
       } catch (backendError) {
         console.error('[analytics:event] ❌ EXCEPTION:', backendError)
+        // Check if it's a network error (endpoint doesn't exist)
+        if (backendError instanceof Error && backendError.message.includes('fetch')) {
+          console.warn('[analytics:event] ℹ️ Backend view tracking endpoint appears to be missing')
+        }
         // Don't throw - allow the analytics event to succeed even if backend fails
       }
     }

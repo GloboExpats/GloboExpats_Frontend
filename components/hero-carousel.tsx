@@ -6,7 +6,7 @@ import Image from 'next/image'
 
 export default function HeroCarousel() {
   return (
-    <section className="mb-8 mx-4 sm:mx-6 lg:mx-0 lg:pr-8">
+    <section className="mb-4 sm:mb-6 mx-4 sm:mx-6 lg:mx-0 lg:pr-8">
       <div className="relative h-[450px] sm:h-[500px] lg:h-[600px] text-white overflow-hidden rounded-2xl shadow-xl">
         {/* Background Image */}
         <Image

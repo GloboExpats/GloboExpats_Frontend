@@ -188,13 +188,6 @@ const faqCategories = [
   },
 ]
 
-const popularTopics = [
-  { title: 'Getting Started Guide', href: '/help/getting-started', icon: HelpCircle },
-  { title: 'Seller Handbook', href: '/help/seller-guide', icon: Package },
-  { title: 'Shipping Calculator', href: '/help/shipping-calculator', icon: Truck },
-  { title: 'Safety Tips', href: '/help/safety', icon: Shield },
-]
-
 export default function HelpCenterPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -238,30 +231,6 @@ export default function HelpCenterPage() {
       </section>
 
       <div className="container mx-auto px-4 py-12">
-        {/* Popular Topics */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-neutral-800 mb-6">Popular Topics</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {popularTopics.map((topic, index) => {
-              const Icon = topic.icon
-              return (
-                <Link key={index} href={topic.href}>
-                  <Card className="bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-brand-primary/10 rounded-lg">
-                          <Icon className="w-5 h-5 text-brand-primary" />
-                        </div>
-                        <h3 className="font-semibold text-neutral-800">{topic.title}</h3>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-
         {/* FAQ Categories */}
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Category Navigation */}
@@ -367,14 +336,18 @@ export default function HelpCenterPage() {
               <p className="text-blue-100 mb-6">Our support team is here to assist you</p>
               <div className="flex gap-4 justify-center">
                 <Link href="/contact">
-                  <Button variant="secondary" size="lg">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="bg-white text-brand-primary hover:bg-gray-100 font-semibold border-0"
+                  >
                     Contact Support
                   </Button>
                 </Link>
                 <Button
                   variant="outline"
                   size="lg"
-                  className="text-white border-white hover:bg-white hover:text-brand-primary"
+                  className="bg-transparent text-white border-2 border-white hover:bg-white hover:text-brand-primary font-semibold"
                 >
                   Live Chat
                 </Button>

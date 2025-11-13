@@ -14,7 +14,7 @@ interface SectionHeaderProps {
  */
 export default function SectionHeader({ title, subtitle, className = '' }: SectionHeaderProps) {
   return (
-    <div className={`mb-6 sm:mb-8 lg:mb-10 ${className}`}>
+    <div className={`mb-4 sm:mb-5 lg:mb-6 ${className}`}>
       {/* Title with improved typography */}
       <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-neutral-900 tracking-tight mb-3 sm:mb-3">
         {title}

@@ -22,7 +22,10 @@ export function canUserBuy(user: User | null | undefined): boolean {
   // SECONDARY: Check roles (SELLER role includes buyer permissions)
   if (user.roles?.some((r) => r.roleName === 'SELLER' || r.roleName === 'ADMIN')) return true
 
-  // TERTIARY: Check legacy flags
+  // TERTIARY: Check email verification (organization email verified allows buying)
+  if (user.verificationStatus?.isOrganizationEmailVerified === true) return true
+
+  // QUATERNARY: Check legacy flags
   if (user.isVerified === true) return true
 
   // FALLBACK: Check verification status object (may be stale)
@@ -46,7 +49,10 @@ export function canUserSell(user: User | null | undefined): boolean {
   // SECONDARY: Check roles (SELLER role required)
   if (user.roles?.some((r) => r.roleName === 'SELLER' || r.roleName === 'ADMIN')) return true
 
-  // TERTIARY: Check legacy flags
+  // TERTIARY: Check email verification (organization email verified allows selling)
+  if (user.verificationStatus?.isOrganizationEmailVerified === true) return true
+
+  // QUATERNARY: Check legacy flags
   if (user.isVerified === true) return true
 
   // FALLBACK: Check verification status object (may be stale)
@@ -65,13 +71,8 @@ export function canUserContact(user: User | null | undefined): boolean {
   // PRIMARY: Check backend verification status
   if (user.backendVerificationStatus === 'VERIFIED') return true
 
-  // SECONDARY: Check roles
-  if (
-    user.roles?.some(
-      (r) => r.roleName === 'SELLER' || r.roleName === 'USER' || r.roleName === 'ADMIN'
-    )
-  )
-    return true
+  // SECONDARY: Check roles (only SELLER and ADMIN have contact privileges by default)
+  if (user.roles?.some((r) => r.roleName === 'SELLER' || r.roleName === 'ADMIN')) return true
 
   // TERTIARY: Check legacy flags
   if (user.isVerified === true) return true

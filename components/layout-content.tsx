@@ -4,7 +4,6 @@ import type React from 'react'
 import { usePathname } from 'next/navigation'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
-import Breadcrumb from '@/components/breadcrumb'
 import ErrorBoundary from '@/components/error-boundary'
 import { VerificationBanner } from '@/components/verification-banner'
 
@@ -30,10 +29,6 @@ export function LayoutContent({ children }: LayoutContentProps) {
 
       {/* Show warning to unverified accounts */}
       <VerificationBanner />
-
-      <ErrorBoundary level="component" name="Breadcrumb">
-        <Breadcrumb />
-      </ErrorBoundary>
 
       <main className="flex-1">
         <ErrorBoundary level="page" name="Main Content">

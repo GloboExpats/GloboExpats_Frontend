@@ -7,6 +7,7 @@ This document outlines the view tracking system for product listings. Currently,
 ## Current Status
 
 ### ✅ Frontend Implementation
+
 - Analytics events are triggered when products are clicked
 - Events are sent to `/api/analytics/event` with payload:
   ```json
@@ -20,6 +21,7 @@ This document outlines the view tracking system for product listings. Currently,
 - Frontend analytics route now forwards these events to backend
 
 ### ❌ Backend Implementation (MISSING)
+
 - Database has `view_count INT DEFAULT 0` field in products table
 - Backend API doesn't expose this field in `ProductResponseDTO`
 - Backend doesn't have endpoint to increment view counts
@@ -30,6 +32,7 @@ This document outlines the view tracking system for product listings. Currently,
 ### 1. Create View Tracking Endpoint
 
 **Required Endpoint:**
+
 ```http
 POST /api/v1/products/{productId}/view
 ```
@@ -37,21 +40,24 @@ POST /api/v1/products/{productId}/view
 **Purpose:** Increment the view count for a specific product
 
 **Request Body:**
+
 ```json
 {
-  "timestamp": 1760951982682  // Optional: for analytics
+  "timestamp": 1760951982682 // Optional: for analytics
 }
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
-  "viewCount": 42  // Optional: return updated count
+  "viewCount": 42 // Optional: return updated count
 }
 ```
 
 **Implementation Notes:**
+
 - Should increment `view_count` field in database
 - Should be non-authenticated (public endpoint)
 - Should handle concurrent requests safely (atomic increment)
@@ -59,15 +65,17 @@ POST /api/v1/products/{productId}/view
 - Should return quickly (don't block on other operations)
 
 **Example SQL:**
+
 ```sql
-UPDATE products 
-SET view_count = view_count + 1 
+UPDATE products
+SET view_count = view_count + 1
 WHERE product_id = ?
 ```
 
 ### 2. Add Views Field to ProductResponseDTO
 
 **Current Schema:**
+
 ```java
 public class ProductResponseDTO {
     private Long productId;
@@ -79,16 +87,17 @@ public class ProductResponseDTO {
 ```
 
 **Required Addition:**
+
 ```java
 public class ProductResponseDTO {
     // ... existing fields
     private Integer viewCount;  // ADD THIS FIELD
-    
+
     // Getter and setter
     public Integer getViewCount() {
         return viewCount;
     }
-    
+
     public void setViewCount(Integer viewCount) {
         this.viewCount = viewCount;
     }
@@ -100,12 +109,14 @@ public class ProductResponseDTO {
 **Endpoint:** `GET /api/v1/displayItem/itemDetails/{productId}`
 
 **Changes Needed:**
+
 1. Include `viewCount` in response
 2. Map from database `view_count` field to DTO
 
 ### 4. Update Product Listing Endpoints
 
 **Endpoints to Update:**
+
 - `GET /api/v1/products/get-all-products`
 - `GET /api/v1/displayItem/top-picks`
 - `GET /api/v1/displayItem/newest`
@@ -125,6 +136,7 @@ public class ProductResponseDTO {
 ### Code References
 
 **Analytics Tracking:**
+
 ```typescript
 // lib/analytics.ts
 export function trackProductClick(productId: number, source: 'new' | 'top' | 'featured') {
@@ -134,15 +146,17 @@ export function trackProductClick(productId: number, source: 'new' | 'top' | 'fe
 ```
 
 **Frontend API Route:**
+
 ```typescript
 // app/api/analytics/event/route.ts
-const backendResponse = await fetch(
-  `${BACKEND_URL}/api/v1/products/${payload.productId}/view`,
-  { method: 'POST', body: JSON.stringify({ timestamp: payload.ts }) }
-)
+const backendResponse = await fetch(`${BACKEND_URL}/api/v1/products/${payload.productId}/view`, {
+  method: 'POST',
+  body: JSON.stringify({ timestamp: payload.ts }),
+})
 ```
 
 **Dashboard Display:**
+
 ```typescript
 // app/expat/dashboard/page.tsx
 const totalViewsCount = userListings.reduce((sum, item) => {
@@ -194,18 +208,21 @@ const totalViewsCount = userListings.reduce((sum, item) => {
 If backend team cannot implement the required changes immediately, consider:
 
 ### Option 1: Client-Side Only Tracking
+
 - Store view counts in localStorage
 - Sync across user's devices using backend profile
 - **Pros:** Quick to implement
 - **Cons:** Not reliable, can be cleared, device-specific
 
 ### Option 2: Use Existing Analytics Service
+
 - Send events to Google Analytics, Mixpanel, or similar
 - Query analytics API to get view counts
 - **Pros:** Mature analytics infrastructure
 - **Cons:** Additional service dependency, cost
 
 ### Option 3: Database Direct Access
+
 - Create a separate views table
 - Frontend API route writes directly to database
 - **Pros:** Works without backend API changes
@@ -240,6 +257,7 @@ Once backend endpoints are ready:
 ## Monitoring
 
 Add metrics for:
+
 - View tracking API response times
 - Failed view tracking attempts
 - View count distribution across products

@@ -131,7 +131,7 @@ interface AuthContextType extends AuthState {
   refreshSession: () => Promise<void>
 
   /** Complete verification for testing purposes (development only) */
-  completeVerificationForTesting: () => Promise<void>
+  completeVerificationForTesting: (email?: string) => Promise<void>
 
   // Computed Properties (derived from verification status)
   /** Whether user can make purchases */
@@ -806,52 +806,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Complete verification for testing purposes
    * This now actually calls the backend to mark the user as verified
    */
-  const completeVerificationForTesting = useCallback(async (): Promise<void> => {
-    if (!authState.user) {
-      throw new Error('Must be logged in to complete verification')
-    }
-
-    try {
-      setAuthState((prev) => ({ ...prev, isLoading: true, error: null }))
-
-      // Get current token
-      const token = getAuthToken()
-      if (token) {
-        apiClient.setAuthToken(token)
+  const completeVerificationForTesting = useCallback(
+    async (email?: string): Promise<void> => {
+      if (!authState.user) {
+        throw new Error('Must be logged in to complete verification')
       }
 
-      // Use the user's email as organizational email
-      const organizationalEmail = authState.user.organizationEmail || authState.user.email
+      if (!email) {
+        throw new Error('Email address is required for verification')
+      }
 
-      // Step 1: Request OTP from backend
-      console.log('🔐 Requesting OTP for:', organizationalEmail)
-      await apiClient.sendEmailOtp(organizationalEmail)
+      try {
+        setAuthState((prev) => ({ ...prev, isLoading: true, error: null }))
 
-      // Step 2: For testing, inform user to check console/email
-      console.log('✉️ OTP sent to:', organizationalEmail)
-      console.log('📧 Check your email for the OTP code')
-      console.log('⚠️ NOTE: Enter the OTP in the field below')
-      console.log('   Or check your backend logs for the OTP if in development mode')
+        // Get current token
+        const token = getAuthToken()
+        if (token) {
+          apiClient.setAuthToken(token)
+        }
 
-      setAuthState((prev) => ({
-        ...prev,
-        isLoading: false,
-      }))
+        // Use the provided email address
+        const organizationalEmail = email
 
-      // Success - OTP sent (no intrusive alert)
+        // Step 1: Request OTP from backend
+        console.log('🔐 Requesting OTP for:', organizationalEmail)
+        await apiClient.sendEmailOtp(organizationalEmail)
 
-      // ...existing code...
-    } catch (error) {
-      console.error('Verification completion failed:', error)
-      setAuthState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to complete verification',
-      }))
-      throw new Error('Failed to complete verification')
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authState.user])
+        // Step 2: For testing, inform user to check console/email
+        console.log('✉️ OTP sent to:', organizationalEmail)
+        console.log('📧 Check your email for the OTP code')
+        console.log('⚠️ NOTE: Enter the OTP in the field below')
+        console.log('   Or check your backend logs for the OTP if in development mode')
+
+        setAuthState((prev) => ({
+          ...prev,
+          isLoading: false,
+        }))
+
+        // Success - OTP sent (no intrusive alert)
+
+        // ...existing code...
+      } catch (error) {
+        console.error('Verification completion failed:', error)
+        setAuthState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: 'Failed to complete verification',
+        }))
+        throw new Error('Failed to complete verification')
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [authState.user]
+  )
 
   /**
    * =============================================================================

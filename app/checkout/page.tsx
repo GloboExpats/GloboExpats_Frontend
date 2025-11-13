@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CreditCard, AlertCircle, Truck, CheckCircle2, Shield, Info } from 'lucide-react'
+import { ArrowLeft, CreditCard, AlertCircle, CheckCircle2, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -114,6 +114,22 @@ export default function CheckoutPage() {
   const { items, subtotal, clearCart, selectedItems, selectedItemsData, selectedSubtotal } =
     useCart()
   const { checkVerification } = useVerification()
+
+  // Check verification on page load
+  useEffect(() => {
+    if (!authLoading && isLoggedIn) {
+      if (!checkVerification('buy')) {
+        toast({
+          title: 'Verification Required',
+          description:
+            'Please verify your account to proceed with checkout. Visit your account settings to complete verification.',
+          variant: 'default',
+        })
+        router.push('/account/verification')
+        return
+      }
+    }
+  }, [authLoading, isLoggedIn, checkVerification, router])
 
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -473,9 +489,6 @@ export default function CheckoutPage() {
               <Card className="shadow-sm border border-neutral-200 rounded-xl overflow-hidden">
                 <CardHeader className="bg-neutral-50 border-b border-neutral-200 p-6">
                   <CardTitle className="flex items-center gap-3 text-xl font-semibold">
-                    <div className="p-2 bg-neutral-100 rounded-lg flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-brand-primary" />
-                    </div>
                     Delivery Address
                   </CardTitle>
                   <p className="text-neutral-600 mt-2 text-sm">
@@ -851,14 +864,6 @@ export default function CheckoutPage() {
                             />
                           </div>
                         </div>
-                        <div className="bg-white p-4 rounded-xl border-2 border-neutral-200">
-                          <h4 className="font-semibold text-neutral-900 mb-2">Secure Payment</h4>
-                          <ul className="space-y-1 text-sm text-neutral-700">
-                            <li>• Your card details are encrypted and secure</li>
-                            <li>• We accept Visa, Mastercard, and local bank cards</li>
-                            <li>• Payment is processed by our secure payment partner</li>
-                          </ul>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -936,7 +941,7 @@ export default function CheckoutPage() {
                   {/* Items Summary */}
                   <div>
                     <h4 className="font-medium mb-4">Order Items ({checkoutItems.length})</h4>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                       {checkoutItems.map((item) => (
                         <div
                           key={item.id}
@@ -1061,28 +1066,6 @@ export default function CheckoutPage() {
                       <span className="text-3xl font-bold text-brand-primary">
                         <PriceDisplay price={totalAmount} size="xl" weight="bold" showOriginal />
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Security Info */}
-                  <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
-                    <h4 className="font-semibold text-neutral-900 mb-3 flex items-center gap-2">
-                      <Shield className="w-5 h-5" />
-                      Secure Payment
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 text-neutral-700">
-                        <div className="w-2 h-2 bg-brand-primary rounded-full"></div>
-                        <span className="font-medium">SSL encrypted transactions</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-neutral-700">
-                        <div className="w-2 h-2 bg-brand-primary rounded-full"></div>
-                        <span className="font-medium">Buyer protection guarantee</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-neutral-700">
-                        <div className="w-2 h-2 bg-brand-primary rounded-full"></div>
-                        <span className="font-medium">Verified seller network</span>
-                      </div>
                     </div>
                   </div>
                 </CardContent>
