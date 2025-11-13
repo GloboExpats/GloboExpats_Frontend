@@ -37,6 +37,7 @@ import {
   MoreHorizontal,
   Loader2,
 } from 'lucide-react'
+import { SheetTitle } from '@/components/ui/sheet'
 
 // Calculate real category counts from products
 const getCategoryCounts = (products: FeaturedItem[]) => {
@@ -64,17 +65,28 @@ interface FilterProps {
   setFilters: (filters: FilterState) => void
   clearAllFilters: () => void
   categoryCounts: Record<string, number>
+  onFilterChange?: () => void // Add callback for when filters change
 }
 
-const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts }: FilterProps) => {
+const FilterContentEl = ({
+  filters,
+  setFilters,
+  clearAllFilters,
+  categoryCounts,
+  onFilterChange,
+}: FilterProps) => {
   const updateFilter = useCallback(
     (key: keyof FilterState, value: string | number | string[] | [number, number] | boolean) => {
       setFilters({
         ...filters,
         [key]: value,
       })
+      // Notify parent when filter changes (for auto-close on mobile)
+      if (onFilterChange) {
+        setTimeout(onFilterChange, 100) // Small delay to ensure state updates
+      }
     },
-    [filters, setFilters]
+    [filters, setFilters, onFilterChange]
   )
 
   const hasActiveFilters =
@@ -128,21 +140,32 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
           {CATEGORIES.map((category) => {
             const count = categoryCounts[category.slug] || 0
+            const isChecked = filters.selectedCategory === category.slug
             return (
               <div
                 key={category.name}
-                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                className="flex items-center space-x-2 p-3 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer touch-manipulation min-h-[48px]"
+                role="button"
+                tabIndex={0}
+                onClick={() => updateFilter('selectedCategory', isChecked ? '' : category.slug)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    updateFilter('selectedCategory', isChecked ? '' : category.slug)
+                  }
+                }}
               >
                 <Checkbox
                   id={`filter-${category.slug}`}
-                  checked={filters.selectedCategory === category.slug}
+                  checked={isChecked}
                   onCheckedChange={(checked) =>
                     updateFilter('selectedCategory', checked ? category.slug : '')
                   }
+                  className="pointer-events-none"
                 />
                 <Label
                   htmlFor={`filter-${category.slug}`}
-                  className="text-sm text-gray-600 flex-1 cursor-pointer hover:text-gray-800 transition-colors"
+                  className="text-sm text-gray-600 flex-1 cursor-pointer hover:text-gray-800 transition-colors pointer-events-none"
                 >
                   {category.name}
                   <span className="text-gray-400 ml-1">({count.toLocaleString()})</span>
@@ -165,7 +188,13 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
           <SelectTrigger className="text-gray-600 h-10">
             <SelectValue placeholder="Any location" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent
+            className="z-[100]"
+            position="popper"
+            side="bottom"
+            align="start"
+            sideOffset={4}
+          >
             <SelectItem value="all">Any location</SelectItem>
             {EXPAT_LOCATIONS.map((location) => (
               <SelectItem key={location.value} value={location.value}>
@@ -239,11 +268,22 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
           onValueChange={(value) => updateFilter('condition', value)}
           className="space-y-2"
         >
-          <div className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-            <RadioGroupItem value="" id="condition-all" />
+          <div
+            className="flex items-center space-x-2 p-3 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer touch-manipulation min-h-[48px]"
+            role="button"
+            tabIndex={0}
+            onClick={() => updateFilter('condition', '')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                updateFilter('condition', '')
+              }
+            }}
+          >
+            <RadioGroupItem value="" id="condition-all" className="pointer-events-none" />
             <Label
               htmlFor="condition-all"
-              className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+              className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex-1 pointer-events-none"
             >
               Any condition
             </Label>
@@ -251,12 +291,25 @@ const FilterContentEl = ({ filters, setFilters, clearAllFilters, categoryCounts 
           {ITEM_CONDITIONS.slice(0, 4).map((condition) => (
             <div
               key={condition.value}
-              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+              className="flex items-center space-x-2 p-3 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer touch-manipulation min-h-[48px]"
+              role="button"
+              tabIndex={0}
+              onClick={() => updateFilter('condition', condition.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  updateFilter('condition', condition.value)
+                }
+              }}
             >
-              <RadioGroupItem value={condition.value} id={`condition-${condition.value}`} />
+              <RadioGroupItem
+                value={condition.value}
+                id={`condition-${condition.value}`}
+                className="pointer-events-none"
+              />
               <Label
                 htmlFor={`condition-${condition.value}`}
-                className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors"
+                className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition-colors flex-1 pointer-events-none"
               >
                 {condition.label}
                 <span className="text-gray-400 ml-1 text-xs">({condition.description})</span>
@@ -285,6 +338,11 @@ export default function BrowsePage() {
   const [currentPage, setCurrentPage] = useState(initialPage)
   const [itemsPerPage] = useState(20) // 5 rows × 4 columns = 20 items per page
   const isApplyingUrlParams = useRef(false)
+
+  // Scroll to top on initial page load
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   // Backend data state
   const [products, setProducts] = useState<FeaturedItem[]>([])
@@ -641,8 +699,8 @@ export default function BrowsePage() {
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page)
-      // Scroll to top of results
-      window.scrollTo({ top: 200, behavior: 'smooth' })
+      // Scroll to top of page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -727,15 +785,17 @@ export default function BrowsePage() {
                 </SheetTrigger>
                 <SheetContent
                   side="left"
-                  className="w-[85%] sm:w-80 overflow-y-auto"
+                  className="w-[85%] sm:w-80 overflow-y-auto [&>button]:hidden"
                   hideOverlay={true}
                 >
+                  <SheetTitle className="sr-only">Filter Products</SheetTitle>
                   <div className="py-4">
                     <FilterContentEl
                       filters={filters}
                       setFilters={setFilters}
                       clearAllFilters={clearAllFilters}
                       categoryCounts={categoryCounts}
+                      onFilterChange={() => setIsFiltersOpen(false)}
                     />
                   </div>
                 </SheetContent>
