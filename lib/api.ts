@@ -256,6 +256,15 @@ class ApiClient {
                   errorData.message ||
                   "We're experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team."
               }
+            } else if (
+              response.status === 502 ||
+              response.status === 503 ||
+              response.status === 504
+            ) {
+              // Gateway/Service errors - backend is down or unreachable
+              console.warn(`[API] Gateway error ${response.status}:`, url)
+              errorMessage =
+                'Our servers are temporarily unavailable. This is usually due to maintenance or high traffic. Please try again in a few moments.'
             }
           } else {
             // Plain text error response
@@ -301,6 +310,13 @@ class ApiClient {
           } else if (response.status === 500) {
             errorMessage =
               "We're experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team."
+          } else if (
+            response.status === 502 ||
+            response.status === 503 ||
+            response.status === 504
+          ) {
+            errorMessage =
+              'Our servers are temporarily unavailable. This is usually due to maintenance or high traffic. Please try again in a few moments.'
           } else if (response.status === 401 || response.status === 403) {
             errorMessage = 'Authentication required. Please log in to access this content.'
           } else {
@@ -313,9 +329,12 @@ class ApiClient {
           isVerificationError?: boolean
           statusCode?: number
           isAuthError?: boolean
+          isGatewayError?: boolean
         }
         apiError.statusCode = response.status
         apiError.isAuthError = response.status === 401 || response.status === 403
+        apiError.isGatewayError =
+          response.status === 502 || response.status === 503 || response.status === 504
         apiError.isVerificationError =
           errorMessage.includes('verification required') ||
           errorMessage.includes('Buyer profile not found') ||

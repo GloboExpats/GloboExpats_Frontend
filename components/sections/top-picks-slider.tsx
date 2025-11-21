@@ -8,11 +8,12 @@ import { extractContentFromResponse, transformBackendProduct } from '@/lib/image
 import type { FeaturedItem } from '@/lib/types'
 import { ProductCard } from '@/components/ui/product-card'
 import { trackProductClick } from '@/lib/analytics'
+import { ErrorState } from '@/components/ui/error-state'
 
 export default function TopPicksSlider() {
   const [items, setItems] = useState<FeaturedItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
 
   // Scroll to start when items are loaded
@@ -22,89 +23,91 @@ export default function TopPicksSlider() {
     }
   }, [items])
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const res = await apiClient.getTopPicks(0, 30) // Fetch more to have better selection
-        const content = extractContentFromResponse(res)
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await apiClient.getTopPicks(0, 30) // Fetch more to have better selection
+      const content = extractContentFromResponse(res)
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[TopPicks] Fetched ${content.length} products`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[TopPicks] Fetched ${content.length} products`)
+      }
+
+      // Show products immediately with default counts to prevent blocking
+      const initialProducts = content.slice(0, 8).map((it) => {
+        const product = it as Record<string, unknown>
+        const transformed = transformBackendProduct(product)
+        return {
+          ...transformed,
+          views: (product.clickCount as number) || 0,
         }
+      })
 
-        // Show products immediately with default counts to prevent blocking
-        const initialProducts = content.slice(0, 8).map((it) => {
+      setItems(initialProducts)
+      setLoading(false)
+
+      // Fetch real click counts in background
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[TopPicks] Updating click counts in background...`)
+      }
+
+      Promise.all(
+        content.map(async (it) => {
           const product = it as Record<string, unknown>
-          const transformed = transformBackendProduct(product)
-          return {
-            ...transformed,
-            views: (product.clickCount as number) || 0,
+          const productId = product.productId as number
+
+          try {
+            const clickData = await apiClient.getProductClickCount(productId)
+            return {
+              ...product,
+              views: clickData.clicks || 0,
+            } as Record<string, unknown> & { views: number }
+          } catch {
+            return {
+              ...product,
+              views: (product.clickCount as number) || 0,
+            } as Record<string, unknown> & { views: number }
           }
         })
+      ).then((productsWithRealViews) => {
+        // Sort by REAL view counts (highest to lowest)
+        const sortedProducts = productsWithRealViews
+          .sort((a, b) => {
+            const aViews = a.views || 0
+            const bViews = b.views || 0
 
-        setItems(initialProducts)
-        setLoading(false)
-
-        // Fetch real click counts in background
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[TopPicks] Updating click counts in background...`)
-        }
-
-        Promise.all(
-          content.map(async (it) => {
-            const product = it as Record<string, unknown>
-            const productId = product.productId as number
-
-            try {
-              const clickData = await apiClient.getProductClickCount(productId)
-              return {
-                ...product,
-                views: clickData.clicks || 0,
-              } as Record<string, unknown> & { views: number }
-            } catch {
-              return {
-                ...product,
-                views: (product.clickCount as number) || 0,
-              } as Record<string, unknown> & { views: number }
+            if (bViews !== aViews) {
+              return bViews - aViews
+            }
+            const aProductId = (a.productId as number) || 0
+            const bProductId = (b.productId as number) || 0
+            return aProductId - bProductId
+          })
+          .slice(0, 8)
+          .map((it) => {
+            const transformed = transformBackendProduct(it as Record<string, unknown>)
+            return {
+              ...transformed,
+              views: it.views || 0,
             }
           })
-        ).then((productsWithRealViews) => {
-          // Sort by REAL view counts (highest to lowest)
-          const sortedProducts = productsWithRealViews
-            .sort((a, b) => {
-              const aViews = a.views || 0
-              const bViews = b.views || 0
 
-              if (bViews !== aViews) {
-                return bViews - aViews
-              }
-              const aProductId = (a.productId as number) || 0
-              const bProductId = (b.productId as number) || 0
-              return aProductId - bProductId
-            })
-            .slice(0, 8)
-            .map((it) => {
-              const transformed = transformBackendProduct(it as Record<string, unknown>)
-              return {
-                ...transformed,
-                views: it.views || 0,
-              }
-            })
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[TopPicks] Final sorted products:`, sortedProducts.length)
+        }
 
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[TopPicks] Final sorted products:`, sortedProducts.length)
-          }
-
-          setItems(sortedProducts)
-        })
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load top picks')
-        setLoading(false)
-      }
+        setItems(sortedProducts)
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error('Failed to load top picks'))
+      setLoading(false)
     }
-    load()
+  }
+
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only load once on mount
 
   const scrollByAmount = (dir: 'left' | 'right') => {
@@ -124,7 +127,14 @@ export default function TopPicksSlider() {
             <Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
           </div>
         ) : error ? (
-          <p className="text-red-600">{error}</p>
+          <ErrorState
+            type={
+              (error as Error & { isGatewayError?: boolean }).isGatewayError ? 'gateway' : 'server'
+            }
+            message={error.message}
+            onRetry={loadData}
+            compact
+          />
         ) : (
           <div className="relative">
             <button

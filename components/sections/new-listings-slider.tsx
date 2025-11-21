@@ -8,11 +8,12 @@ import { extractContentFromResponse, transformBackendProduct } from '@/lib/image
 import type { FeaturedItem } from '@/lib/types'
 import { ProductCard } from '@/components/ui/product-card'
 import { trackProductClick } from '@/lib/analytics'
+import { ErrorState } from '@/components/ui/error-state'
 
 export default function NewListingsSlider() {
   const [items, setItems] = useState<FeaturedItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Error | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
 
   // Scroll to start when items are loaded
@@ -22,61 +23,64 @@ export default function NewListingsSlider() {
     }
   }, [items])
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true)
-        const res = await apiClient.getNewestListings(0, 20)
-        const content = extractContentFromResponse(res)
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await apiClient.getNewestListings(0, 20)
+      const content = extractContentFromResponse(res)
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[NewListings] Fetched ${content.length} products`)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[NewListings] Fetched ${content.length} products`)
+      }
+
+      // Show products immediately with default counts
+      const initialProducts = content.slice(0, 8).map((it) => {
+        const product = it as Record<string, unknown>
+        const transformed = transformBackendProduct(product)
+        return {
+          ...transformed,
+          views: (product.clickCount as number) || 0,
         }
+      })
 
-        // Show products immediately with default counts
-        const initialProducts = content.slice(0, 8).map((it) => {
-          const product = it as Record<string, unknown>
-          const transformed = transformBackendProduct(product)
-          return {
-            ...transformed,
-            views: (product.clickCount as number) || 0,
+      setItems(initialProducts)
+      setLoading(false)
+
+      // Fetch real click counts in background
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[NewListings] Updating click counts in background...`)
+      }
+
+      Promise.all(
+        initialProducts.map(async (item, index) => {
+          try {
+            const clickData = await apiClient.getProductClickCount(Number(item.id))
+            return { index, views: clickData.clicks || 0 }
+          } catch {
+            return { index, views: item.views }
           }
         })
-
-        setItems(initialProducts)
-        setLoading(false)
-
-        // Fetch real click counts in background
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[NewListings] Updating click counts in background...`)
-        }
-
-        Promise.all(
-          initialProducts.map(async (item, index) => {
-            try {
-              const clickData = await apiClient.getProductClickCount(Number(item.id))
-              return { index, views: clickData.clicks || 0 }
-            } catch {
-              return { index, views: item.views }
+      ).then((results) => {
+        setItems((prevItems) => {
+          const updated = [...prevItems]
+          results.forEach(({ index, views }) => {
+            if (updated[index]) {
+              updated[index] = { ...updated[index], views }
             }
           })
-        ).then((results) => {
-          setItems((prevItems) => {
-            const updated = [...prevItems]
-            results.forEach(({ index, views }) => {
-              if (updated[index]) {
-                updated[index] = { ...updated[index], views }
-              }
-            })
-            return updated
-          })
+          return updated
         })
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load new listings')
-        setLoading(false)
-      }
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error('Failed to load new listings'))
+      setLoading(false)
     }
-    load()
+  }
+
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const scrollByAmount = (dir: 'left' | 'right') => {
@@ -96,7 +100,14 @@ export default function NewListingsSlider() {
             <Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
           </div>
         ) : error ? (
-          <p className="text-red-600">{error}</p>
+          <ErrorState
+            type={
+              (error as Error & { isGatewayError?: boolean }).isGatewayError ? 'gateway' : 'server'
+            }
+            message={error.message}
+            onRetry={loadData}
+            compact
+          />
         ) : (
           <div className="relative">
             <button
