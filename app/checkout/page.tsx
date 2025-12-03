@@ -33,6 +33,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useVerification } from '@/hooks/use-verification'
 import PriceDisplay from '@/components/price-display'
 import { toast } from '@/components/ui/use-toast'
+import { api, type MobileCheckoutPayload } from '@/lib/api'
 
 interface ShippingAddress {
   firstName: string
@@ -42,6 +43,8 @@ interface ShippingAddress {
   address: string
   city: string
   country: string
+  state?: string
+  zip?: string
   instructions?: string
 }
 
@@ -77,21 +80,21 @@ const paymentMethods: PaymentMethod[] = [
     id: 'mpesa',
     type: 'mobile',
     name: 'M-Pesa',
-    description: 'Coming Soon',
+    description: 'Instant STK push to your Safaricom line',
     icon: 'CreditCard',
   },
   {
     id: 'airtel',
     type: 'mobile',
     name: 'Airtel Money',
-    description: 'Coming Soon',
+    description: 'Secure Airtel Money payment',
     icon: 'CreditCard',
   },
   {
     id: 'mixx',
     type: 'mobile',
     name: 'Mixx By Yas',
-    description: 'Coming Soon',
+    description: 'Pay via Mixx mobile wallet',
     icon: 'CreditCard',
   },
   {
@@ -102,6 +105,8 @@ const paymentMethods: PaymentMethod[] = [
     icon: 'CreditCard',
   },
 ]
+
+const mobilePaymentMethodIds = ['mpesa', 'airtel', 'mixx']
 
 // Simplified East African countries for delivery with flags
 const eastAfricanCountries = [
@@ -172,6 +177,8 @@ export default function CheckoutPage() {
     address: '',
     city: '',
     country: 'Tanzania',
+    state: '',
+    zip: '',
     instructions: '',
   })
 
@@ -275,11 +282,15 @@ export default function CheckoutPage() {
   // Filter payment methods based on shipping selection
   const availablePaymentMethods = useMemo(() => {
     if (shippingMethod === 'delivery') {
-      // Arrange with Us -> Cash on Delivery only
-      return paymentMethods.filter((m) => m.id === 'cod' || m.description === 'Coming Soon')
+      // Arrange with Us -> Cash on Delivery or Mobile Money
+      return paymentMethods.filter(
+        (m) => m.id === 'cod' || mobilePaymentMethodIds.includes(m.id) || m.id === 'card'
+      )
     } else if (shippingMethod === 'pickup') {
-      // Arrange with Seller -> Meet in Person only
-      return paymentMethods.filter((m) => m.id === 'meetup' || m.description === 'Coming Soon')
+      // Arrange with Seller -> Meet in Person or Mobile Money
+      return paymentMethods.filter(
+        (m) => m.id === 'meetup' || mobilePaymentMethodIds.includes(m.id) || m.id === 'card'
+      )
     }
     return paymentMethods
   }, [shippingMethod])
@@ -400,7 +411,7 @@ export default function CheckoutPage() {
       if (!hasPaymentMethod) return false
 
       // Validate mobile money payment details
-      if (['mpesa', 'airtel', 'mixx'].includes(selectedPayment)) {
+      if (mobilePaymentMethodIds.includes(selectedPayment)) {
         return paymentDetails.mobileNumber.trim() !== ''
       }
 
@@ -441,16 +452,66 @@ export default function CheckoutPage() {
     setOrderError(null)
 
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const isMobilePayment = mobilePaymentMethodIds.includes(selectedPayment)
+      const paymentLabel =
+        paymentMethods.find((m) => m.id === selectedPayment)?.name || 'Cash on Delivery'
 
-      // Generate mock order ID
-      const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      let orderId = ''
+      let mobileReference: string | undefined
+      let mobileStatus: string | undefined
+      let mobileMessage: string | undefined
+
+      if (isMobilePayment) {
+        const mobilePayload: MobileCheckoutPayload = {
+          firstName: shippingAddress.firstName,
+          lastName: shippingAddress.lastName,
+          emailAddress: shippingAddress.email,
+          phoneNumber: paymentDetails.mobileNumber || shippingAddress.phone,
+          address: shippingAddress.address,
+          city: shippingAddress.city,
+          state: shippingAddress.state || '',
+          country: shippingAddress.country,
+          zipCode: shippingAddress.zip || '',
+          deliveryInstructions: shippingAddress.instructions || '',
+          deliveryMethod: shippingMethod,
+          paymentMethod: paymentLabel,
+          agreeToTerms,
+          totalAmount: Number(checkoutSubtotal.toFixed(2)),
+          currency: selectedCountryData?.currency || 'TZS',
+        }
+
+        const mobileResponse = await api.checkout.mobilePay(mobilePayload)
+
+        if (!mobileResponse.success) {
+          throw new Error(mobileResponse.message || 'Unable to initiate mobile payment.')
+        }
+
+        orderId =
+          mobileResponse.data?.orderId ||
+          mobileResponse.data?.transactionId ||
+          mobileResponse.data?.checkoutRequestId ||
+          `MP-${Date.now()}`
+
+        mobileReference =
+          mobileResponse.data?.checkoutRequestId || mobileResponse.data?.transactionId
+        mobileStatus = mobileResponse.data?.status
+        mobileMessage = mobileResponse.data?.message
+
+        toast({
+          title: 'Confirm payment on your phone',
+          description:
+            'We sent an STK push to your device. Approve the prompt to complete your payment.',
+        })
+      } else {
+        // Simulate API call delay for offline payment methods
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      }
 
       // Store order data in localStorage BEFORE clearing cart
       const orderData = {
         id: orderId,
-        status: 'confirmed',
+        status: isMobilePayment ? 'pending_payment' : 'confirmed',
         date: new Date().toISOString(),
         estimatedDelivery:
           shippingMethod === 'delivery'
@@ -458,8 +519,8 @@ export default function CheckoutPage() {
             : 'Any day as agreed with seller',
         total: checkoutSubtotal,
         currency: selectedCountryData?.currency || 'TZS',
-        paymentMethod:
-          paymentMethods.find((m) => m.id === selectedPayment)?.name || 'Cash on Delivery',
+        paymentMethod: paymentLabel,
+        paymentStatus: isMobilePayment ? 'Awaiting mobile confirmation' : 'Pay on delivery/pickup',
         items: checkoutItems.map((item) => ({
           id: item.id,
           title: item.title,
@@ -474,6 +535,8 @@ export default function CheckoutPage() {
           address: shippingAddress.address,
           city: shippingAddress.city,
           country: shippingAddress.country,
+          state: shippingAddress.state,
+          zip: shippingAddress.zip,
           phone: shippingAddress.phone,
           email: shippingAddress.email,
         },
@@ -502,6 +565,15 @@ export default function CheckoutPage() {
                   message: 'Seller has been notified. Our team will coordinate directly.',
                 }
               : undefined,
+        mobilePayment: isMobilePayment
+          ? {
+              reference: mobileReference,
+              status: mobileStatus || 'pending',
+              provider: paymentLabel,
+              phoneNumber: paymentDetails.mobileNumber || shippingAddress.phone,
+              message: mobileMessage,
+            }
+          : undefined,
       }
 
       // Store in localStorage for success page to retrieve
@@ -515,7 +587,9 @@ export default function CheckoutPage() {
       router.push(`/checkout/success?orderId=${orderId}`)
     } catch (error) {
       console.error('Order failed:', error)
-      setOrderError('Failed to process order. Please try again.')
+      setOrderError(
+        error instanceof Error ? error.message : 'Failed to process order. Please try again.'
+      )
     } finally {
       setIsProcessing(false)
     }
@@ -720,6 +794,29 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State / Region</Label>
+                      <Input
+                        id="state"
+                        value={shippingAddress.state}
+                        onChange={(e) => handleAddressChange('state', e.target.value)}
+                        placeholder="Region, state or province"
+                        className="border-2 focus:border-brand-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="zip">Postal / ZIP Code</Label>
+                      <Input
+                        id="zip"
+                        value={shippingAddress.zip}
+                        onChange={(e) => handleAddressChange('zip', e.target.value)}
+                        placeholder="e.g., 14111"
+                        className="border-2 focus:border-brand-primary"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="instructions">Delivery Instructions (Optional)</Label>
                     <Textarea
@@ -808,7 +905,7 @@ export default function CheckoutPage() {
                       </h3>
                       <div className="space-y-3">
                         {availablePaymentMethods
-                          .filter((m) => m.description !== 'Coming Soon')
+                          .filter((m) => m.type === 'cash')
                           .map((method) => (
                             <div
                               key={method.id}
@@ -879,9 +976,6 @@ export default function CheckoutPage() {
                               <CreditCard className="w-4 h-4 text-neutral-500" />
                             </div>
                             <span className="font-medium text-neutral-700">Mobile Money</span>
-                            <span className="text-[10px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full ml-2">
-                              Coming Soon
-                            </span>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4 pt-0">
@@ -891,22 +985,40 @@ export default function CheckoutPage() {
                               .map((method) => (
                                 <div
                                   key={method.id}
-                                  className="relative flex items-center gap-3 p-3 border border-neutral-200 rounded-lg opacity-60 cursor-not-allowed bg-neutral-50"
+                                  onClick={() => setSelectedPayment(method.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault()
+                                      setSelectedPayment(method.id)
+                                    }
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
+                                  className={`relative flex items-center gap-3 p-3 border-2 rounded-lg transition-all duration-200 cursor-pointer ${
+                                    selectedPayment === method.id
+                                      ? 'border-brand-primary bg-blue-50/50 shadow-sm'
+                                      : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                                  }`}
                                 >
                                   <RadioGroupItem
                                     value={method.id}
                                     id={method.id}
-                                    disabled
                                     className="w-4 h-4 border-2 flex-shrink-0"
                                   />
                                   <div className="flex-1 min-w-0">
                                     <Label
                                       htmlFor={method.id}
-                                      className="font-medium text-sm text-neutral-500"
+                                      className="font-medium text-sm text-neutral-900"
                                     >
                                       {method.name}
                                     </Label>
+                                    <p className="text-xs text-neutral-600 mt-1">
+                                      {method.description}
+                                    </p>
                                   </div>
+                                  {selectedPayment === method.id && (
+                                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                  )}
                                 </div>
                               ))}
                           </div>
@@ -957,9 +1069,7 @@ export default function CheckoutPage() {
                   </RadioGroup>
 
                   {/* Mobile Money Payment Details */}
-                  {(selectedPayment === 'mpesa' ||
-                    selectedPayment === 'airtel' ||
-                    selectedPayment === 'mixx') && (
+                  {mobilePaymentMethodIds.includes(selectedPayment) && (
                     <div className="p-4 sm:p-6 bg-neutral-50 rounded-xl border border-neutral-200 mt-3">
                       <h3 className="text-base sm:text-lg font-semibold text-neutral-900 mb-3 sm:mb-4">
                         Mobile Money Details

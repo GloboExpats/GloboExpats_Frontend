@@ -55,6 +55,35 @@ interface ProductListParams {
   search?: string
 }
 
+/** Payload for initiating the mobile checkout flow */
+interface MobileCheckoutPayload {
+  firstName: string
+  lastName: string
+  emailAddress: string
+  phoneNumber: string
+  address: string
+  city: string
+  state?: string
+  country: string
+  zipCode?: string
+  deliveryInstructions?: string
+  deliveryMethod: string
+  paymentMethod: string
+  agreeToTerms: boolean
+  totalAmount: number
+  currency: string
+}
+
+/** Response returned by the mobile checkout endpoint */
+interface MobileCheckoutResponse {
+  orderId?: string
+  checkoutRequestId?: string
+  transactionId?: string
+  status?: string
+  message?: string
+  reference?: string
+}
+
 // ============================================================================
 // API CLIENT CLASS
 // ============================================================================
@@ -1615,6 +1644,20 @@ class ApiClient {
   }
 
   // ============================================================================
+  // CHECKOUT ENDPOINTS
+  // ============================================================================
+
+  /** Initiates the mobile money checkout flow */
+  async initiateMobileCheckout(
+    payload: MobileCheckoutPayload
+  ): Promise<ApiResponse<MobileCheckoutResponse>> {
+    return this.request('/api/v1/checkout/zenoMobilePayCheckOut', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  // ============================================================================
   // CART ENDPOINTS - DEPRECATED (Client-Side Cart Only)
   // ============================================================================
   // All cart operations are now handled client-side via localStorage
@@ -1679,6 +1722,11 @@ export const api = {
     updateStatus: (id: string, status: string) => apiClient.updateOrderStatus(id, status),
   },
 
+  /** Checkout flows */
+  checkout: {
+    mobilePay: (data: MobileCheckoutPayload) => apiClient.initiateMobileCheckout(data),
+  },
+
   /** Cart management operations - DEPRECATED: Now client-side only */
   // Cart operations removed - handled via localStorage in CartProvider
 
@@ -1715,6 +1763,8 @@ export const api = {
     deleteProfileImage: () => apiClient.deleteProfileImage(),
   },
 }
+
+export type { MobileCheckoutPayload, MobileCheckoutResponse }
 
 /** Default export for backward compatibility */
 export default apiClient

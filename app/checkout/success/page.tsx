@@ -42,6 +42,8 @@ interface OrderData {
     address: string
     city: string
     country: string
+    state?: string
+    zip?: string
   }
   shippingMethod?: string
   expectedContactTime?: string
