@@ -464,26 +464,27 @@ export default function CheckoutPage() {
       let mobileMessage: string | undefined
 
       if (isMobilePayment) {
-        checkoutItemsPayload = checkoutItems.reduce<
-          { productId: number; quantity: number }[]
-        >((acc, item) => {
-          const rawId =
-            typeof item.productId === 'number' ? item.productId : Number(item.productId)
-          const fallbackId = Number(item.id)
-          const productIdValue = Number.isFinite(rawId) ? rawId : fallbackId
+        checkoutItemsPayload = checkoutItems.reduce<{ productId: number; quantity: number }[]>(
+          (acc, item) => {
+            const rawId =
+              typeof item.productId === 'number' ? item.productId : Number(item.productId)
+            const fallbackId = Number(item.id)
+            const productIdValue = Number.isFinite(rawId) ? rawId : fallbackId
 
-          if (!Number.isFinite(productIdValue)) {
-            console.warn('[Checkout] Skipping item without numeric productId', item)
+            if (!Number.isFinite(productIdValue)) {
+              console.warn('[Checkout] Skipping item without numeric productId', item)
+              return acc
+            }
+
+            acc.push({
+              productId: productIdValue,
+              quantity: Math.max(1, item.quantity || 1),
+            })
+
             return acc
-          }
-
-          acc.push({
-            productId: productIdValue,
-            quantity: Math.max(1, item.quantity || 1),
-          })
-
-          return acc
-        }, [])
+          },
+          []
+        )
 
         if (checkoutItemsPayload.length === 0) {
           throw new Error(
