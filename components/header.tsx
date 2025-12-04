@@ -52,7 +52,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Bell, ShoppingCart, Search, User, Shield, Settings } from 'lucide-react'
+import { Bell, ShoppingCart, Search, User, Shield, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { useCart } from '@/hooks/use-cart'
@@ -142,7 +142,7 @@ const UserNavigation = React.memo<{
   handleLogout: () => void
   cartItemCount: number
 }>(({ user, isVerifiedBuyer, isAdmin, handleLogout, cartItemCount }) => {
-  const { notificationCounts, messageCounts } = useNotifications()
+  const { notificationCounts } = useNotifications()
   const userInitials = React.useMemo(() => getInitials(user?.name || 'U'), [user?.name])
 
   return (
@@ -244,18 +244,6 @@ const UserNavigation = React.memo<{
           count={notificationCounts.unread}
           ariaLabel={`View notifications (${notificationCounts.unread} unread)`}
           testId="notifications-button"
-          className="hover:bg-brand-primary/80 transition-colors"
-        />
-      </div>
-
-      {/* Messages - Real-time messaging system - HIDDEN ON MOBILE */}
-      <div className="hidden md:block" data-tutorial="messages">
-        <NotificationBadge
-          href="/messages"
-          icon={MessageCircle}
-          count={messageCounts.unread}
-          ariaLabel={`View messages (${messageCounts.unread} unread)`}
-          testId="messages-button"
           className="hover:bg-brand-primary/80 transition-colors"
         />
       </div>
