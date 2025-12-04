@@ -173,21 +173,21 @@ export default function MobileSidebarToggle() {
                 })}
               </div>
             </div>
+          </div>
 
-            {/* Platform Tutorial Button */}
-            <div className="p-4 border-t border-slate-100 mt-auto">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2 text-slate-600 border-slate-200 hover:bg-slate-50"
-                onClick={() => {
-                  setIsOpen(false)
-                  setTimeout(() => startTutorial(), 100)
-                }}
-              >
-                <HelpCircle className="w-4 h-4" />
-                Platform Tutorial
-              </Button>
-            </div>
+          {/* Platform Tutorial Button - Fixed at bottom */}
+          <div className="p-4 border-t border-slate-100 mt-auto flex-shrink-0 bg-white">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 text-slate-600 border-slate-200 hover:bg-slate-50"
+              onClick={() => {
+                setIsOpen(false)
+                setTimeout(() => startTutorial(), 100)
+              }}
+            >
+              <HelpCircle className="w-4 h-4" />
+              Platform Tutorial
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
