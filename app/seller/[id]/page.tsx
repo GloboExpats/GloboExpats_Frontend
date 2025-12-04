@@ -124,25 +124,57 @@ export default function SellerProfilePage() {
         console.log('Total Products Found:', sellerProducts.length)
         console.log('══════════════════════════════════════')
 
-        // NOTE: Backend limitation - no public endpoint to fetch other users' profiles
-        // The /api/v1/userManagement/user-details endpoint only returns the CURRENT user's data
-        // and ignores any userId parameter passed to it.
-        // Therefore, we extract seller information from product data only.
+        // TRY to fetch user profile from API
+        // We'll attempt multiple endpoints to see if any work
+        let userProfile: {
+          firstName?: string
+          lastName?: string
+          profileImageUrl?: string
+          location?: string
+          organization?: string
+          position?: string
+          aboutMe?: string
+          verificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'
+        } | null = null
 
-        // Extract seller details from product data
-        // The backend stores seller info as a snapshot when the product is created
-        const profileImageUrl =
+        try {
+          userProfile = await apiClient.getSellerProfile(userSellerId)
+          console.log('✅ Successfully fetched seller profile from API:', userProfile)
+
+          // VERIFY the API returned the CORRECT user, not the logged-in user
+          // Check if the returned data seems to match this seller
+          if (userProfile) {
+            console.log('🔍 Verifying API returned correct seller...')
+            // If we can verify the name matches, great! Otherwise warn.
+            const apiFullName = `${userProfile.firstName} ${userProfile.lastName}`
+              .trim()
+              .toLowerCase()
+            const expectedName = decodedSellerName.toLowerCase()
+
+            if (apiFullName !== expectedName) {
+              console.warn(
+                '⚠️ API returned different user! Expected:',
+                expectedName,
+                'Got:',
+                apiFullName
+              )
+              console.warn('⚠️ Discarding API data and using product data instead')
+              userProfile = null // Discard wrong data
+            } else {
+              console.log('✅ API data verified - names match!')
+            }
+          }
+        } catch (profileError) {
+          console.warn('⚠️ Could not fetch seller profile from API:', profileError)
+          userProfile = null
+        }
+
+        // Extract seller details from product data (used as fallback or primary source)
+        const productProfileImageUrl =
           firstProduct.sellerProfileImage ||
           firstProduct.sellerProfileImageUrl ||
           firstProduct.profileImageUrl ||
           firstProduct.userProfileImage
-
-        // Determine verification status from product data
-        const isVerified =
-          firstProduct.sellerVerified === true ||
-          firstProduct.isVerified === true ||
-          firstProduct.sellerVerificationStatus === 'VERIFIED' ||
-          (sellerProducts.length > 0 && firstProduct.sellerEmail !== undefined)
 
         // Calculate stats from products
         const totalReviews = sellerProducts.reduce(
@@ -157,21 +189,49 @@ export default function SellerProfilePage() {
 
         const averageRating = totalReviews > 0 ? totalRating / sellerProducts.length : 0
 
-        // Build seller profile from API data if available, otherwise use product data
+        // Determine verification status
+        const isVerified =
+          userProfile?.verificationStatus === 'VERIFIED' ||
+          firstProduct.sellerVerified === true ||
+          firstProduct.isVerified === true ||
+          firstProduct.sellerVerificationStatus === 'VERIFIED' ||
+          (sellerProducts.length > 0 && firstProduct.sellerEmail !== undefined)
+
+        // Build seller profile - prioritize API data if available and verified, otherwise use product data
         const sellerProfile: SellerProfile = {
-          firstName: String(firstProduct.sellerName || '').split(' ')[0] || '',
+          // Use API first name if available, otherwise extract from product sellerName
+          firstName:
+            userProfile?.firstName || String(firstProduct.sellerName || '').split(' ')[0] || '',
+          // Use API last name if available, otherwise extract from product sellerName
           lastName:
+            userProfile?.lastName ||
             String(firstProduct.sellerName || '')
               .split(' ')
               .slice(1)
-              .join(' ') || '',
-          profileImageUrl: profileImageUrl ? getFullImageUrl(String(profileImageUrl)) : undefined,
-          location: firstProduct.sellerLocation ? String(firstProduct.sellerLocation) : undefined,
-          organization: firstProduct.sellerOrganization
-            ? String(firstProduct.sellerOrganization)
-            : undefined,
-          position: firstProduct.sellerPosition ? String(firstProduct.sellerPosition) : undefined,
-          aboutMe: firstProduct.sellerAboutMe ? String(firstProduct.sellerAboutMe) : undefined,
+              .join(' ') ||
+            '',
+          // Use API profile image if available, otherwise product data
+          profileImageUrl: userProfile?.profileImageUrl
+            ? getFullImageUrl(userProfile.profileImageUrl)
+            : productProfileImageUrl
+              ? getFullImageUrl(String(productProfileImageUrl))
+              : undefined,
+          // Use API location if available, otherwise product data
+          location:
+            userProfile?.location ||
+            (firstProduct.sellerLocation ? String(firstProduct.sellerLocation) : undefined),
+          // Use API organization if available, otherwise product data
+          organization:
+            userProfile?.organization ||
+            (firstProduct.sellerOrganization ? String(firstProduct.sellerOrganization) : undefined),
+          // Use API position if available, otherwise product data
+          position:
+            userProfile?.position ||
+            (firstProduct.sellerPosition ? String(firstProduct.sellerPosition) : undefined),
+          // Use API about me if available, otherwise product data
+          aboutMe:
+            userProfile?.aboutMe ||
+            (firstProduct.sellerAboutMe ? String(firstProduct.sellerAboutMe) : undefined),
           isVerified: isVerified,
           joinedDate: firstProduct.sellerJoinedDate
             ? String(firstProduct.sellerJoinedDate)
