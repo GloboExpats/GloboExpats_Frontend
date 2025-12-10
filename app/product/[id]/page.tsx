@@ -789,6 +789,12 @@ export default function ProductPage() {
                       {rawProductData?.productWarranty || 'No warranty'}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Quantity</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {product.quantity ?? rawProductData?.productQuantity ?? 'Available'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
