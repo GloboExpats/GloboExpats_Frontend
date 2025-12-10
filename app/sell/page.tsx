@@ -415,7 +415,7 @@ function SellPageContent() {
         askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
         originalPrice: Math.round(originalPriceInTZS),
         productWarranty: formData.warranty.trim() || 'No warranty', // Use form data or default
-        quantity: parseInt(formData.quantity) || 1,
+        // quantity: parseInt(formData.quantity) || 1, // Backend does not support quantity yet - causes 500 error
       }
 
       // Call the backend API with reordered images (main image first)
@@ -538,6 +538,21 @@ function SellPageContent() {
 
       // Store the product ID for verification
       if (result.productId) {
+        // Feature Parity: Update quantity if user specified more than 1
+        // The create endpoint doesn't support quantity, so we patch it immediately after
+        const quantity = parseInt(formData.quantity) || 1
+        if (quantity > 1) {
+          try {
+            console.log(`[Sell] Updating quantity to ${quantity} for product ${result.productId}`)
+            await apiClient.updateProduct(result.productId.toString(), {
+              productQuantity: quantity,
+            })
+          } catch (updateError) {
+            console.error('[Sell] Failed to update initial quantity:', updateError)
+            // Don't fail the whole process, just log it. The product exists.
+          }
+        }
+
         // Show success toast
         toast({
           title: '✅ Listing Published!',
@@ -1088,6 +1103,28 @@ function Step2Content({
         <p className="text-sm text-neutral-500">{formData.description.length}/500 characters</p>
       </div>
 
+      {/* Quantity - Moved from Step 3 */}
+      <div className="space-y-3">
+        <Label htmlFor="quantity" className="text-base font-semibold text-neutral-800">
+          Available Quantity
+        </Label>
+        <div className="relative">
+          <Input
+            id="quantity"
+            type="number"
+            min="1"
+            max="1000"
+            placeholder="1"
+            className="h-12 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
+            value={formData.quantity}
+            onChange={(e) => updateFormData({ quantity: e.target.value })}
+          />
+        </div>
+        <p className="text-sm text-neutral-500">
+          How many of these items do you have available for sale?
+        </p>
+      </div>
+
       {/* Dynamic Category-Specific Fields */}
       <CategorySpecificFields
         category={formData.category}
@@ -1219,28 +1256,6 @@ function Step3Content({
         <p className="text-xs sm:text-sm text-neutral-500">
           {formData.warranty.length}/100 • Specify warranty details if applicable (e.g., remaining
           manufacturer warranty, seller guarantee)
-        </p>
-      </div>
-
-      {/* Quantity */}
-      <div className="space-y-3">
-        <Label htmlFor="quantity" className="text-base font-semibold text-neutral-800">
-          Available Quantity
-        </Label>
-        <div className="relative">
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            max="1000"
-            placeholder="1"
-            className="h-12 sm:h-14 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
-            value={formData.quantity}
-            onChange={(e) => updateFormData({ quantity: e.target.value })}
-          />
-        </div>
-        <p className="text-xs sm:text-sm text-neutral-500">
-          How many of these items do you have available for sale?
         </p>
       </div>
 

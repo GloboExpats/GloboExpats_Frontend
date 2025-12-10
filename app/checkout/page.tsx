@@ -43,6 +43,7 @@ import { useVerification } from '@/hooks/use-verification'
 import PriceDisplay from '@/components/price-display'
 import { toast } from '@/components/ui/use-toast'
 import { api, type MobileCheckoutPayload } from '@/lib/api'
+import { attemptBuyerProfileFix, isBuyerProfileError } from '@/lib/buyer-profile-fixer'
 
 interface ShippingAddress {
   firstName: string
@@ -598,20 +599,14 @@ export default function CheckoutPage() {
 
         if (!meetSellerResponse.success) {
           throw new Error(
-            meetSellerResponse.message || 'Unable to complete checkout. Please try again.'
+            meetSellerResponse.message || 'We could not process your order. Please try again.'
           )
         }
 
-        orderId =
-          meetSellerResponse.data?.orderId ||
-          meetSellerResponse.data?.transactionId ||
-          `MS-${Date.now()}`
-
-        toast({
-          title: 'Order Submitted Successfully!',
-          description:
-            'The seller has been notified. You will receive contact details to arrange your meetup.',
-        })
+        orderId = meetSellerResponse.data?.orderId || `MS-${Date.now()}`
+        mobileReference = meetSellerResponse.data?.transactionId || undefined
+        mobileStatus = meetSellerResponse.data?.status
+        mobileMessage = meetSellerResponse.data?.message
       } else {
         // Handle Cash on Delivery (cod) - simulate API call
         await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -702,14 +697,51 @@ export default function CheckoutPage() {
       localStorage.setItem('clearCartAfterOrder', 'true')
 
       // Seamless SPA navigation to success page; cart clears after success loads
+      // Seamless SPA navigation to success page; cart clears after success loads
       router.push(`/checkout/success?orderId=${orderId}`)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Order failed:', error)
-      setOrderError(
-        error instanceof Error ? error.message : 'Failed to process order. Please try again.'
-      )
-    } finally {
-      setIsProcessing(false)
+      const errorMessage =
+        error instanceof Error ? error.message : 'Something went wrong. Please try again.'
+      setIsProcessing(false) // Reset processing state if error occurs (initially)
+
+      // Handle Buyer Profile Missing Error (Auto-fix attempt)
+      if (isBuyerProfileError(error)) {
+        toast({
+          title: 'Setting up your profile...',
+          description: 'We are finalizing your buyer account. Please wait a moment...',
+        })
+
+        setIsProcessing(true) // Set back to true while fixing
+        const fixResult = await attemptBuyerProfileFix()
+
+        if (fixResult.success) {
+          toast({
+            title: 'Profile ready!',
+            description: 'Retrying your order now...',
+          })
+
+          // Retry the order immediately
+          setTimeout(() => {
+            handlePlaceOrder()
+          }, 1000)
+          return
+        } else {
+          // Fix failed
+          setOrderError(
+            'We encountered an account setup issue. Please contact support or try verifying your account again.'
+          )
+          setIsProcessing(false)
+          return
+        }
+      }
+
+      setOrderError(errorMessage)
+      toast({
+        variant: 'destructive',
+        title: 'Order Failed',
+        description: errorMessage,
+      })
     }
   }
 

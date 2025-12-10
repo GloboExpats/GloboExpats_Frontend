@@ -1394,6 +1394,31 @@ class ApiClient {
     })
   }
 
+  // ============================================================================
+  // USER MANAGEMENT ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Updates user profile information
+   * @param data - User profile data to update
+   * @returns Promise resolving to update confirmation
+   */
+  async updateUserProfile(data: {
+    firstName: string
+    lastName: string
+    organizationalEmail: string
+  }): Promise<ApiResponse<unknown>> {
+    const formData = new FormData()
+    if (data.firstName) formData.append('firstName', data.firstName)
+    if (data.lastName) formData.append('lastName', data.lastName)
+    if (data.organizationalEmail) formData.append('organizationalEmail', data.organizationalEmail)
+
+    return this.request('/api/v1/userManagement/editProfile', {
+      method: 'PATCH',
+      body: formData,
+    })
+  }
+
   /**
    * Uploads verification documents
    * @param files - Document files to upload

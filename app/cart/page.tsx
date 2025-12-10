@@ -169,6 +169,7 @@ export default function CartPage() {
                               src={item.image}
                               alt={item.title}
                               fill
+                              sizes="64px"
                               className="object-cover"
                             />
                           </div>
@@ -273,7 +274,13 @@ export default function CartPage() {
                         />
 
                         <div className="relative w-20 h-20 lg:w-24 lg:h-24 bg-neutral-100 rounded-lg overflow-hidden flex-shrink-0">
-                          <Image src={item.image} alt={item.title} fill className="object-cover" />
+                          <Image
+                            src={item.image}
+                            alt={item.title}
+                            fill
+                            sizes="(min-width: 1024px) 96px, 80px"
+                            className="object-cover"
+                          />
                         </div>
 
                         <div className="flex-1 min-w-0">
