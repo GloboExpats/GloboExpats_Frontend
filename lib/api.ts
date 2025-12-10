@@ -815,7 +815,9 @@ class ApiClient {
   async getProductDetails(productId: number): Promise<unknown> {
     try {
       // Try the dedicated detail endpoint first (best case - includes reviews, ratings, etc.)
-      return await this.request(`/api/v1/displayItem/itemDetails/${productId}`)
+      return await this.request(`/api/v1/displayItem/itemDetails/${productId}`, {
+        cache: 'no-store',
+      })
     } catch (error) {
       // Check if this is a 404 error
       const apiError = error as Error & { statusCode?: number }
@@ -1565,10 +1567,14 @@ class ApiClient {
     otp: string,
     userRoles: 'SELLER' | 'USER' | string
   ): Promise<ApiResponse<unknown>> {
-    const qs = `?organizationalEmail=${encodeURIComponent(
-      organizationalEmail
-    )}&otp=${encodeURIComponent(otp)}&userRoles=${encodeURIComponent(userRoles)}`
-    return this.request(`/api/v1/email/verifyOTP${qs}`, { method: 'POST' })
+    return this.request('/api/v1/email/verifyOTP', {
+      method: 'POST',
+      body: JSON.stringify({
+        organizationalEmail,
+        otp,
+        userRoles,
+      }),
+    })
   }
 
   /**

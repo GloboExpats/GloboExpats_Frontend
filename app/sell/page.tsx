@@ -16,9 +16,9 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { RouteGuard } from '@/components/route-guard'
-import { LocationSelect } from '@/components/ui/location-select'
+import { EnhancedLocationSelect } from '@/components/ui/enhanced-location-select'
 import { apiClient } from '@/lib/api'
-import { ITEM_CONDITIONS, EXPAT_LOCATIONS, CURRENCIES } from '@/lib/constants'
+import { ITEM_CONDITIONS, CURRENCIES } from '@/lib/constants'
 import { CURRENCIES as CURRENCY_CONFIG } from '@/lib/currency-converter'
 import { getCategoryFields } from '@/lib/category-fields'
 import { getStepTips, getCategoryTips, getStepName } from '@/lib/step-tips'
@@ -55,7 +55,7 @@ const INITIAL_FORM_DATA: FormData = {
   originalPrice: '',
   currency: 'TZS',
   warranty: '',
-  quantity: '1',
+  quantity: '',
   categoryFields: {},
 }
 
@@ -544,9 +544,12 @@ function SellPageContent() {
         if (quantity > 1) {
           try {
             console.log(`[Sell] Updating quantity to ${quantity} for product ${result.productId}`)
+            // Send both fields to ensure one works with the backend
             await apiClient.updateProduct(result.productId.toString(), {
               productQuantity: quantity,
+              quantity: quantity,
             })
+            console.log('[Sell] ✅ Quantity updated successfully')
           } catch (updateError) {
             console.error('[Sell] Failed to update initial quantity:', updateError)
             // Don't fail the whole process, just log it. The product exists.
@@ -576,7 +579,8 @@ function SellPageContent() {
       }
 
       // Redirect to dashboard with My Listings tab
-      window.location.href = '/expat/dashboard?tab=listings'
+      // Using replace to prevent back button from returning to form
+      window.location.replace('/expat/dashboard?tab=listings')
 
       // Reset form
       setFormData(INITIAL_FORM_DATA)
@@ -873,12 +877,11 @@ function Step1Content({
 
       <div className="space-y-3">
         <Label className="text-base font-semibold text-neutral-800">Location *</Label>
-        <LocationSelect
-          locations={EXPAT_LOCATIONS}
+        <EnhancedLocationSelect
           value={formData.location}
           onValueChange={(value) => updateFormData({ location: value })}
-          placeholder="Select your location"
-          className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
+          placeholder="Select country first"
+          showLabels={false}
         />
       </div>
     </>
@@ -1103,10 +1106,10 @@ function Step2Content({
         <p className="text-sm text-neutral-500">{formData.description.length}/500 characters</p>
       </div>
 
-      {/* Quantity - Moved from Step 3 */}
+      {/* Quantity */}
       <div className="space-y-3">
         <Label htmlFor="quantity" className="text-base font-semibold text-neutral-800">
-          Available Quantity
+          Available Quantity *
         </Label>
         <div className="relative">
           <Input
@@ -1114,14 +1117,20 @@ function Step2Content({
             type="number"
             min="1"
             max="1000"
-            placeholder="1"
+            placeholder="Enter quantity (e.g., 1, 5, 10)"
             className="h-12 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
             value={formData.quantity}
-            onChange={(e) => updateFormData({ quantity: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value
+              // Allow empty or valid positive numbers
+              if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 1000)) {
+                updateFormData({ quantity: val })
+              }
+            }}
           />
         </div>
         <p className="text-sm text-neutral-500">
-          How many of these items do you have available for sale?
+          How many identical items do you have for sale? Minimum: 1
         </p>
       </div>
 

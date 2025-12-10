@@ -184,6 +184,7 @@ export default function RegisterPage() {
         lastName: formData.lastName,
         password: formData.password,
         emailAddress: formData.personalEmail,
+        phoneNumber: formData.phoneNumber || undefined,
         agreeToTerms: formData.acceptTerms,
         agreeToPrivacyPolicy: formData.acceptPrivacy,
       })

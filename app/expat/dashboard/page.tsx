@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -91,9 +92,16 @@ export default function ExpatDashboard() {
 
 function DashboardContent() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab')
+
   const [listings, setListings] = useState<UserListing[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(
+    initialTab && ['overview', 'listings', 'messages', 'analytics', 'orders'].includes(initialTab)
+      ? initialTab
+      : 'overview'
+  )
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean
     productId: string | null
@@ -197,15 +205,6 @@ function DashboardContent() {
       }
     }
     fetchCategories()
-  }, [])
-
-  // Check for tab parameter in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const tabParam = urlParams.get('tab')
-    if (tabParam && ['overview', 'listings', 'messages', 'analytics'].includes(tabParam)) {
-      setActiveTab(tabParam)
-    }
   }, [])
 
   // Fetch dashboard data

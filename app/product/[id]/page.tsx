@@ -799,9 +799,15 @@ export default function ProductPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-600">Quantity</span>
+                    <span className="text-sm font-medium text-gray-600">Available Quantity</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {product.quantity ?? rawProductData?.productQuantity ?? 'Available'}
+                      {(() => {
+                        const qty = product.quantity ?? rawProductData?.productQuantity
+                        if (qty === undefined || qty === null || qty === 0) {
+                          return 'In Stock'
+                        }
+                        return `${qty} ${qty === 1 ? 'unit' : 'units'} available`
+                      })()}
                     </span>
                   </div>
                 </div>
