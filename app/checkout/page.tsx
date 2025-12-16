@@ -167,8 +167,7 @@ export default function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
-  const [selectedCountry, setSelectedCountry] = useState('TZ') // Default to Tanzania
-
+  const [selectedCountry, setSelectedCountry] = useState('') // Default to empty
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     firstName: user?.name.split(' ')[0] || '',
     lastName: user?.name.split(' ').slice(1).join(' ') || '',
@@ -176,7 +175,7 @@ export default function CheckoutPage() {
     phone: '',
     address: '',
     city: '',
-    country: 'Tanzania',
+    country: '',
     state: '',
     zip: '',
     instructions: '',
@@ -1368,7 +1367,9 @@ export default function CheckoutPage() {
                                 mobileNumber: e.target.value,
                               }))
                             }
-                            placeholder={selectedCountryData?.phoneCode + ' 700 123 456'}
+                            placeholder={
+                              (selectedCountryData?.phoneCode || '+255') + ' 700 123 456'
+                            }
                             className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary mt-2"
                           />
                           <p className="text-sm text-neutral-700 mt-2">

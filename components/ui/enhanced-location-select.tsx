@@ -229,7 +229,7 @@ export function EnhancedLocationSelect({
             <div className="space-y-2">
               {showLabels && <Label className="text-sm font-medium text-neutral-700">City</Label>}
               <Input
-                placeholder="e.g., Dubai, London, Singapore"
+                placeholder="e.g., Dubai, London, Nairobi"
                 value={customCity}
                 onChange={(e) => updateCustomLocation(e.target.value, customCountry)}
                 className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
