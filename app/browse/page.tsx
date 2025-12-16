@@ -58,6 +58,7 @@ interface FilterState {
   condition: string
   expatType: string
   location: string
+  country: string
 }
 
 interface FilterProps {
@@ -77,16 +78,16 @@ const FilterContentEl = ({
 }: FilterProps) => {
   const updateFilter = useCallback(
     (key: keyof FilterState, value: string | number | string[] | [number, number] | boolean) => {
-      setFilters({
-        ...filters,
+      setFilters((prev) => ({
+        ...prev,
         [key]: value,
-      })
+      }))
       // Notify parent when filter changes (for auto-close on mobile)
       if (onFilterChange) {
         setTimeout(onFilterChange, 100) // Small delay to ensure state updates
       }
     },
-    [filters, setFilters, onFilterChange]
+    [setFilters, onFilterChange]
   )
 
   const hasActiveFilters =
@@ -114,6 +115,14 @@ const FilterContentEl = ({
     setMinPriceInput(filters.priceRange[0].toString())
     setMaxPriceInput(filters.priceRange[1].toString())
   }, [filters.priceRange])
+
+  // Get unique countries
+  const countries = Array.from(new Set(EXPAT_LOCATIONS.map((loc) => loc.country || 'Other'))).sort()
+
+  // Filter cities based on selected country
+  const filteredLocations = filters.country
+    ? EXPAT_LOCATIONS.filter((loc) => loc.country === filters.country)
+    : EXPAT_LOCATIONS
 
   return (
     <div className="space-y-6">
@@ -179,30 +188,56 @@ const FilterContentEl = ({
       <Separator />
 
       {/* Location */}
-      <div className="space-y-3">
-        <Label className="text-sm font-semibold text-gray-700">Location</Label>
-        <Select
-          value={filters.location || 'all'}
-          onValueChange={(value) => updateFilter('location', value === 'all' ? '' : value)}
-        >
-          <SelectTrigger className="text-gray-600 h-10">
-            <SelectValue placeholder="Any location" />
-          </SelectTrigger>
-          <SelectContent
-            className="z-[100]"
-            position="popper"
-            side="bottom"
-            align="start"
-            sideOffset={4}
+      <div className="space-y-4">
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-gray-700">Country</Label>
+          <Select
+            value={filters.country || 'all'}
+            onValueChange={(value) => {
+              updateFilter('country', value === 'all' ? '' : value)
+              updateFilter('location', '') // Reset city when country changes
+            }}
           >
-            <SelectItem value="all">Any location</SelectItem>
-            {EXPAT_LOCATIONS.map((location) => (
-              <SelectItem key={location.value} value={location.value}>
-                {location.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger className="text-gray-600 h-10">
+              <SelectValue placeholder="Any country" />
+            </SelectTrigger>
+            <SelectContent className="z-[100]" position="popper" side="bottom" align="start">
+              <SelectItem value="all">Any country</SelectItem>
+              {countries.map((country) => (
+                <SelectItem key={country} value={country}>
+                  {country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-gray-700">City</Label>
+          <Select
+            value={filters.location || 'all'}
+            onValueChange={(value) => updateFilter('location', value === 'all' ? '' : value)}
+            disabled={!filters.country}
+          >
+            <SelectTrigger className={`h-10 ${!filters.country ? 'opacity-50' : 'text-gray-600'}`}>
+              <SelectValue placeholder={filters.country ? 'Select city' : 'Select country first'} />
+            </SelectTrigger>
+            <SelectContent
+              className="z-[100]"
+              position="popper"
+              side="bottom"
+              align="start"
+              sideOffset={4}
+            >
+              <SelectItem value="all">Any city</SelectItem>
+              {filteredLocations.map((location) => (
+                <SelectItem key={location.value} value={location.value}>
+                  {location.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Separator />
@@ -368,6 +403,7 @@ export default function BrowsePage() {
     condition: '',
     expatType: '',
     location: '',
+    country: '',
   }
 
   const [filters, setFilters] = useState<FilterState>(initialFilters)
@@ -470,6 +506,7 @@ export default function BrowsePage() {
       condition: '',
       expatType: '',
       location: '',
+      country: '',
     })
   }
 
@@ -659,6 +696,23 @@ export default function BrowsePage() {
       product.location?.toLowerCase().includes(filters.location.toLowerCase()) ||
       generateSlug(product.location).includes(filters.location)
 
+    // Country filtering
+    let matchesCountry = true
+    if (filters.country) {
+      // Find all valid city slugs for this country
+      const countryCitySlugs = EXPAT_LOCATIONS.filter((l) => l.country === filters.country).map(
+        (l) => l.value
+      )
+      // Check if product location matches any of these cities
+      // We rely on the fact that product.location usually contains the city name or matches the slug
+      const productSlug = generateSlug(product.location)
+      matchesCountry = countryCitySlugs.some(
+        (citySlug) =>
+          productSlug.includes(citySlug) ||
+          product.location?.toLowerCase().includes(citySlug.replace(/-/g, ' '))
+      )
+    }
+
     // Debug all filter conditions for vehicles
     if (filters.selectedCategory === 'vehicles' && matchesCategory) {
       console.log('All Vehicle Filter Debug:', {
@@ -675,7 +729,8 @@ export default function BrowsePage() {
           matchesPrice &&
           matchesExpatType &&
           matchesCondition &&
-          matchesLocation,
+          matchesLocation &&
+          matchesCountry,
       })
     }
 
@@ -685,7 +740,8 @@ export default function BrowsePage() {
       matchesPrice &&
       matchesExpatType &&
       matchesCondition &&
-      matchesLocation
+      matchesLocation &&
+      matchesCountry
     )
   })
 
