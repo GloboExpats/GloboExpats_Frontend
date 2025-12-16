@@ -588,6 +588,19 @@ export default function BrowsePage() {
           productCat.includes('cosmetic') ||
           productCat.includes('skincare') ||
           productCat.includes('makeup'))
+      const gardenOutdoorsMatch =
+        selectedCat === 'garden outdoors' &&
+        (productCat.includes('garden') ||
+          productCat.includes('outdoor') ||
+          productCat.includes('patio') ||
+          productCat.includes('plant') ||
+          productCat.includes('tool'))
+      const artCraftsMatch =
+        selectedCat === 'art crafts' &&
+        (productCat.includes('art') ||
+          productCat.includes('craft') ||
+          productCat.includes('paint') ||
+          productCat.includes('draw'))
 
       matchesCategory =
         exactSlugMatch ||
@@ -601,7 +614,9 @@ export default function BrowsePage() {
         booksMediaMatch ||
         sportsOutdoorsMatch ||
         homeAppliancesMatch ||
-        beautyHealthMatch
+        beautyHealthMatch ||
+        gardenOutdoorsMatch ||
+        artCraftsMatch
 
       // Debug logging for matching result
       if (filters.selectedCategory === 'vehicles') {
