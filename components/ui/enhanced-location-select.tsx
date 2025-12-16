@@ -217,7 +217,7 @@ export function EnhancedLocationSelect({
                 <Label className="text-sm font-medium text-neutral-700">Country</Label>
               )}
               <Input
-                placeholder="e.g., UAE, UK, Singapore"
+                placeholder="e.g., Afghanistan, UAE, UK, Singapore"
                 value={customCountry}
                 onChange={(e) => updateCustomLocation(customCity, e.target.value)}
                 className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
@@ -240,7 +240,7 @@ export function EnhancedLocationSelect({
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-neutral-500">
-              Enter your city and country if not in the list
+              Enter your country and city if not in the list
             </p>
             <button
               type="button"

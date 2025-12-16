@@ -538,16 +538,17 @@ function SellPageContent() {
 
       // Store the product ID for verification
       if (result.productId) {
-        // Feature Parity: Update quantity if user specified more than 1
+        // Feature Parity: Update quantity if user specified it
         // The create endpoint doesn't support quantity, so we patch it immediately after
-        const quantity = parseInt(formData.quantity) || 1
-        if (quantity > 1) {
+        const quantity = formData.quantity !== '' ? parseInt(formData.quantity) : 1
+
+        // Always update quantity to ensure it's correct
+        if (!isNaN(quantity)) {
           try {
             console.log(`[Sell] Updating quantity to ${quantity} for product ${result.productId}`)
-            // Send both fields to ensure one works with the backend
+            // Send only productQuantity field as expected by backend DTO
             await apiClient.updateProduct(result.productId.toString(), {
               productQuantity: quantity,
-              quantity: quantity,
             })
             console.log('[Sell] ✅ Quantity updated successfully')
           } catch (updateError) {
@@ -1115,22 +1116,22 @@ function Step2Content({
           <Input
             id="quantity"
             type="number"
-            min="1"
+            min="0"
             max="1000"
-            placeholder="Enter quantity (e.g., 1, 5, 10)"
+            placeholder="Enter quantity (e.g., 0, 1, 5)"
             className="h-12 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
             value={formData.quantity}
             onChange={(e) => {
               const val = e.target.value
-              // Allow empty or valid positive numbers
-              if (val === '' || (parseInt(val) >= 1 && parseInt(val) <= 1000)) {
+              // Allow empty or valid positive numbers (including 0)
+              if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 1000)) {
                 updateFormData({ quantity: val })
               }
             }}
           />
         </div>
         <p className="text-sm text-neutral-500">
-          How many identical items do you have for sale? Minimum: 1
+          How many identical items do you have for sale? Minimum: 0
         </p>
       </div>
 

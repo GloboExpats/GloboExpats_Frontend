@@ -1611,7 +1611,7 @@ export default function CheckoutPage() {
               <Button
                 variant="outline"
                 onClick={handlePrevStep}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isProcessing}
                 className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-100 disabled:opacity-50 rounded-full order-2 sm:order-1"
               >
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
