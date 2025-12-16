@@ -388,8 +388,19 @@ function SellPageContent() {
         ? parseFloat(String(formData.originalPrice).replace(/[^0-9.]/g, ''))
         : 0
 
-      const askingPriceInTZS = (isNaN(parsedAsking) ? 0 : parsedAsking) / conversionRate
-      const originalPriceInTZS = (isNaN(parsedOriginal) ? 0 : parsedOriginal) / conversionRate
+      const askingPriceInTZS =
+        enteredCurrency === 'TZS'
+          ? isNaN(parsedAsking)
+            ? 0
+            : parsedAsking
+          : (isNaN(parsedAsking) ? 0 : parsedAsking) / conversionRate
+
+      const originalPriceInTZS =
+        enteredCurrency === 'TZS'
+          ? isNaN(parsedOriginal)
+            ? 0
+            : parsedOriginal
+          : (isNaN(parsedOriginal) ? 0 : parsedOriginal) / conversionRate
 
       // Transform form data to match backend expectations
       // Always store in TZS (base currency)
@@ -415,8 +426,10 @@ function SellPageContent() {
         askingPrice: Math.round(askingPriceInTZS), // Round to nearest shilling
         originalPrice: Math.round(originalPriceInTZS),
         productWarranty: formData.warranty.trim() || 'No warranty', // Use form data or default
-        // quantity: parseInt(formData.quantity) || 1, // Backend does not support quantity yet - causes 500 error
+        productQuantity: 1, // Initialize with 1 to avoid 500 error, update later
       }
+
+      const actualQuantity = formData.quantity !== '' ? parseInt(formData.quantity) : 1
 
       // Call the backend API with reordered images (main image first)
       interface ProductCreationResult {
@@ -538,45 +551,20 @@ function SellPageContent() {
 
       // Store the product ID for verification
       if (result.productId) {
-        // Feature Parity: Update quantity if user specified it
-        // The create endpoint defaults to quantity 1. We only need to patch if it's different.
-        const quantityInput = formData.quantity
-        const quantity = quantityInput !== '' ? parseInt(quantityInput) : 1
-
-        // Only update if:
-        // 1. User explicitly entered 0 (out of stock)
-        // 2. User entered a number != 1 (since 1 is default)
-        // 3. User entered '1' explicitly (just to be safe, though redundant if default is 1)
-        const shouldUpdateQuantity = quantityInput !== '' && !isNaN(quantity)
-
-        if (shouldUpdateQuantity) {
+        // Step 2: Update quantity if needed (doing this separately to avoid backend 500 errors)
+        if (actualQuantity !== 1) {
           try {
-            // Add a substantial delay to ensure backend database transaction for creation is fully committed
-            // The "Query did not return a unique result" error suggests backend race conditions where
-            // the product or inventory record is duplicated or not fully settled.
-            await new Promise((resolve) => setTimeout(resolve, 3000))
-
-            console.log(`[Sell] Updating quantity to ${quantity} for product ${result.productId}`)
-
-            // Send only productQuantity field as expected by backend DTO
+            console.log(`[Sell] Updating quantity to ${actualQuantity}...`)
             await apiClient.updateProduct(result.productId.toString(), {
-              productQuantity: quantity,
+              productQuantity: actualQuantity,
             })
-            console.log('[Sell] ✅ Quantity updated successfully')
+            console.log('[Sell] Quantity updated successfully')
           } catch (updateError) {
-            console.warn(
-              '[Sell] Warning: Failed to update initial quantity (likely backend race condition). Product created successfully.',
-              updateError
-            )
-
-            // Do NOT fail the listing process. The product exists.
-            // Just warn the user they might need to check the stock.
+            console.error('[Sell] Failed to update quantity:', updateError)
             toast({
-              title: '⚠️ Check Stock Level',
-              description:
-                'Your listing is live, but we couldn\'t verify the stock quantity. Please check it in "My Listings".',
-              variant: 'default', // not destructive, just warning
-              duration: 6000,
+              title: '⚠️ Quantity Check Needed',
+              description: `Listing created but couldn't set quantity to ${actualQuantity}. Please check "My Listings".`,
+              variant: 'default',
             })
           }
         }
@@ -862,15 +850,34 @@ function Step1Content({
             <SelectTrigger className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[400px]">
               {backendCategories.length > 0 ? (
-                backendCategories
-                  .filter((cat) => cat.categoryName.toLowerCase() !== 'jobs')
-                  .map((cat) => (
-                    <SelectItem key={cat.categoryId} value={cat.categoryName}>
-                      {cat.categoryName}
-                    </SelectItem>
-                  ))
+                (() => {
+                  // Debug: Check for duplicates
+                  const uniqueCategories = backendCategories.filter(
+                    (cat, index, self) =>
+                      index ===
+                      self.findIndex(
+                        (t) =>
+                          t.categoryName === cat.categoryName && t.categoryId === cat.categoryId
+                      )
+                  )
+
+                  if (uniqueCategories.length !== backendCategories.length) {
+                    console.warn(
+                      '[Sell] ⚠️ Warning: Duplicate categories found in backend response!',
+                      backendCategories
+                    )
+                  }
+
+                  return uniqueCategories
+                    .filter((cat) => cat.categoryName.toLowerCase() !== 'jobs')
+                    .map((cat) => (
+                      <SelectItem key={cat.categoryId} value={cat.categoryName}>
+                        {cat.categoryName}
+                      </SelectItem>
+                    ))
+                })()
               ) : (
                 <SelectItem disabled value="loading">
                   Loading categories...

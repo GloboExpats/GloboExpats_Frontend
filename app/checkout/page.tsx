@@ -668,7 +668,7 @@ export default function CheckoutPage() {
           price: item.price,
           quantity: item.quantity,
           image: item.image,
-          seller: 'Verified Seller', // This would come from backend
+          seller: item.expatName || 'Verified Seller', // This ensures correct grouping in success page
           sellerVerified: true,
         })),
         shippingAddress: {
@@ -734,6 +734,19 @@ export default function CheckoutPage() {
       const errorMessage =
         error instanceof Error ? error.message : 'Something went wrong. Please try again.'
       setIsProcessing(false) // Reset processing state if error occurs (initially)
+
+      // Handle duplicate profile error (backend 500)
+      if (errorMessage.includes('unique result') || errorMessage.includes('Server error 500')) {
+        const friendlyMsg =
+          'We encountered a technical issue with your account profile (duplicate records). Please contact support for assistance.'
+        setOrderError(friendlyMsg)
+        toast({
+          variant: 'destructive',
+          title: 'Account System Error',
+          description: friendlyMsg,
+        })
+        return
+      }
 
       // Handle Buyer Profile Missing Error (Auto-fix attempt)
       if (isBuyerProfileError(error)) {

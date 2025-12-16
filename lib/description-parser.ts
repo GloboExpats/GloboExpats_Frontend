@@ -154,7 +154,12 @@ export function formatSpecifications(specifications: Record<string, string>): Ar
  */
 function formatSpecificationLabel(key: string): string {
   // Convert camelCase or snake_case to proper case
+  // Also clean up any potential mojibake characters from database
   return key
+    .replace(/Ã\x97/g, 'x') // Fix Mojibake multiplication sign
+    .replace(/Ã—/g, 'x') // Fix another variant
+    .replace(/×/g, 'x') // Standardize multiplication sign
+    .replace(/\(LÃ WÃ H\)/g, '(L x W x H)') // Specific fix for known issue
     .replace(/([A-Z])/g, ' $1') // Add space before capital letters
     .replace(/[_-]/g, ' ') // Replace underscores and hyphens with spaces
     .replace(/\b\w/g, (letter) => letter.toUpperCase()) // Capitalize first letter of each word

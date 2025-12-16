@@ -198,9 +198,9 @@ export const CATEGORY_FIELDS: CategoryFieldGroup[] = [
       },
       {
         key: 'dimensions',
-        label: 'Dimensions (L×W×H)',
+        label: 'Dimensions (L x W x H)',
         type: 'text',
-        placeholder: 'e.g., 120×60×75 cm',
+        placeholder: 'e.g., 120x60x75 cm',
         maxLength: 50,
       },
       {
