@@ -565,70 +565,98 @@ export default function CheckoutPage() {
           })
         )
 
-        // Poll for payment status (max 3 minutes)
-        const pollInterval = 3000 // 3 seconds
-        const maxPolls = 60 // 3 minutes
-        let pollCount = 0
+        // Connect to Server-Sent Events for real-time updates
+        console.log('[Checkout] Connecting to SSE for order:', orderId)
+        const eventSource = new EventSource(`/api/order-updates?orderId=${orderId}`)
+        let paymentConfirmed = false
 
-        const checkPaymentStatus = async (): Promise<boolean> => {
+        eventSource.onmessage = (event) => {
           try {
-            // Check if order has been updated via webhook
-            const storedOrder = localStorage.getItem(`order_${orderId}`)
-            if (storedOrder) {
-              const order = JSON.parse(storedOrder)
+            const data = JSON.parse(event.data)
+            console.log('[Checkout] SSE message received:', data)
+
+            if (data.type === 'payment_update') {
+              console.log('[Checkout] Payment update received:', data.paymentStatus)
+
               if (
-                order.mobilePayment?.status?.toUpperCase() === 'COMPLETED' ||
-                order.status === 'confirmed'
+                data.paymentStatus?.toUpperCase() === 'COMPLETED' ||
+                data.paymentStatus?.toUpperCase() === 'SUCCESS'
               ) {
-                return true
-              }
-            }
+                console.log('[Checkout] ✅ Payment confirmed via SSE!')
+                paymentConfirmed = true
+                eventSource.close()
 
-            // TODO: Add actual API call to check payment status
-            // const statusResponse = await api.checkout.checkPaymentStatus(orderId)
-            // if (statusResponse.success && statusResponse.data?.status === 'COMPLETED') {
-            //   return true
-            // }
-
-            return false
-          } catch (error) {
-            console.error('Error checking payment status:', error)
-            return false
-          }
-        }
-
-        const pollPaymentStatus = async (): Promise<void> => {
-          return new Promise((resolve) => {
-            const intervalId = setInterval(async () => {
-              pollCount++
-
-              const isComplete = await checkPaymentStatus()
-
-              if (isComplete) {
-                clearInterval(intervalId)
-                localStorage.removeItem(pendingOrderKey)
                 toast({
                   title: 'Payment confirmed!',
                   description: 'Your order has been successfully processed.',
                 })
-                resolve()
-              } else if (pollCount >= maxPolls) {
-                clearInterval(intervalId)
-                localStorage.removeItem(pendingOrderKey)
+
+                // Update order data in localStorage
+                const orderData = localStorage.getItem(`order_${orderId}`)
+                if (orderData) {
+                  const order = JSON.parse(orderData)
+                  order.status = 'confirmed'
+                  order.paymentStatus = 'Completed'
+                  if (order.mobilePayment) {
+                    order.mobilePayment.status = 'COMPLETED'
+                  }
+                  localStorage.setItem(`order_${orderId}`, JSON.stringify(order))
+                }
+
+                // Navigate to success page
+                localStorage.setItem('clearCartAfterOrder', 'true')
+                router.push(`/checkout/success?orderId=${orderId}`)
+              } else if (
+                data.paymentStatus?.toUpperCase() === 'FAILED' ||
+                data.paymentStatus?.toUpperCase() === 'CANCELLED'
+              ) {
+                console.log('[Checkout] ❌ Payment failed via SSE')
+                paymentConfirmed = true
+                eventSource.close()
+
                 toast({
-                  title: 'Payment pending',
-                  description:
-                    'Payment verification is taking longer than expected. Check your order status in your account.',
-                  variant: 'default',
+                  title: 'Payment failed',
+                  description: 'Your payment could not be processed. Please try again.',
+                  variant: 'destructive',
                 })
-                resolve()
+
+                setIsProcessing(false)
               }
-            }, pollInterval)
-          })
+            }
+          } catch (error) {
+            console.error('[Checkout] Error parsing SSE message:', error)
+          }
         }
 
-        // Wait for payment confirmation
-        await pollPaymentStatus()
+        eventSource.onerror = (error) => {
+          console.error('[Checkout] SSE connection error:', error)
+          eventSource.close()
+        }
+
+        // Fallback: Timeout after 3 minutes if no SSE notification received
+        const timeout = setTimeout(() => {
+          if (!paymentConfirmed) {
+            console.log('[Checkout] ⏱️ Timeout reached, no SSE notification received')
+            eventSource.close()
+
+            toast({
+              title: 'Payment pending',
+              description:
+                'Payment verification is taking longer than expected. Check your order status in your account.',
+              variant: 'default',
+            })
+
+            // Navigate anyway
+            localStorage.setItem('clearCartAfterOrder', 'true')
+            router.push(`/checkout/success?orderId=${orderId}`)
+          }
+        }, 180000) // 3 minutes
+
+        // Cleanup
+        return () => {
+          clearTimeout(timeout)
+          eventSource.close()
+        }
       } else if (isMeetupPayment) {
         // Handle Meet in Person checkout via meet-seller API
         checkoutItemsPayload = prepareCheckoutItems()
