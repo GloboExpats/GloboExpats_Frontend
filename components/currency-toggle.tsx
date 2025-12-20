@@ -180,7 +180,7 @@ export function CurrencyToggle({
 
         <DropdownMenuContent
           align="end"
-          className="w-72 bg-white border border-slate-200 shadow-xl z-[100]"
+          className="w-80 bg-white border border-slate-200 shadow-xl z-[100]"
         >
           <DropdownMenuLabel className="flex items-center justify-between">
             <span className="text-slate-700">Select Currency</span>
@@ -199,13 +199,23 @@ export function CurrencyToggle({
 
           <DropdownMenuSeparator />
 
-          {/* Currency options - TZS first, then others */}
+          {/* Currency options - TZS first, USD second, CNY third, then East African, then others */}
           {Object.values(currencies)
             .sort((a, b) => {
-              // TZS always first
-              if (a.code === 'TZS') return -1
-              if (b.code === 'TZS') return 1
-              return 0
+              // Define custom order: TZS first, then USD, then CNY, then regional, then international
+              const order: Record<string, number> = {
+                TZS: 0, // Base currency first
+                USD: 1, // US Dollar second
+                CNY: 2, // Chinese Yuan third
+                KES: 3, // East African currencies
+                UGX: 4,
+                EUR: 5, // International currencies
+                JPY: 6,
+                KRW: 7,
+              }
+              const orderA = order[a.code] ?? 99
+              const orderB = order[b.code] ?? 99
+              return orderA - orderB
             })
             .map((currency) => {
               const isSelected = currency.code === selectedCurrency

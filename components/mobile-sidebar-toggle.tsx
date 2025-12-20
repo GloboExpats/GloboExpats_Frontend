@@ -72,7 +72,7 @@ export default function MobileSidebarToggle() {
                         >
                           <Link href="/sell" className="flex flex-col items-center gap-1">
                             <Plus className="w-3 h-3" />
-                            <span>New Listing</span>
+                            <span>Sell</span>
                           </Link>
                         </Button>
 
@@ -175,7 +175,7 @@ export default function MobileSidebarToggle() {
               </div>
             </div>
 
-            {/* Platform Tutorial Button */}
+            {/* User Guide Button */}
             <div className="p-4 border-t border-slate-100 mt-auto">
               <Button
                 variant="outline"
@@ -186,7 +186,7 @@ export default function MobileSidebarToggle() {
                 }}
               >
                 <HelpCircle className="w-4 h-4" />
-                Platform Tutorial
+                User Guide
               </Button>
             </div>
           </div>

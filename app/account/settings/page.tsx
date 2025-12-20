@@ -22,8 +22,8 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useUserProfile } from '@/hooks/use-user-profile'
 import { useToast } from '@/components/ui/use-toast'
-import { EXPAT_LOCATIONS } from '@/lib/constants'
 import { getInitials } from '@/lib/utils'
+import { EnhancedLocationSelect } from '@/components/ui/enhanced-location-select'
 
 export default function AccountSettings() {
   useAuth() // Auth context available if needed
@@ -459,24 +459,15 @@ export default function AccountSettings() {
                     className="h-11"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="location">Location</Label>
-                  <Select
+                  <EnhancedLocationSelect
                     value={profileData.location}
                     onValueChange={(value) => handleProfileUpdate('location', value)}
                     disabled={!isEditing}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select your location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EXPAT_LOCATIONS.map((location) => (
-                        <SelectItem key={location.value} value={location.value}>
-                          {location.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select your country"
+                    showLabels={false}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="website">Website (Optional)</Label>
