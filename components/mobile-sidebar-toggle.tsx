@@ -175,7 +175,7 @@ export default function MobileSidebarToggle() {
               </div>
             </div>
 
-            {/* Platform Tutorial Button */}
+            {/* User Guide Button */}
             <div className="p-4 border-t border-slate-100 mt-auto">
               <Button
                 variant="outline"
@@ -186,7 +186,7 @@ export default function MobileSidebarToggle() {
                 }}
               >
                 <HelpCircle className="w-4 h-4" />
-                Platform Tutorial
+                User Guide
               </Button>
             </div>
           </div>

@@ -127,8 +127,8 @@ export function FlagDisplay({
 
   // Variant-specific styles for SVG flags - LARGER SIZES FOR BETTER VISIBILITY
   const svgStyles = {
-    button: 'w-7 h-5 rounded-sm shadow-sm',
-    dropdown: 'w-10 h-7 rounded-sm shadow-sm',
+    button: 'w-8 h-6 rounded-sm shadow-sm',
+    dropdown: 'w-14 h-9 rounded-sm shadow-sm',
     minimal: 'w-6 h-4 rounded-sm',
   }
 

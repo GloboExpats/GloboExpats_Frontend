@@ -190,7 +190,7 @@ export default function AccountDashboard() {
                   })}
                 </nav>
 
-                {/* Tutorial Button */}
+                {/* User Guide Button */}
                 <div className="mt-4 pt-4 border-t border-neutral-100">
                   <Button
                     onClick={startTutorial}
@@ -199,7 +199,7 @@ export default function AccountDashboard() {
                     className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300 text-blue-700 font-medium"
                   >
                     <HelpCircle className="w-4 h-4 mr-2" />
-                    Platform Tutorial
+                    User Guide
                   </Button>
                 </div>
               </CardContent>

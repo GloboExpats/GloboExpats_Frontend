@@ -39,7 +39,7 @@ import { toast } from '@/components/ui/use-toast'
 import {
   api,
   type MobileCheckoutPayload,
-  type MobileCheckoutResponse,
+  type MobileCheckoutResponse as _MobileCheckoutResponse,
   type MeetSellerCheckoutResponse,
 } from '@/lib/api'
 import { attemptBuyerProfileFix, isBuyerProfileError } from '@/lib/buyer-profile-fixer'

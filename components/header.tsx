@@ -226,7 +226,7 @@ const UserNavigation = React.memo<{
 
             <DropdownMenuSeparator />
 
-            {/* Tutorial Link */}
+            {/* User Guide Link */}
             <div className="py-1">
               <DropdownMenuItem
                 onClick={() => setTimeout(() => startTutorial(), 100)}
@@ -234,7 +234,7 @@ const UserNavigation = React.memo<{
               >
                 <div className="flex items-center gap-2">
                   <HelpCircle className="w-4 h-4" />
-                  <span>Platform Tutorial</span>
+                  <span>User Guide</span>
                 </div>
               </DropdownMenuItem>
             </div>

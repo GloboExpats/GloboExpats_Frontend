@@ -292,12 +292,8 @@ export function PlatformTutorial() {
               <div class="tutorial-welcome-brand">Welcome to Globoexpats! 🌍</div>
               <div class="tutorial-welcome-tagline">The trusted marketplace for the expat community</div>
             </div>
-            <p style="text-align: center; font-size: 14px; color: #475569; line-height: 1.5; margin: 0;">
-              This comprehensive tour will guide you through every feature of the platform - from browsing to buying, selling, and managing your account.
-            </p>
-            <p style="text-align: center; font-size: 13px; color: #64748b; margin-top: 6px; margin-bottom: 0;">
-              Let's get started! ✨
-            </p>
+            <p style="text-align: center; font-size: 13px; color: #475569; line-height: 1.4; margin: 0; padding: 0;">This comprehensive tour will guide you through every feature of the platform - from browsing to buying, selling, and managing your account.</p>
+            <p style="text-align: center; font-size: 12px; color: #64748b; margin-top: 4px; margin-bottom: 0;">Let's get started! ✨</p>
           `,
           onNextClick: () => {
             driverObj.current?.moveNext()

@@ -137,7 +137,7 @@ export const ProfileDropdown = React.memo<ProfileDropdownProps>(
             className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100"
           >
             <HelpCircle className="w-4 h-4 mr-2" />
-            Tutorial
+            User Guide
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {isAdmin && (
