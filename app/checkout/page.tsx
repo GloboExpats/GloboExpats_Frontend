@@ -534,6 +534,17 @@ export default function CheckoutPage() {
 
         const mobileResponse = await api.checkout.mobilePay(mobilePayload)
 
+        // Log the full response for debugging
+        console.log('[Checkout] Mobile payment response:', JSON.stringify(mobileResponse, null, 2))
+        console.log('[Checkout] Response data:', {
+          order_id: mobileResponse.data?.order_id,
+          orderId: mobileResponse.data?.orderId,
+          transactionId: mobileResponse.data?.transactionId,
+          checkoutRequestId: mobileResponse.data?.checkoutRequestId,
+          status: mobileResponse.data?.status,
+          resultCode: mobileResponse.data?.resultCode,
+        })
+
         // Check if the response indicates a pending/in-progress payment request
         const isPendingPayment =
           mobileResponse.message?.toLowerCase().includes('in progress') ||
@@ -545,11 +556,27 @@ export default function CheckoutPage() {
           throw new Error(mobileResponse.message || 'Unable to initiate mobile payment.')
         }
 
-        orderId =
-          mobileResponse.data?.orderId ||
-          mobileResponse.data?.transactionId ||
-          mobileResponse.data?.checkoutRequestId ||
-          `MP-${Date.now()}`
+        // Extract orderId - MUST match what Zeno sends to webhook
+        // Zeno API returns 'order_id' (snake_case) which is what webhook will send
+        orderId = mobileResponse.data?.order_id || mobileResponse.data?.orderId
+
+        if (!orderId) {
+          // If no orderId, try fallback fields that Zeno might use
+          orderId = mobileResponse.data?.transactionId || mobileResponse.data?.checkoutRequestId
+        }
+
+        if (!orderId) {
+          console.error('[Checkout] ❌ CRITICAL: No order_id received from Zeno API')
+          console.error('[Checkout] Full response:', JSON.stringify(mobileResponse, null, 2))
+          throw new Error(
+            'Payment initiated but no order ID received. Please contact support with reference: ' +
+              (mobileResponse.data?.checkoutRequestId || 'N/A')
+          )
+        }
+
+        console.log('[Checkout] ✅ OrderId from Zeno API (order_id field):', orderId)
+        console.log('[Checkout] 🔔 Webhook MUST send orderId:', orderId)
+        console.log('[Checkout] ⚠️ SSE now listening for:', orderId)
 
         mobileReference =
           mobileResponse.data?.checkoutRequestId || mobileResponse.data?.transactionId
@@ -577,7 +604,11 @@ export default function CheckoutPage() {
         )
 
         // Connect to Server-Sent Events for real-time updates
-        console.log('[Checkout] Connecting to SSE for order:', orderId)
+        console.log('='.repeat(80))
+        console.log('[Checkout] 🔌 Connecting to SSE for real-time payment updates')
+        console.log('[Checkout] 📡 Listening for orderId:', orderId)
+        console.log('[Checkout] ⚠️ Webhook must send this EXACT orderId:', orderId)
+        console.log('='.repeat(80))
         const eventSource = new EventSource(`/api/order-updates?orderId=${orderId}`)
         let paymentConfirmed = false
 
@@ -585,9 +616,19 @@ export default function CheckoutPage() {
           try {
             const data = JSON.parse(event.data)
             console.log('[Checkout] SSE message received:', data)
+            
+            // Log orderId comparison if it's a payment update
+            if (data.type === 'payment_update' && data.orderId) {
+              console.log('[Checkout] OrderId comparison:', {
+                expected: orderId,
+                received: data.orderId,
+                match: orderId === data.orderId
+              })
+            }
 
             if (data.type === 'payment_update') {
               console.log('[Checkout] Payment update received:', data.paymentStatus)
+              console.log('[Checkout] Full payment data:', JSON.stringify(data, null, 2))
 
               if (
                 data.paymentStatus?.toUpperCase() === 'COMPLETED' ||
