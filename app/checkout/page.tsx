@@ -598,17 +598,44 @@ export default function CheckoutPage() {
             'Please check your phone and approve the STK push. Do not close this page.',
         })
 
-        // Store pending order info
-        const pendingOrderKey = `pending_order_${orderId}`
-        localStorage.setItem(
-          pendingOrderKey,
-          JSON.stringify({
-            orderId,
+        // Store complete order data for success page
+        const orderData = {
+          id: orderId,
+          status: 'pending',
+          paymentStatus: 'Pending',
+          date: new Date().toLocaleDateString(),
+          estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+          total: Number(checkoutSubtotal.toFixed(2)),
+          currency: selectedCountryData?.currency || 'TZS',
+          paymentMethod: paymentLabel,
+          items: checkoutItems.map((item) => ({
+            id: String(item.id),
+            title: item.title,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image_url || '/placeholder.svg',
+            seller: item.seller?.name || 'Unknown Seller',
+            sellerVerified: item.seller?.verified || false,
+          })),
+          shippingAddress: {
+            name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
+            address: shippingAddress.address,
+            city: shippingAddress.city,
+            country: shippingAddress.country,
+            state: shippingAddress.state,
+            zip: shippingAddress.zip,
+          },
+          shippingMethod: shippingMethod,
+          mobilePayment: {
             reference: mobileReference,
-            timestamp: Date.now(),
-            status: 'pending',
-          })
-        )
+            status: mobileStatus || 'PENDING',
+            message: mobileMessage,
+          },
+        }
+
+        localStorage.setItem(`order_${orderId}`, JSON.stringify(orderData))
+        localStorage.setItem('lastOrderId', orderId)
+        console.log('[Checkout] ✅ Order data saved to localStorage:', orderId)
 
         // Connect to Server-Sent Events for real-time updates
         console.log('='.repeat(80))
