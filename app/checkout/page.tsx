@@ -613,9 +613,9 @@ export default function CheckoutPage() {
             title: item.title,
             price: item.price,
             quantity: item.quantity,
-            image: item.image_url || '/placeholder.svg',
-            seller: item.seller?.name || 'Unknown Seller',
-            sellerVerified: item.seller?.verified || false,
+            image: item.image || '/placeholder.svg',
+            seller: item.expatName || 'Unknown Seller',
+            sellerVerified: item.verified || false,
           })),
           shippingAddress: {
             name: `${shippingAddress.firstName} ${shippingAddress.lastName}`,
