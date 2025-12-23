@@ -616,13 +616,13 @@ export default function CheckoutPage() {
           try {
             const data = JSON.parse(event.data)
             console.log('[Checkout] SSE message received:', data)
-            
+
             // Log orderId comparison if it's a payment update
             if (data.type === 'payment_update' && data.orderId) {
               console.log('[Checkout] OrderId comparison:', {
                 expected: orderId,
                 received: data.orderId,
-                match: orderId === data.orderId
+                match: orderId === data.orderId,
               })
             }
 
