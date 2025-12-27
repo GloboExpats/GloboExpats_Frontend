@@ -1299,6 +1299,9 @@ class ApiClient {
     location?: string
     profileImageUrl?: string
     verificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'
+    loggingEmail?: string
+    organizationalEmail?: string
+    phoneNumber?: string
   }> {
     // Try multiple possible endpoint variations
     const endpointsToTry = [
@@ -1326,6 +1329,9 @@ class ApiClient {
           location?: string
           profileImageUrl?: string
           verificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'
+          loggingEmail?: string
+          organizationalEmail?: string
+          phoneNumber?: string
         }
       } catch (error) {
         console.log(`❌ Failed endpoint: ${endpoint}`)

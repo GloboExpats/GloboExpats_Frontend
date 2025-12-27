@@ -266,9 +266,9 @@ export default function CheckoutPage() {
             setSellerDetails({
               id: sellerId,
               name: `${profile.firstName} ${profile.lastName}`,
-              // Public profile might not have email/phone, defaults to undefined -> handled as "Not Listed" in UI
-              email: undefined,
-              phone: undefined,
+              // Use fetched contact info if available
+              email: profile.loggingEmail || profile.organizationalEmail || undefined,
+              phone: profile.phoneNumber || undefined,
               verified: profile.verificationStatus === 'VERIFIED',
             })
           } catch (error) {
@@ -610,7 +610,28 @@ export default function CheckoutPage() {
             'Please check your phone and approve the STK push. Do not close this page.',
         })
 
-        // Construct sellers/contact info for Mobile Payment (mimicking Meet Seller structure)
+        // Create a map of unique sellers to fetch their details
+        const uniqueSellerIds = new Set<string>()
+        checkoutItems.forEach((item) => {
+          if (item.expatId) uniqueSellerIds.add(item.expatId)
+        })
+
+        // Fetch details for all unique sellers
+        const sellerFetches = Array.from(uniqueSellerIds).map(async (id) => {
+          try {
+            const profile = await api.users.getSellerProfile(Number(id))
+            return { id, profile }
+          } catch (err) {
+            console.error(`Failed to fetch profile for seller ${id}`, err)
+            return { id, profile: null }
+          }
+        })
+
+        // Wait for all fetches to complete
+        const sellerProfiles = await Promise.all(sellerFetches)
+        const sellerProfileMap = new Map(sellerProfiles.map((s) => [s.id, s.profile]))
+
+        // Construct sellers/contact info for Mobile Payment
         const mobileSellersMap = new Map<
           string,
           { name: string; email: string; phone: string; address: string; orderId: string }
@@ -619,19 +640,17 @@ export default function CheckoutPage() {
         checkoutItems.forEach((item) => {
           const sellerName = item.expatName || 'Verified Seller'
           if (!mobileSellersMap.has(sellerName)) {
-            // Use fetched sellerDetails if it matches this seller, otherwise fall back to generic/item data
-            // Note: In a real app we would fetch details for all sellers. Here we do best-effort mapping.
-            const details =
-              sellerDetails &&
-              (sellerDetails.name === sellerName || sellerDetails.id === item.expatId)
-                ? sellerDetails
-                : null
+            const profile = item.expatId ? sellerProfileMap.get(item.expatId) : null
+
+            // Prefer fetched profile name, fallback to item.expatName
+            const displayName = profile ? `${profile.firstName} ${profile.lastName}` : sellerName
 
             mobileSellersMap.set(sellerName, {
-              name: sellerName,
-              email: details?.email || 'Not Listed',
-              phone: details?.phone || 'Not Listed',
-              address: details?.phone ? 'Arusha, Tanzania' : item.location || 'Not Listed',
+              name: displayName,
+              // Use fetched contact info if available, otherwise "Not Listed"
+              email: profile?.loggingEmail || profile?.organizationalEmail || 'Not Listed',
+              phone: profile?.phoneNumber || 'Not Listed',
+              address: profile?.location || item.location || 'Not Listed',
               orderId: `${orderId}-${mobileSellersMap.size + 1}`,
             })
           }
