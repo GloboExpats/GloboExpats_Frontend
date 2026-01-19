@@ -28,11 +28,74 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Checkbox } from '@/components/ui/checkbox'
+
 import { AlertCircle, Globe, UserCheck, Briefcase, Eye, EyeOff, Loader2, Mail } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { validateEmail } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
+
+/**
+ * List of allowed personal email domains
+ * Only these domains are accepted for registration
+ */
+const ALLOWED_PERSONAL_EMAIL_DOMAINS = [
+  // Google
+  'gmail.com',
+  'googlemail.com',
+  // Yahoo
+  'yahoo.com',
+  'yahoo.co.uk',
+  'yahoo.fr',
+  'yahoo.de',
+  'yahoo.es',
+  'yahoo.it',
+  'yahoo.ca',
+  'yahoo.com.au',
+  'yahoo.co.in',
+  'yahoo.co.jp',
+  'ymail.com',
+  'rocketmail.com',
+  // Microsoft/Hotmail
+  'hotmail.com',
+  'hotmail.co.uk',
+  'hotmail.fr',
+  'hotmail.de',
+  'hotmail.es',
+  'hotmail.it',
+  'outlook.com',
+  'outlook.co.uk',
+  'live.com',
+  'live.co.uk',
+  'msn.com',
+  // Apple/iCloud
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  // Other popular personal email providers
+  'aol.com',
+  'protonmail.com',
+  'proton.me',
+  'zoho.com',
+  'mail.com',
+  'gmx.com',
+  'gmx.de',
+  'gmx.net',
+  'yandex.com',
+  'yandex.ru',
+  'fastmail.com',
+  'tutanota.com',
+  'inbox.com',
+]
+
+/**
+ * Validates if an email is from a personal email provider
+ * Returns true if the email domain is in the allowed list
+ */
+function isPersonalEmail(email: string): boolean {
+  if (!email || !email.includes('@')) return false
+  const domain = email.toLowerCase().split('@')[1]
+  return ALLOWED_PERSONAL_EMAIL_DOMAINS.includes(domain)
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -45,8 +108,6 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
     organizationEmail: '',
-    acceptTerms: false,
-    acceptPrivacy: false,
   })
 
   const [isLoading, setIsLoading] = useState(false)
@@ -72,9 +133,7 @@ export default function RegisterPage() {
       formData.lastName.trim().length > 0 &&
       formData.personalEmail.includes('@') &&
       formData.password.length >= 8 &&
-      formData.password === formData.confirmPassword &&
-      formData.acceptTerms === true &&
-      formData.acceptPrivacy === true
+      formData.password === formData.confirmPassword
 
     setIsFormValid(isValid)
   }, [formData])
@@ -136,6 +195,18 @@ export default function RegisterPage() {
       return
     }
 
+    // Validate that the email is from a personal email provider
+    if (!isPersonalEmail(personalEmail)) {
+      toast({
+        title: 'Personal Email Required',
+        description:
+          'Please use a personal email address (Gmail, Yahoo, Hotmail, iCloud, etc.) for registration. Organizational emails are used for verification after you create your account.',
+        variant: 'default',
+        duration: 8000,
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -144,8 +215,6 @@ export default function RegisterPage() {
         lastName: formData.lastName,
         password: formData.password,
         emailAddress: formData.personalEmail,
-        agreeToTerms: formData.acceptTerms,
-        agreeToPrivacyPolicy: formData.acceptPrivacy,
       })
 
       await login({
@@ -407,48 +476,6 @@ export default function RegisterPage() {
                               Passwords do not match
                             </p>
                           )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-1">
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          id="terms"
-                          className="mt-1"
-                          checked={formData.acceptTerms}
-                          onCheckedChange={(checked) =>
-                            setFormData({ ...formData, acceptTerms: !!checked })
-                          }
-                        />
-                        <Label htmlFor="terms" className="text-sm text-neutral-600 leading-tight">
-                          I agree to the{' '}
-                          <Link
-                            href="/terms"
-                            className="text-brand-primary font-bold hover:underline"
-                          >
-                            Terms of Service
-                          </Link>
-                        </Label>
-                      </div>
-
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          id="privacy"
-                          className="mt-1"
-                          checked={formData.acceptPrivacy}
-                          onCheckedChange={(checked) =>
-                            setFormData({ ...formData, acceptPrivacy: !!checked })
-                          }
-                        />
-                        <Label htmlFor="privacy" className="text-sm text-neutral-600 leading-tight">
-                          I agree to the{' '}
-                          <Link
-                            href="/privacy"
-                            className="text-brand-primary font-bold hover:underline"
-                          >
-                            Privacy Policy
-                          </Link>
-                        </Label>
                       </div>
                     </div>
 

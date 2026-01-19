@@ -104,8 +104,8 @@ export async function registerUser(payload: {
   password: string
   emailAddress: string
   phoneNumber?: string
-  agreeToTerms: boolean
-  agreeToPrivacyPolicy: boolean
+  agreeToTerms?: boolean
+  agreeToPrivacyPolicy?: boolean
 }) {
   return apiClient.register(payload)
 }

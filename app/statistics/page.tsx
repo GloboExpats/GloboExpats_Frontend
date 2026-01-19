@@ -7,6 +7,30 @@ type Period = 'day' | 'week' | 'month' | 'year'
 type DateRange = 'today' | 'yesterday' | 'last7' | 'last30' | 'lastMonth'
 type ActiveSection = 'overview' | 'audience' | 'technology' | 'content' | 'realtime'
 
+// Matomo data types
+interface MatomoDataItem {
+  label: string
+  nb_visits?: number
+  nb_uniq_visitors?: number
+  bounce_rate?: string | number
+}
+
+type MatomoDevice = MatomoDataItem
+type MatomoPage = MatomoDataItem
+type MatomoCountry = MatomoDataItem
+type MatomoContinent = MatomoDataItem
+type MatomoCity = MatomoDataItem
+type MatomoLanguage = MatomoDataItem
+type MatomoBrowser = MatomoDataItem
+type MatomoOS = MatomoDataItem
+interface MatomoVisit {
+  visitorId?: string
+  countryCode?: string
+  lastActionDateTime?: string
+  actions?: number
+  visitDuration?: number
+}
+
 export default function StatisticsPage() {
   const [period, setPeriod] = useState<Period>('day')
   const [dateRange, setDateRange] = useState<DateRange>('today')
@@ -463,7 +487,7 @@ export default function StatisticsPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                              {pageUrls.slice(0, 10).map((page: any, index: number) => (
+                              {pageUrls.slice(0, 10).map((page: MatomoPage, index: number) => (
                                 <tr key={index} className="hover:bg-gray-50">
                                   <td className="px-6 py-4 text-sm text-gray-900">
                                     <a
@@ -529,27 +553,32 @@ export default function StatisticsPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                              {countries.slice(0, 10).map((country: any, index: number) => {
-                                const percentage = visitsSummary.nb_visits
-                                  ? ((country.nb_visits / visitsSummary.nb_visits) * 100).toFixed(1)
-                                  : '0'
-                                return (
-                                  <tr key={index} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                                      {country.label}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                      {country.nb_visits?.toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                      {country.nb_uniq_visitors?.toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                      {percentage}%
-                                    </td>
-                                  </tr>
-                                )
-                              })}
+                              {countries
+                                .slice(0, 10)
+                                .map((country: MatomoCountry, index: number) => {
+                                  const percentage = visitsSummary.nb_visits
+                                    ? (
+                                        ((country.nb_visits || 0) / visitsSummary.nb_visits) *
+                                        100
+                                      ).toFixed(1)
+                                    : '0'
+                                  return (
+                                    <tr key={index} className="hover:bg-gray-50">
+                                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                        {country.label}
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-gray-600">
+                                        {country.nb_visits?.toLocaleString()}
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-gray-600">
+                                        {country.nb_uniq_visitors?.toLocaleString()}
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-gray-600">
+                                        {percentage}%
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
                             </tbody>
                           </table>
                         </div>
@@ -568,14 +597,16 @@ export default function StatisticsPage() {
                           </div>
                           <div className="p-6">
                             <ul className="space-y-3">
-                              {continents.slice(0, 6).map((continent: any, index: number) => (
-                                <li key={index} className="flex justify-between items-center">
-                                  <span className="text-sm text-gray-700">{continent.label}</span>
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {continent.nb_visits?.toLocaleString()}
-                                  </span>
-                                </li>
-                              ))}
+                              {continents
+                                .slice(0, 6)
+                                .map((continent: MatomoContinent, index: number) => (
+                                  <li key={index} className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-700">{continent.label}</span>
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {continent.nb_visits?.toLocaleString()}
+                                    </span>
+                                  </li>
+                                ))}
                             </ul>
                           </div>
                         </div>
@@ -589,7 +620,7 @@ export default function StatisticsPage() {
                           </div>
                           <div className="p-6">
                             <ul className="space-y-3">
-                              {cities.slice(0, 8).map((city: any, index: number) => (
+                              {cities.slice(0, 8).map((city: MatomoCity, index: number) => (
                                 <li key={index} className="flex justify-between items-center">
                                   <span className="text-sm text-gray-700">{city.label}</span>
                                   <span className="text-sm font-medium text-gray-900">
@@ -612,7 +643,7 @@ export default function StatisticsPage() {
                           </div>
                           <div className="p-6">
                             <ul className="space-y-3">
-                              {languages.slice(0, 6).map((lang: any, index: number) => (
+                              {languages.slice(0, 6).map((lang: MatomoLanguage, index: number) => (
                                 <li key={index} className="flex justify-between items-center">
                                   <span className="text-sm text-gray-700">{lang.label}</span>
                                   <span className="text-sm font-medium text-gray-900">
@@ -637,7 +668,7 @@ export default function StatisticsPage() {
                         <div className="bg-white rounded-lg shadow p-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Types</h3>
                           <div className="space-y-4">
-                            {deviceTypes.slice(0, 3).map((device: any, index: number) => (
+                            {deviceTypes.slice(0, 3).map((device: MatomoDevice, index: number) => (
                               <div key={index}>
                                 <div className="flex justify-between items-center mb-2">
                                   <span className="text-sm font-medium text-gray-900 capitalize">
@@ -663,13 +694,23 @@ export default function StatisticsPage() {
                                     style={{
                                       width: `${
                                         deviceTypes
-                                          .filter((d: any) => d.nb_visits > 0)
-                                          .reduce((sum: number, d: any) => sum + d.nb_visits, 0) > 0
-                                          ? (device.nb_visits /
+                                          .filter(
+                                            (d: MatomoDevice) => d.nb_visits && d.nb_visits > 0
+                                          )
+                                          .reduce(
+                                            (sum: number, d: MatomoDevice) =>
+                                              sum + (d.nb_visits || 0),
+                                            0
+                                          ) > 0
+                                          ? ((device.nb_visits || 0) /
                                               deviceTypes
-                                                .filter((d: any) => d.nb_visits > 0)
+                                                .filter(
+                                                  (d: MatomoDevice) =>
+                                                    d.nb_visits && d.nb_visits > 0
+                                                )
                                                 .reduce(
-                                                  (sum: number, d: any) => sum + d.nb_visits,
+                                                  (sum: number, d: MatomoDevice) =>
+                                                    sum + (d.nb_visits || 0),
                                                   0
                                                 )) *
                                             100
@@ -689,7 +730,7 @@ export default function StatisticsPage() {
                         <div className="bg-white rounded-lg shadow p-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Browsers</h3>
                           <div className="space-y-3">
-                            {browsers.slice(0, 5).map((browser: any, index: number) => (
+                            {browsers.slice(0, 5).map((browser: MatomoBrowser, index: number) => (
                               <div key={index} className="flex justify-between items-center">
                                 <span className="text-sm text-gray-700">{browser.label}</span>
                                 <div className="flex items-center gap-2">
@@ -699,7 +740,8 @@ export default function StatisticsPage() {
                                       style={{
                                         width: `${
                                           browsers[0]?.nb_visits
-                                            ? (browser.nb_visits / browsers[0].nb_visits) * 100
+                                            ? ((browser.nb_visits || 0) / browsers[0].nb_visits) *
+                                              100
                                             : 0
                                         }%`,
                                       }}
@@ -724,7 +766,7 @@ export default function StatisticsPage() {
                               Operating Systems
                             </h3>
                             <ul className="space-y-3">
-                              {operatingSystems.slice(0, 5).map((os: any, index: number) => (
+                              {operatingSystems.slice(0, 5).map((os: MatomoOS, index: number) => (
                                 <li key={index} className="flex justify-between text-sm">
                                   <span className="text-gray-700">{os.label}</span>
                                   <span className="font-medium text-gray-900">
@@ -751,7 +793,7 @@ export default function StatisticsPage() {
                           </div>
                           <div className="p-6">
                             <ul className="space-y-3">
-                              {pageTitles.slice(0, 5).map((page: any, index: number) => (
+                              {pageTitles.slice(0, 5).map((page: MatomoPage, index: number) => (
                                 <li key={index} className="flex justify-between items-center">
                                   <span
                                     className="text-sm text-gray-700 truncate flex-1 mr-2"
@@ -779,7 +821,7 @@ export default function StatisticsPage() {
                           </div>
                           <div className="p-6">
                             <ul className="space-y-3">
-                              {entryPages.slice(0, 5).map((page: any, index: number) => (
+                              {entryPages.slice(0, 5).map((page: MatomoPage, index: number) => (
                                 <li key={index} className="flex justify-between items-center">
                                   <span
                                     className="text-sm text-gray-700 truncate flex-1 mr-2"
@@ -807,7 +849,7 @@ export default function StatisticsPage() {
                           </div>
                           <div className="p-6">
                             <ul className="space-y-3">
-                              {exitPages.slice(0, 5).map((page: any, index: number) => (
+                              {exitPages.slice(0, 5).map((page: MatomoPage, index: number) => (
                                 <li key={index} className="flex justify-between items-center">
                                   <span
                                     className="text-sm text-gray-700 truncate flex-1 mr-2"
@@ -864,7 +906,7 @@ export default function StatisticsPage() {
                             Recent Visitor Activity
                           </h3>
                           <div className="space-y-3">
-                            {recentVisits.slice(0, 5).map((visit: any, index: number) => (
+                            {recentVisits.slice(0, 5).map((visit: MatomoVisit, index: number) => (
                               <div
                                 key={index}
                                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"

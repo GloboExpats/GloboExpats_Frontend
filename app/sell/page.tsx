@@ -488,7 +488,7 @@ function SellPageContent() {
                 // Don't continue - stop on first failure to trigger rollback
                 throw new Error(
                   `Failed to upload batch ${batchNumber} of ${Math.ceil(remainingImages.length / batchSize)}. ` +
-                  `${batchError instanceof Error ? batchError.message : 'Unknown error'}`
+                    `${batchError instanceof Error ? batchError.message : 'Unknown error'}`
                 )
               }
             }
@@ -655,18 +655,20 @@ function SellPageContent() {
               <div key={step} className="flex items-center flex-1">
                 <div className="flex flex-col items-center w-full">
                   <div
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all duration-300 ${step === currentStep
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all duration-300 ${
+                      step === currentStep
                         ? 'bg-[#1E3A8A] text-white shadow-md'
                         : step < currentStep
                           ? 'bg-[#1E3A8A] text-white'
                           : 'bg-[#F1F5F9] text-[#94A3B8] border-2 border-[#E2E8F0]'
-                      }`}
+                    }`}
                   >
                     {step}
                   </div>
                   <span
-                    className={`mt-2 text-xs sm:text-sm font-medium transition-all duration-300 text-center ${step <= currentStep ? 'text-[#0F172A]' : 'text-[#94A3B8]'
-                      }`}
+                    className={`mt-2 text-xs sm:text-sm font-medium transition-all duration-300 text-center ${
+                      step <= currentStep ? 'text-[#0F172A]' : 'text-[#94A3B8]'
+                    }`}
                   >
                     {STEP_TITLES[step - 1]}
                   </span>
@@ -674,8 +676,9 @@ function SellPageContent() {
                 {index < 3 && (
                   <div className="flex-1 h-0.5 mx-2 sm:mx-4 mb-8">
                     <div
-                      className={`h-full transition-all duration-300 ${step < currentStep ? 'bg-[#1E3A8A]' : 'bg-[#E2E8F0]'
-                        }`}
+                      className={`h-full transition-all duration-300 ${
+                        step < currentStep ? 'bg-[#1E3A8A]' : 'bg-[#E2E8F0]'
+                      }`}
                     />
                   </div>
                 )}

@@ -26,7 +26,7 @@ const resolvedAssetPrefix = (() => {
     // Absolute URL is OK (e.g., https://cdn.example.com)
     const u = new URL(p)
     if (u.protocol === 'http:' || u.protocol === 'https:') return p.replace(/\/$/, '')
-  } catch { }
+  } catch {}
   // If a subpath is intended (e.g., /frontend), prefer basePath instead of assetPrefix
   return ''
 })()
