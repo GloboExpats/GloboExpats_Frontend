@@ -4,7 +4,7 @@
   "private": true,
   "description": "Expat Marketplace Frontend - A Next.js application for global expat community marketplace",
   "scripts": {
-    "dev": "NODE_NO_WARNINGS=1 next dev",
+    "dev": "cross-env NODE_NO_WARNINGS=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --fix",
@@ -20,7 +20,7 @@
     "clean": "rm -rf .next out dist",
     "precommit": "npm run lint:check && npm run type-check",
     "postinstall": "echo 'Frontend dependencies installed successfully'",
-    "dev:turbo": "NODE_NO_WARNINGS=1 next dev --turbo"
+    "dev:turbo": "cross-env NODE_NO_WARNINGS=1 next dev --turbo"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -84,6 +84,7 @@
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "cross-env": "^10.1.0",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.3.3",
     "eslint-config-prettier": "^9",
