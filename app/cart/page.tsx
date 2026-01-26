@@ -21,6 +21,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useCart } from '@/hooks/use-cart'
 import { cleanLocationString } from '@/lib/image-utils'
 import PriceDisplay from '@/components/price-display'
+import { useState, useEffect } from 'react'
+import apiClient from '@/lib/api'
 
 export default function CartPage() {
   const {
@@ -36,6 +38,45 @@ export default function CartPage() {
     deselectAllItems,
     updateQuantity,
   } = useCart()
+
+  const [stockLimits, setStockLimits] = useState<Record<string, number>>({})
+
+  // Fetch real-time stock limits for items in cart
+  useEffect(() => {
+    const fetchStockLimits = async () => {
+      const limits: Record<string, number> = {}
+
+      await Promise.all(
+        items.map(async (item) => {
+          try {
+            const rawId = typeof item.productId === 'number' ? item.productId : Number(item.productId)
+            // Fallback for older cart items that might simple have id
+            const fallbackId = Number(item.id)
+            const productIdValue = Number.isFinite(rawId) ? rawId : fallbackId
+
+            if (!Number.isFinite(productIdValue)) return
+
+            // Using apiClient to fetch details which includes current productQuantity
+            const details = await apiClient.getProductDetails(productIdValue) as any
+
+            if (details && (typeof details.productQuantity === 'number' || typeof details.quantity === 'number')) {
+              // Prefer productQuantity, fallback to quantity
+              const available = details.productQuantity ?? details.quantity
+              limits[item.id] = available
+            }
+          } catch (err) {
+            console.error(`Failed to fetch stock for item ${item.title}:`, err)
+          }
+        })
+      )
+
+      setStockLimits(prev => ({ ...prev, ...limits }))
+    }
+
+    if (items.length > 0) {
+      fetchStockLimits()
+    }
+  }, [items])
 
   // Final total is simply the selected subtotal (using asking price only)
   const finalTotal = selectedSubtotal
@@ -245,8 +286,8 @@ export default function CartPage() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 rounded-none"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              disabled={item.quantity >= 10}
+                              onClick={() => updateQuantity(item.id, Math.min(stockLimits[item.id] ?? 10, item.quantity + 1))}
+                              disabled={item.quantity >= (stockLimits[item.id] ?? 10)}
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
@@ -339,8 +380,8 @@ export default function CartPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 rounded-none"
-                                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                  disabled={item.quantity >= 10}
+                                  onClick={() => updateQuantity(item.id, Math.min(stockLimits[item.id] ?? 10, item.quantity + 1))}
+                                  disabled={item.quantity >= (stockLimits[item.id] ?? 10)}
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>

@@ -57,7 +57,7 @@ export function ProductActions({
 
   const incrementQuantity = () => {
     // Limit to max quantity if available, otherwise default to 10
-    const limit = maxQuantity !== undefined ? Math.min(maxQuantity, 10) : 10
+    const limit = maxQuantity !== undefined ? maxQuantity : 999
     if (quantity < limit) setQuantity((prev) => prev + 1)
   }
 
@@ -254,7 +254,7 @@ export function ProductActions({
             className="h-9 w-9 rounded-r-lg rounded-l-none hover:bg-gray-100"
             onClick={incrementQuantity}
             disabled={
-              quantity >= (maxQuantity !== undefined ? Math.min(maxQuantity, 10) : 10) ||
+              quantity >= (maxQuantity !== undefined ? maxQuantity : 10) ||
               isLoading ||
               isOutOfStock
             }

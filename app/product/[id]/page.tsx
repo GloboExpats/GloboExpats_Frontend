@@ -451,11 +451,10 @@ export default function ProductPage() {
                           <button
                             key={actualIndex}
                             onClick={() => selectImage(actualIndex)}
-                            className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${
-                              actualIndex === currentImage
+                            className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${actualIndex === currentImage
                                 ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
                                 : 'border-gray-200 hover:border-gray-300'
-                            }`}
+                              }`}
                           >
                             <Image
                               src={image || '/placeholder.svg'}
@@ -476,35 +475,34 @@ export default function ProductPage() {
                     currentThumbnailPage * 14 + 7,
                     currentThumbnailPage * 14 + 14
                   ).length > 0 && (
-                    <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
-                      {productImages
-                        .slice(currentThumbnailPage * 14 + 7, currentThumbnailPage * 14 + 14)
-                        .map((image, index) => {
-                          const actualIndex = currentThumbnailPage * 14 + 7 + index
-                          return (
-                            <button
-                              key={actualIndex}
-                              onClick={() => selectImage(actualIndex)}
-                              className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${
-                                actualIndex === currentImage
-                                  ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
-                                  : 'border-gray-200 hover:border-gray-300'
-                              }`}
-                            >
-                              <Image
-                                src={image || '/placeholder.svg'}
-                                alt={`Thumbnail ${actualIndex + 1}`}
-                                fill
-                                sizes="(max-width: 640px) 80px, 96px"
-                                className="object-cover"
-                                loading="lazy"
-                                quality={60}
-                              />
-                            </button>
-                          )
-                        })}
-                    </div>
-                  )}
+                      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+                        {productImages
+                          .slice(currentThumbnailPage * 14 + 7, currentThumbnailPage * 14 + 14)
+                          .map((image, index) => {
+                            const actualIndex = currentThumbnailPage * 14 + 7 + index
+                            return (
+                              <button
+                                key={actualIndex}
+                                onClick={() => selectImage(actualIndex)}
+                                className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${actualIndex === currentImage
+                                    ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
+                                    : 'border-gray-200 hover:border-gray-300'
+                                  }`}
+                              >
+                                <Image
+                                  src={image || '/placeholder.svg'}
+                                  alt={`Thumbnail ${actualIndex + 1}`}
+                                  fill
+                                  sizes="(max-width: 640px) 80px, 96px"
+                                  className="object-cover"
+                                  loading="lazy"
+                                  quality={60}
+                                />
+                              </button>
+                            )
+                          })}
+                      </div>
+                    )}
 
                   {/* Pagination Dots */}
                   {Math.ceil(productImages.length / 14) > 1 && (
@@ -514,11 +512,10 @@ export default function ProductPage() {
                           <button
                             key={pageIndex}
                             onClick={() => setCurrentThumbnailPage(pageIndex)}
-                            className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                              pageIndex === currentThumbnailPage
+                            className={`w-3 h-3 rounded-full transition-all duration-200 ${pageIndex === currentThumbnailPage
                                 ? 'bg-brand-primary scale-125'
                                 : 'bg-gray-300 hover:bg-gray-400'
-                            }`}
+                              }`}
                           />
                         )
                       )}
@@ -753,7 +750,7 @@ export default function ProductPage() {
                     {/* Original Price with strikethrough */}
                     {product.originalPrice &&
                       parseNumericPrice(product.originalPrice) >
-                        parseNumericPrice(product.price) && (
+                      parseNumericPrice(product.price) && (
                         <div className="flex items-center gap-2">
                           <PriceDisplay
                             price={parseNumericPrice(product.originalPrice)}
@@ -767,7 +764,7 @@ export default function ProductPage() {
                               ((parseNumericPrice(product.originalPrice) -
                                 parseNumericPrice(product.price)) /
                                 parseNumericPrice(product.originalPrice)) *
-                                100
+                              100
                             )}
                             % OFF
                           </span>
@@ -888,7 +885,7 @@ export default function ProductPage() {
                         src={sellerProfileImage || '/placeholder.svg'}
                         alt={product.listedBy}
                         onError={(e) => {
-                          ;(e.target as HTMLImageElement).src = '/placeholder.svg'
+                          ; (e.target as HTMLImageElement).src = '/placeholder.svg'
                         }}
                       />
                       <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold text-lg">
@@ -933,7 +930,7 @@ export default function ProductPage() {
                       className="w-full justify-center border-gray-300 hover:bg-gray-50 h-11"
                       asChild
                     >
-                      <Link href={`/seller/${encodeURIComponent(product.listedBy)}`}>
+                      <Link href={`/seller/${product.sellerId || encodeURIComponent(product.listedBy)}`}>
                         View Profile
                       </Link>
                     </Button>

@@ -149,7 +149,7 @@ export default function AccountDashboard() {
                   <h2 className="font-semibold text-lg text-neutral-800 truncate w-full">
                     {user?.name || 'User'}
                   </h2>
-                  <p className="text-sm text-neutral-600 truncate w-full">{user?.email}</p>
+                  {/* <p className="text-sm text-neutral-600 truncate w-full">{user?.email}</p> */}
                   {isVerifiedBuyer && (
                     <Badge className="mt-2 bg-green-100 text-green-800">
                       <Shield className="w-3 h-3 mr-1" />

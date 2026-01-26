@@ -45,6 +45,7 @@ import {
   type MobileCheckoutResponse as _MobileCheckoutResponse,
   type MeetSellerCheckoutResponse,
 } from '@/lib/api'
+import apiClient from '@/lib/api'
 import { attemptBuyerProfileFix, isBuyerProfileError } from '@/lib/buyer-profile-fixer'
 
 interface ShippingAddress {
@@ -213,8 +214,47 @@ export default function CheckoutPage() {
     cardholderName: '',
   })
 
+  const [stockLimits, setStockLimits] = useState<Record<string, number>>({})
+
   // Use selected items for checkout calculations
   const checkoutItems = selectedItemsData.length > 0 ? selectedItemsData : items
+
+  // Fetch real-time stock limits for items
+  useEffect(() => {
+    const fetchStockLimits = async () => {
+      const limits: Record<string, number> = {}
+
+      await Promise.all(
+        checkoutItems.map(async (item) => {
+          try {
+            const rawId = typeof item.productId === 'number' ? item.productId : Number(item.productId)
+            const fallbackId = Number(item.id)
+            const productIdValue = Number.isFinite(rawId) ? rawId : fallbackId
+
+            if (!Number.isFinite(productIdValue)) return
+
+            // Using apiClient to fetch details which includes current productQuantity
+            const details = await apiClient.getProductDetails(productIdValue) as any
+
+            if (details && (typeof details.productQuantity === 'number' || typeof details.quantity === 'number')) {
+              // Prefer productQuantity, fallback to quantity
+              const available = details.productQuantity ?? details.quantity
+              limits[item.id] = available
+            }
+          } catch (err) {
+            console.error(`Failed to fetch stock for item ${item.title}:`, err)
+          }
+        })
+      )
+
+      setStockLimits(prev => ({ ...prev, ...limits }))
+    }
+
+    if (checkoutItems.length > 0) {
+      fetchStockLimits()
+    }
+  }, [checkoutItems])
+
   const checkoutSubtotal = selectedItemsData.length > 0 ? selectedSubtotal : subtotal
   const selectedCountryData = useMemo(
     () => eastAfricanCountries.find((c) => c.code === selectedCountry),
@@ -473,12 +513,12 @@ export default function CheckoutPage() {
       // To store multi-seller details if available
       let orderSellers:
         | Array<{
-            name: string
-            email: string
-            phone: string
-            address?: string
-            orderId?: string
-          }>
+          name: string
+          email: string
+          phone: string
+          address?: string
+          orderId?: string
+        }>
         | undefined = undefined
 
       // Prepare checkout items payload for API calls
@@ -579,8 +619,8 @@ export default function CheckoutPage() {
           console.error('[Checkout] Full response:', JSON.stringify(mobileResponse, null, 2))
           throw new Error(
             'Payment initiated but no order ID received. Please contact support with reference: ' +
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ((mobileResponse as any).order_id || mobileResponse.data?.checkoutRequestId || 'N/A')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((mobileResponse as any).order_id || mobileResponse.data?.checkoutRequestId || 'N/A')
           )
         }
 
@@ -801,9 +841,9 @@ export default function CheckoutPage() {
         if (!meetSellerOk) {
           throw new Error(
             meetSellerResponse.message ||
-              rawResponse.message ||
-              msData?.message ||
-              'We could not process your order. Please try again.'
+            rawResponse.message ||
+            msData?.message ||
+            'We could not process your order. Please try again.'
           )
         }
 
@@ -887,27 +927,27 @@ export default function CheckoutPage() {
         sellerDetails:
           shippingMethod === 'pickup' && sellerDetails
             ? {
-                name: sellerDetails.name || 'John Doe',
-                email: sellerDetails.email || 'seller@globoexpats.com',
-                phone: sellerDetails.phone || '+255 712 345 678',
-                notified: true,
-              }
+              name: sellerDetails.name || 'John Doe',
+              email: sellerDetails.email || 'seller@globoexpats.com',
+              phone: sellerDetails.phone || '+255 712 345 678',
+              notified: true,
+            }
             : shippingMethod === 'delivery'
               ? {
-                  notified: true,
-                  message: 'Seller has been notified. Our team will coordinate directly.',
-                }
+                notified: true,
+                message: 'Seller has been notified. Our team will coordinate directly.',
+              }
               : undefined,
         // Multi-seller details from API response
         sellers: orderSellers,
         mobilePayment: isMobilePayment
           ? {
-              reference: mobileReference,
-              status: mobileStatus || 'pending',
-              provider: paymentLabel,
-              phoneNumber: paymentDetails.mobileNumber || shippingAddress.phone,
-              message: mobileMessage,
-            }
+            reference: mobileReference,
+            status: mobileStatus || 'pending',
+            provider: paymentLabel,
+            phoneNumber: paymentDetails.mobileNumber || shippingAddress.phone,
+            message: mobileMessage,
+          }
           : undefined,
       }
 
@@ -1013,19 +1053,17 @@ export default function CheckoutPage() {
                 <div className="flex flex-col items-center">
                   {/* Circle */}
                   <div
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-medium transition-all text-sm sm:text-base ${
-                      step.number <= currentStep
-                        ? 'bg-brand-primary text-white'
-                        : 'bg-neutral-200 text-neutral-500'
-                    }`}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-medium transition-all text-sm sm:text-base ${step.number <= currentStep
+                      ? 'bg-brand-primary text-white'
+                      : 'bg-neutral-200 text-neutral-500'
+                      }`}
                   >
                     {step.number}
                   </div>
                   {/* Label */}
                   <span
-                    className={`mt-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                      currentStep >= step.number ? 'text-brand-primary' : 'text-neutral-500'
-                    }`}
+                    className={`mt-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${currentStep >= step.number ? 'text-brand-primary' : 'text-neutral-500'
+                      }`}
                   >
                     {step.label}
                   </span>
@@ -1033,9 +1071,8 @@ export default function CheckoutPage() {
                 {/* Connecting Line */}
                 {index < 3 && (
                   <div
-                    className={`w-8 sm:w-16 h-0.5 mx-1 sm:mx-2 mb-6 ${
-                      step.number < currentStep ? 'bg-brand-primary' : 'bg-neutral-200'
-                    }`}
+                    className={`w-8 sm:w-16 h-0.5 mx-1 sm:mx-2 mb-6 ${step.number < currentStep ? 'bg-brand-primary' : 'bg-neutral-200'
+                      }`}
                   />
                 )}
               </div>
@@ -1120,16 +1157,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Street Address *</Label>
-                    <Input
-                      id="address"
-                      value={shippingAddress.address}
-                      onChange={(e) => handleAddressChange('address', e.target.value)}
-                      placeholder="Building name, street, area/estate"
-                      className="border-2 focus:border-brand-primary"
-                    />
-                  </div>
+
 
                   <div className="space-y-2">
                     <Label htmlFor="location">Location (Country & City) *</Label>
@@ -1253,6 +1281,18 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="address">Street Address *</Label>
+                    <Input
+                      id="address"
+                      required
+                      value={shippingAddress.address}
+                      onChange={(e) => handleAddressChange('address', e.target.value)}
+                      placeholder="Building name, street, area/estate"
+                      className="border-2 focus:border-brand-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="instructions">Delivery Instructions (Optional)</Label>
                     <Textarea
                       id="instructions"
@@ -1281,20 +1321,17 @@ export default function CheckoutPage() {
                           key={option.id}
                           htmlFor={option.id}
                           className={`flex items-start space-x-3 p-4 border-2 rounded-lg transition-all duration-200
-                            ${
-                              option.comingSoon
-                                ? `cursor-not-allowed border-dashed border-neutral-200 ${
-                                    option.isGloboExpat
-                                      ? 'bg-gradient-to-r from-brand-primary/[0.02] to-brand-secondary/[0.02]'
-                                      : 'bg-neutral-50'
-                                  }`
-                                : `cursor-pointer hover:bg-neutral-50 hover:border-brand-primary/50 ${
-                                    shippingMethod === option.id
-                                      ? 'border-brand-primary bg-brand-primary/5'
-                                      : option.isGloboExpat
-                                        ? 'bg-gradient-to-r from-brand-primary/5 to-brand-secondary/5 border-brand-primary/30'
-                                        : 'border-neutral-200'
-                                  }`
+                            ${option.comingSoon
+                              ? `cursor-not-allowed border-dashed border-neutral-200 ${option.isGloboExpat
+                                ? 'bg-gradient-to-r from-brand-primary/[0.02] to-brand-secondary/[0.02]'
+                                : 'bg-neutral-50'
+                              }`
+                              : `cursor-pointer hover:bg-neutral-50 hover:border-brand-primary/50 ${shippingMethod === option.id
+                                ? 'border-brand-primary bg-brand-primary/5'
+                                : option.isGloboExpat
+                                  ? 'bg-gradient-to-r from-brand-primary/5 to-brand-secondary/5 border-brand-primary/30'
+                                  : 'border-neutral-200'
+                              }`
                             }`}
                         >
                           <RadioGroupItem
@@ -1306,13 +1343,12 @@ export default function CheckoutPage() {
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
                               <div
-                                className={`font-medium flex items-center gap-2 ${
-                                  option.isGloboExpat
-                                    ? 'text-brand-primary'
-                                    : option.comingSoon
-                                      ? 'text-neutral-400'
-                                      : ''
-                                }`}
+                                className={`font-medium flex items-center gap-2 ${option.isGloboExpat
+                                  ? 'text-brand-primary'
+                                  : option.comingSoon
+                                    ? 'text-neutral-400'
+                                    : ''
+                                  }`}
                               >
                                 {option.isGloboExpat && (
                                   <span className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded bg-brand-primary text-white">
@@ -1329,13 +1365,12 @@ export default function CheckoutPage() {
                               </div>
                               <div className="text-right">
                                 <span
-                                  className={`font-semibold text-lg ${
-                                    option.isGloboExpat
-                                      ? 'text-brand-primary'
-                                      : option.comingSoon
-                                        ? 'text-neutral-400'
-                                        : 'text-neutral-600'
-                                  }`}
+                                  className={`font-semibold text-lg ${option.isGloboExpat
+                                    ? 'text-brand-primary'
+                                    : option.comingSoon
+                                      ? 'text-neutral-400'
+                                      : 'text-neutral-600'
+                                    }`}
                                 >
                                   {option.priceDisplay || 'Varies'}
                                 </span>
@@ -1380,9 +1415,6 @@ export default function CheckoutPage() {
                   <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
                     {/* Recommended Options */}
                     <div className="mb-4">
-                      <h3 className="text-sm font-medium text-neutral-500 mb-3 uppercase tracking-wider">
-                        Recommended
-                      </h3>
                       <div className="space-y-3">
                         {availablePaymentMethods
                           .filter((m) => m.type === 'cash')
@@ -1398,28 +1430,30 @@ export default function CheckoutPage() {
                               }}
                               role="button"
                               tabIndex={0}
-                              className={`relative flex items-center gap-3 sm:gap-4 p-4 sm:p-5 border-2 rounded-xl transition-all duration-300 cursor-pointer ${
-                                selectedPayment === method.id
-                                  ? 'border-brand-primary bg-blue-50/50 shadow-sm'
-                                  : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
-                              }`}
+                              className={`relative flex items-center gap-3 sm:gap-4 p-4 sm:p-5 border-2 rounded-xl transition-all duration-300 cursor-pointer ${selectedPayment === method.id
+                                ? 'border-brand-primary bg-blue-50/50 shadow-sm'
+                                : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                                }`}
                             >
+                              <div className="absolute top-0 left-0 bg-brand-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-br-lg rounded-tl-lg uppercase tracking-wider">
+                                Recommended
+                              </div>
                               <RadioGroupItem
                                 value={method.id}
                                 id={method.id}
-                                className="w-5 h-5 border-2 flex-shrink-0"
+                                className="w-5 h-5 border-2 flex-shrink-0 mt-2"
                               />
                               {method.icon === 'Banknote' && (
-                                <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+                                <div className="p-2 bg-green-100 rounded-lg flex-shrink-0 mt-2">
                                   <Banknote className="w-5 h-5 text-green-700" />
                                 </div>
                               )}
                               {method.icon === 'Handshake' && (
-                                <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                                <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0 mt-2">
                                   <Handshake className="w-5 h-5 text-blue-700" />
                                 </div>
                               )}
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-0 mt-2">
                                 <Label
                                   htmlFor={method.id}
                                   className="font-semibold text-base text-neutral-900 cursor-pointer"
@@ -1431,7 +1465,7 @@ export default function CheckoutPage() {
                                 </p>
                               </div>
                               {selectedPayment === method.id && (
-                                <div className="flex-shrink-0">
+                                <div className="flex-shrink-0 mt-2">
                                   <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                                 </div>
                               )}
@@ -1474,11 +1508,10 @@ export default function CheckoutPage() {
                                   }}
                                   role="button"
                                   tabIndex={0}
-                                  className={`relative flex items-center gap-3 p-3 border-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                                    selectedPayment === method.id
-                                      ? 'border-brand-primary bg-blue-50/50 shadow-sm'
-                                      : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
-                                  }`}
+                                  className={`relative flex items-center gap-3 p-3 border-2 rounded-lg transition-all duration-200 cursor-pointer ${selectedPayment === method.id
+                                    ? 'border-brand-primary bg-blue-50/50 shadow-sm'
+                                    : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                                    }`}
                                 >
                                   <RadioGroupItem
                                     value={method.id}
@@ -1861,7 +1894,7 @@ export default function CheckoutPage() {
               <Card className="shadow-sm border border-neutral-200 rounded-xl overflow-hidden">
                 <CardHeader className="bg-neutral-50 border-b border-neutral-200 p-4">
                   <CardTitle className="text-lg font-semibold text-neutral-900">
-                    Your Items ({checkoutItems.length})
+                    Your Orders ({checkoutItems.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -1914,9 +1947,9 @@ export default function CheckoutPage() {
                                 size="icon"
                                 className="h-6 w-6 rounded-none hover:bg-neutral-100"
                                 onClick={() =>
-                                  updateQuantity(item.id, Math.min(10, item.quantity + 1))
+                                  updateQuantity(item.id, Math.min(stockLimits[item.id] ?? 10, item.quantity + 1))
                                 }
-                                disabled={item.quantity >= 10}
+                                disabled={item.quantity >= (stockLimits[item.id] ?? 10)}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
@@ -1949,7 +1982,7 @@ export default function CheckoutPage() {
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-xs text-blue-800">
                       Prices shown in your selected currency. Payment processed in{' '}
-                      <strong>TZS (Tanzanian Shilling)</strong> at checkout.
+                      <strong>TZS (Tanzanian Shilling)</strong> for mobile and credit cards payments at checkout.
                     </AlertDescription>
                   </Alert>
 

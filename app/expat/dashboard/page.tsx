@@ -457,7 +457,7 @@ function DashboardContent() {
                 Welcome back, {user?.firstName || 'User'}!
               </h1>
               <div className="flex items-center mt-1">
-                <span className="text-[#64748B]">{user?.organizationEmail || user?.email}</span>
+                {/* <span className="text-[#64748B]">{user?.organizationEmail || user?.email}</span> */}
                 {user?.backendVerificationStatus === 'VERIFIED' && (
                   <Badge className="ml-2 bg-[#10B981] hover:bg-[#10B981]/90">
                     <ShieldCheck className="w-3 h-3 mr-1" />
@@ -744,6 +744,7 @@ function DashboardContent() {
                         showDate
                         showViewButton={false}
                         showCartButton={false}
+                        isManagementMode
                         status={
                           listing.productQuantity === 0 ? 'Out of Stock' : listing.productStatus
                         }

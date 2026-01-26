@@ -94,6 +94,7 @@ export interface User {
   position?: string
   aboutMe?: string
   phoneNumber?: string
+  whatsAppPhoneNumber?: string
   organization?: string
   location?: string
 

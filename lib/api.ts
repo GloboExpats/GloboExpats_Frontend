@@ -176,7 +176,10 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     // If endpoint starts with /api/ (Next.js API routes), don't prepend backend URL
     // This allows us to use Next.js proxy routes to avoid CORS issues
-    const isNextApiRoute = endpoint.startsWith('/api/') && !endpoint.startsWith('/api/v1/')
+    const isNextApiRoute =
+      endpoint.startsWith('/api/') &&
+      !endpoint.startsWith('/api/v1/') &&
+      !endpoint.startsWith('/api/saved-products')
     const url = isNextApiRoute ? endpoint : `${this.baseURL}${endpoint}`
 
     // Log the request for debugging (dev only)
@@ -930,6 +933,7 @@ class ApiClient {
 
     return this.request(url, {
       method: 'POST',
+      body: JSON.stringify(filterCriteria),
     })
   }
 
@@ -1324,6 +1328,7 @@ class ApiClient {
     position: string
     aboutMe: string
     phoneNumber: string
+    whatsAppPhoneNumber?: string
     organization: string
     location: string
     profileImageUrl?: string
@@ -1392,6 +1397,7 @@ class ApiClient {
   }> {
     // Try multiple possible endpoint variations
     const endpointsToTry = [
+      `/api/v1/userManagement/seller-profile/${sellerId}`,
       `/api/v1/userManagement/user-details?userId=${sellerId}`,
       `/api/v1/userManagement/users/${sellerId}`,
       `/api/v1/userManagement/public-profile/${sellerId}`,
@@ -1406,16 +1412,17 @@ class ApiClient {
         console.log(`🔍 Trying endpoint: ${endpoint}`)
         const response = await this.request(endpoint)
         console.log(`✅ Success with endpoint: ${endpoint}`, response)
-        return response as unknown as {
-          userId: number
-          firstName: string
-          lastName: string
-          position?: string
-          aboutMe?: string
-          organization?: string
-          location?: string
-          profileImageUrl?: string
-          verificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'
+        const data = (response as any).data || response
+        return {
+          userId: data.userId || data.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          position: data.position,
+          aboutMe: data.aboutMe,
+          organization: data.organization,
+          location: data.location || data.country || data.region,
+          profileImageUrl: data.profileImageUrl,
+          verificationStatus: data.verificationStatus,
         }
       } catch (error) {
         console.log(`❌ Failed endpoint: ${endpoint}`)
@@ -1468,7 +1475,52 @@ class ApiClient {
   ): Promise<ApiResponse<unknown>> {
     // Backend expects multipart/form-data with profileInformationDTO as a JSON string
     const formData = new FormData()
-    formData.append('profileInformationDTO', JSON.stringify(data))
+
+    // Map frontend fields to backend DTO fields
+    // Based on backend logs, 'phoneNumber' is unrecognized, and GET api shows 'whatsAppPhoneNumber'
+    const backendData: any = {
+      ...data,
+      whatsAppPhoneNumber: data.phoneNumber,
+    }
+
+    // Parse location into country and region (City)
+    // Frontend sends "City, Country" or just "City"
+    if (data.location) {
+      if (data.location.includes(',')) {
+        const parts = data.location.split(',').map(s => s.trim())
+        // Assuming format "City, Country"
+        backendData.region = parts[0]
+        backendData.country = parts[parts.length - 1]
+
+        // Map common ISO codes to full names if needed
+        const countryMap: Record<string, string> = {
+          'TZ': 'Tanzania',
+          'KE': 'Kenya',
+          'UG': 'Uganda',
+          'RW': 'Rwanda',
+          'BI': 'Burundi'
+        }
+        if (countryMap[backendData.country]) {
+          backendData.country = countryMap[backendData.country]
+        }
+      } else {
+        // If no comma, assume it's just the country if it matches a known country, otherwise region
+        const lowerLoc = data.location.toLowerCase()
+        if (['tanzania', 'kenya', 'uganda', 'rwanda', 'burundi'].some(c => lowerLoc.includes(c))) {
+          backendData.country = data.location
+        } else {
+          backendData.region = data.location
+        }
+      }
+    }
+
+    // Remove the unrecognized/redundant fields
+    delete (backendData as any).phoneNumber
+    // Backend throws "Unrecognized field: location", so we must remove it
+    // We have already split it into country and region
+    delete (backendData as any).location
+
+    formData.append('profileInformationDTO', JSON.stringify(backendData))
 
     if (profileImage) {
       formData.append('profileImage', profileImage)

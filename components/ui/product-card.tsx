@@ -35,6 +35,7 @@ interface ProductCardProps {
   status?: string
   showViewButton?: boolean
   showCartButton?: boolean
+  isManagementMode?: boolean
 }
 
 export function ProductCard({
@@ -50,10 +51,15 @@ export function ProductCard({
   status,
   showViewButton = true,
   showCartButton = true,
+  isManagementMode = false,
 }: ProductCardProps) {
   const router = useRouter()
   const { addToCart } = useCart()
   const { isLoggedIn, user } = useAuth()
+
+  // Check if we are in management mode (edit/delete only, no view/cart buttons)
+  // OR if explicitly enabled via prop
+  const effectiveManagementMode = isManagementMode || ((onEdit || onDelete) && !showViewButton && !showCartButton)
 
   // Prevent double clicks with debouncing
   const lastClickTime = useRef<number>(0)
@@ -114,6 +120,7 @@ export function ProductCard({
     }
 
     // Navigate to product page
+    console.log(`🚀 [ProductCard] Navigating to product details: /product/${product.id}`)
     router.push(`/product/${product.id}`)
 
     // Reset processing state after a short delay
@@ -235,6 +242,38 @@ export function ProductCard({
                 >
                   <Heart className="h-4.5 w-4.5 text-red-500 fill-red-500 group-hover:heart:scale-110 transition-transform" />
                 </Button>
+              </div>
+            )}
+
+            {/* Management Actions - Visible Buttons for easier access */}
+            {effectiveManagementMode && (
+              <div className="absolute bottom-2 right-2 z-30 flex gap-2">
+                {onEdit && (
+                  <button
+                    className="h-8 w-8 flex items-center justify-center bg-white/90 backdrop-blur-md hover:bg-white text-blue-600 rounded-full shadow-lg border border-blue-100 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(product.id)
+                    }}
+                    title="Edit Listing"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    className="h-8 w-8 flex items-center justify-center bg-white/90 backdrop-blur-md hover:bg-white text-red-600 rounded-full shadow-lg border border-red-100 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (window.confirm('Are you sure you want to delete this listing?')) {
+                        onDelete(product.id)
+                      }
+                    }}
+                    title="Delete Listing"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -428,7 +467,7 @@ export function ProductCard({
             {/* Bottom Section - Pushed to bottom */}
             {(showViewButton || showCartButton || onEdit || onDelete) && (
               <div className={cn('mt-auto', compact ? 'pt-1' : 'pt-1.5')}>
-                <div className={cn('flex items-center', compact ? 'gap-1' : 'gap-2')}>
+                <div className={cn('flex items-center justify-end', compact ? 'gap-1' : 'gap-2')}>
                   {showViewButton && (
                     <Button
                       className={cn(
@@ -478,7 +517,7 @@ export function ProductCard({
                   )}
 
                   {/* Management Actions (Dropdown) */}
-                  {(onEdit || onDelete) && (
+                  {(onEdit || onDelete) && !effectiveManagementMode && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button

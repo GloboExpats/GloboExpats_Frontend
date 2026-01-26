@@ -40,6 +40,7 @@ import { getInitials } from '@/lib/utils'
 import { FeaturedItem } from '@/lib/types'
 import PriceDisplay from '@/components/price-display'
 import type { CurrencyCode } from '@/lib/currency-types'
+import { CountryFlag, getCountryCodeFromLabel } from '@/components/country-flag'
 import { ProductCard } from '@/components/ui/product-card'
 
 interface SellerProfile {
@@ -57,30 +58,6 @@ interface SellerProfile {
 }
 
 const ITEMS_PER_PAGE = 12
-
-const getCountryFlag = (location: string): string => {
-  const loc = location.toLowerCase()
-  if (
-    loc.includes('tz') ||
-    loc.includes('tanzania') ||
-    loc.includes('dar') ||
-    loc.includes('zanzibar') ||
-    loc.includes('dodoma') ||
-    loc.includes('arusha')
-  )
-    return '🇹🇿'
-  if (
-    loc.includes('ke') ||
-    loc.includes('kenya') ||
-    loc.includes('nairobi') ||
-    loc.includes('mombasa')
-  )
-    return '🇰🇪'
-  if (loc.includes('ug') || loc.includes('uganda') || loc.includes('kampala')) return '🇺🇬'
-  if (loc.includes('rw') || loc.includes('rwanda') || loc.includes('kigali')) return '🇷🇼'
-  if (loc.includes('bi') || loc.includes('burundi') || loc.includes('bujumbura')) return '🇧🇮'
-  return '🌍'
-}
 
 const formatLocation = (location: string): string => {
   if (!location) return ''
@@ -107,8 +84,7 @@ const formatLocation = (location: string): string => {
       .join(' ')
   }
 
-  const flag = getCountryFlag(location)
-  return `${flag} ${formatted}`
+  return formatted
 }
 
 export default function SellerProfilePage() {
@@ -140,93 +116,68 @@ export default function SellerProfilePage() {
         console.log('Seller ID/Name from URL:', decodedSellerName)
         console.log('Is Numeric ID:', isNumericId)
 
-        // Step 1: Find products or verify seller
+        let fetchedProfile: any = null
+
+        // Step 1: Try to fetch profile directly if we have a numeric ID
         if (isNumericId && userSellerId) {
-          // If we have a numeric ID, we can try to get the profile directly
           try {
+            console.log('🔍 Attempting to fetch profile using ID:', userSellerId)
             const profile = await apiClient.getSellerProfile(userSellerId)
             if (profile) {
               console.log('✅ Found profile by numeric ID:', profile)
-              // Also fetch some products for this seller to get their name if profile doesn't have it fully
-              const productsResponse = await apiClient.filterProducts({
-                sellerName: `${profile.firstName} ${profile.lastName}`.trim()
-              })
-              const responseData = (productsResponse as any)?.data?.content || (productsResponse as any)?.content || []
-              sellerProducts = responseData
+              fetchedProfile = profile
             }
           } catch (e) {
-            console.warn('⚠️ Could not find profile by numeric ID, falling back to name search')
-            userSellerId = null
+            console.warn('⚠️ Could not find profile by numeric ID:', e)
+            fetchedProfile = null
           }
         }
 
-        // Step 2: Search by name if we don't have a verified ID yet
-        if (!userSellerId) {
-          console.log('🔍 Searching for products by seller name:', decodedSellerName)
-          const productsResponse = await apiClient.filterProducts({
-            sellerName: decodedSellerName
-          })
-
-          const responseData = (productsResponse as any)?.data?.content || (productsResponse as any)?.content || []
-
-          if (responseData.length > 0) {
-            sellerProducts = responseData
-            const firstProduct = sellerProducts[0]
-            userSellerId = firstProduct.sellerId || firstProduct.userId
-            console.log('✅ Found seller ID from products:', userSellerId)
-          } else {
-            console.log('❓ No products found for this name, trying newest listings scan...')
-            // Fallback: Scan newest listings (existing logic)
-            let allProducts: any[] = []
-            let currentPageNum = 0
-            const maxPages = 3
-
-            while (currentPageNum < maxPages) {
-              const productsResponse = await apiClient.getNewestListings(currentPageNum, 20)
-              const response = productsResponse as any
-              const pageProducts = response?.data?.content || response?.content || response?.data || []
-
-              if (pageProducts.length === 0) break
-              allProducts = [...allProducts, ...pageProducts]
-              if (response?.data?.last === true || pageProducts.length < 20) break
-              currentPageNum++
-            }
-
-            sellerProducts = allProducts.filter((item) => {
-              const product = item as Record<string, any>
-              return (
-                product.sellerName &&
-                String(product.sellerName).toLowerCase() === decodedSellerName.toLowerCase()
-              )
+        // Step 2: Fetch products (Secondary)
+        try {
+          // If we have a profile, search by name from profile
+          if (fetchedProfile) {
+            const fullName = `${fetchedProfile.firstName} ${fetchedProfile.lastName}`.trim()
+            console.log('🔍 Searching products for seller:', fullName)
+            const productsResponse = await apiClient.filterProducts({
+              sellerName: fullName
             })
+            sellerProducts = (productsResponse as any)?.data?.content || (productsResponse as any)?.content || []
+          }
+          // If no profile yet, maybe ID is actually a name (url param)
+          else if (!isNumericId) {
+            console.log('🔍 URL ID is likely a name, searching products by name:', decodedSellerName)
+            const productsResponse = await apiClient.filterProducts({
+              sellerName: decodedSellerName
+            })
+            sellerProducts = (productsResponse as any)?.data?.content || (productsResponse as any)?.content || []
 
+            // If we found products, we can try to extract ID to fetch profile
             if (sellerProducts.length > 0) {
-              const firstProduct = sellerProducts[0]
-              userSellerId = firstProduct.sellerId || firstProduct.userId
-              console.log('✅ Found seller ID from newest listings scan:', userSellerId)
+              const first = sellerProducts[0]
+              userSellerId = first.sellerId || first.userId
             }
           }
+        } catch (prodErr) {
+          console.warn('⚠️ Failed to fetch products:', prodErr)
+          // Don't fail the whole page if we have a profile
         }
 
-        if (!userSellerId && sellerProducts.length === 0) {
-          // One final attempt: Maybe the ID is actually a name but we can't find products
-          // In some cases, we might have a name but no products. 
-          // But getSellerProfile NEEDS a numeric ID.
+        // If we found products but didn't have profile (and now have ID), try fetch profile again
+        if (!fetchedProfile && userSellerId) {
+          try {
+            fetchedProfile = await apiClient.getSellerProfile(userSellerId)
+          } catch (e) { console.warn('⚠️ Final profile fetch attempt failed', e) }
+        }
+
+        if (!fetchedProfile && sellerProducts.length === 0) {
           setError('Seller not found')
           setLoading(false)
           return
         }
 
-        // Step 3: Fetch full profile with the ID we found
-        let userProfile: any = null
-        if (userSellerId) {
-          try {
-            userProfile = await apiClient.getSellerProfile(userSellerId)
-            console.log('✅ Successfully fetched seller profile:', userProfile)
-          } catch (profileError) {
-            console.warn('⚠️ Could not fetch seller profile from API:', profileError)
-          }
-        }
+        // Use the fetched profile
+        const userProfile = fetchedProfile
 
         // Step 4: Combine data
         const firstProduct = sellerProducts[0] || {}
@@ -437,10 +388,15 @@ export default function SellerProfilePage() {
                     </div>
                   )}
 
+
+
                   {seller.location && (
                     <div className="flex items-center gap-2 text-neutral-600 mb-4">
                       <MapPin className="w-4 h-4 text-neutral-400" />
-                      <span className="text-sm font-medium">{formatLocation(seller.location)}</span>
+                      <div className="flex items-center gap-2">
+                        <CountryFlag countryCode={getCountryCodeFromLabel(seller.location) || ''} size="sm" />
+                        <span className="text-sm font-medium">{formatLocation(seller.location)}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -474,15 +430,6 @@ export default function SellerProfilePage() {
                       Message Seller
                     </Button>
                   </div>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-neutral-400 hover:text-red-500 hover:bg-red-50 text-xs mt-2"
-                  >
-                    <Flag className="w-3.5 h-3.5 mr-2" />
-                    Report Profile
-                  </Button>
                 </div>
               </CardContent>
             </Card>
