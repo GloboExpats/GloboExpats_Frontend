@@ -122,11 +122,7 @@ interface AuthContextType extends AuthState {
   requestOrganizationEmailOtp: (organizationalEmail: string) => Promise<void>
 
   /** Verify organization email address via OTP */
-  verifyOrganizationEmail: (
-    organizationalEmail: string,
-    otp: string,
-    userRoles?: 'SELLER' | 'USER' | string
-  ) => Promise<void>
+  verifyOrganizationEmail: (organizationalEmail: string, otp: string) => Promise<void>
 
   /** Refresh user session from backend */
   refreshSession: () => Promise<void>
@@ -185,8 +181,7 @@ const createDefaultVerificationStatus = (
   const isBackendVerified =
     (user as { isVerified?: boolean })?.isVerified === true ||
     (user as { verificationStatus?: string })?.verificationStatus === 'VERIFIED' ||
-    (user as { backendVerificationStatus?: string })?.backendVerificationStatus === 'VERIFIED' ||
-    (user as { isOrganizationEmailVerified?: boolean })?.isOrganizationEmailVerified === true
+    (user as { backendVerificationStatus?: string })?.backendVerificationStatus === 'VERIFIED'
 
   // Simplified logic: Email verified = all access
   return {
@@ -448,8 +443,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         position: userDetails.position,
         aboutMe: userDetails.aboutMe,
         phoneNumber: userDetails.phoneNumber,
+        whatsAppPhoneNumber: userDetails.whatsAppPhoneNumber,
         organization: userDetails.organization,
         location: userDetails.location,
+        country: userDetails.country,
+        region: userDetails.region,
 
         // Backend verification statuses (simple strings)
         backendVerificationStatus: userDetails.verificationStatus,
@@ -458,20 +456,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Frontend verification status (for UI logic)
         verificationStatus: {
-          isFullyVerified:
-            userDetails.verificationStatus === 'VERIFIED' &&
-            userDetails.passportVerificationStatus === 'VERIFIED' &&
-            userDetails.addressVerificationStatus === 'VERIFIED',
+          isFullyVerified: userDetails.verificationStatus === 'VERIFIED',
           isIdentityVerified: userDetails.passportVerificationStatus === 'VERIFIED',
-          isOrganizationEmailVerified: !!userDetails.organizationalEmail,
-          canBuy:
-            userDetails.verificationStatus === 'VERIFIED' || !!userDetails.organizationalEmail,
-          canList:
-            userDetails.verificationStatus === 'VERIFIED' &&
-            userDetails.passportVerificationStatus === 'VERIFIED',
-          canSell:
-            userDetails.verificationStatus === 'VERIFIED' &&
-            userDetails.passportVerificationStatus === 'VERIFIED',
+          isOrganizationEmailVerified: userDetails.verificationStatus === 'VERIFIED',
+          canBuy: userDetails.verificationStatus === 'VERIFIED',
+          canList: userDetails.verificationStatus === 'VERIFIED',
+          canSell: userDetails.verificationStatus === 'VERIFIED',
           canContact: userDetails.verificationStatus === 'VERIFIED',
           currentStep: userDetails.verificationStatus === 'VERIFIED' ? 'complete' : 'identity',
           pendingActions: userDetails.verificationStatus === 'PENDING' ? ['admin_review'] : [],
@@ -693,11 +683,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   const verifyOrganizationEmail = useCallback(
-    async (
-      organizationalEmail: string,
-      otp: string,
-      userRoles: 'SELLER' | 'USER' | string = 'USER'
-    ): Promise<void> => {
+    async (organizationalEmail: string, otp: string): Promise<void> => {
       if (!authState.user) throw new Error('Must be logged in to verify email')
       setAuthState((prev) => ({ ...prev, isLoading: true, error: null }))
       try {
@@ -705,7 +691,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (token) apiClient.setAuthToken(token)
 
         // Verify the OTP with backend
-        await verifyOrgEmailOtp(organizationalEmail, otp, userRoles)
+        await verifyOrgEmailOtp(organizationalEmail, otp)
 
         // Fetch updated user details from backend to get real verification status
         const updatedUserDetails = await fetchUserDetails()
@@ -952,7 +938,7 @@ export function useAuth(): AuthContextType {
   if (context === undefined) {
     throw new Error(
       'useAuth must be used within an AuthProvider. ' +
-        'Make sure your component is wrapped with <AuthProvider>.'
+      'Make sure your component is wrapped with <AuthProvider>.'
     )
   }
 

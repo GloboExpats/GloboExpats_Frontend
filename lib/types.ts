@@ -94,8 +94,11 @@ export interface User {
   position?: string
   aboutMe?: string
   phoneNumber?: string
+  whatsAppPhoneNumber?: string
   organization?: string
   location?: string
+  country?: string // Backend returns country separately
+  region?: string // Backend returns region (city) separately
 
   // Backend verification statuses (simple strings)
   backendVerificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -206,11 +209,16 @@ export interface FeaturedItem {
   rating: number
   reviews: number
   location: string
+  city?: string
+  country?: string
+  street?: string
+  whatsapp?: string
   isVerified: boolean
   category?: string
   condition?: string
   views?: number // View count (from backend clickCount field)
   quantity?: number
+  createdAt?: string // ISO string or formatted date
 }
 
 /**

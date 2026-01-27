@@ -38,7 +38,9 @@ export function isBuyerProfileError(error: unknown): boolean {
   return (
     lowerMsg.includes('buyer profile not found') ||
     lowerMsg.includes('could not be created') ||
-    lowerMsg.includes('no buyer profile')
+    lowerMsg.includes('no buyer profile') ||
+    lowerMsg.includes("account isn't verified") ||
+    lowerMsg.includes('account is not verified')
   )
 }
 
@@ -175,7 +177,7 @@ Check why buyer_profile wasn't auto-created during verification:
  */
 if (typeof window !== 'undefined') {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(window as any).fixBuyerProfile = async () => {
+  ; (window as any).fixBuyerProfile = async () => {
     console.log('🔧 Running buyer profile auto-fix...')
     const result = await attemptBuyerProfileFix()
 

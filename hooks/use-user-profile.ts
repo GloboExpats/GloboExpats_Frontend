@@ -82,6 +82,8 @@ export function useUserProfile(): UserProfileMethods {
           email?: string
           phoneNumber?: string
           location?: string
+          country?: string
+          region?: string
           aboutMe?: string
           organization?: string
           position?: string
@@ -91,7 +93,49 @@ export function useUserProfile(): UserProfileMethods {
         if (updates.lastName) updatePayload.lastName = updates.lastName
         if (updates.email) updatePayload.email = updates.email
         if (updates.phoneNumber) updatePayload.phoneNumber = updates.phoneNumber
-        if (updates.location) updatePayload.location = updates.location
+
+        if (updates.location) {
+          updatePayload.location = updates.location
+
+          // Parse location string to send structured country/region to backend
+          if (updates.location.includes(',')) {
+            const parts = updates.location.split(',').map((p) => p.trim())
+            updatePayload.region = parts[0] // City
+
+            const countryPart = parts.slice(1).join(', ')
+            // Map common codes to full names
+            const countryMap: Record<string, string> = {
+              'TZ': 'Tanzania',
+              'KE': 'Kenya',
+              'UG': 'Uganda',
+              'RW': 'Rwanda',
+              'BI': 'Burundi',
+            }
+            updatePayload.country = countryMap[countryPart] || countryPart
+          } else {
+            // Check if it's a known country
+            const countryMapLower: Record<string, string> = {
+              'tanzania': 'Tanzania',
+              'kenya': 'Kenya',
+              'uganda': 'Uganda',
+              'rwanda': 'Rwanda',
+              'burundi': 'Burundi',
+              'tz': 'Tanzania',
+              'ke': 'Kenya',
+              'ug': 'Uganda',
+              'rw': 'Rwanda',
+              'bi': 'Burundi'
+            }
+            const matched = countryMapLower[updates.location.toLowerCase()]
+            if (matched) {
+              updatePayload.country = matched
+            } else {
+              // Assume it might be just a city/region or custom text
+              updatePayload.region = updates.location
+            }
+          }
+        }
+
         if (updates.aboutMe) updatePayload.aboutMe = updates.aboutMe
         if (updates.organization) updatePayload.organization = updates.organization
         if (updates.position) updatePayload.position = updates.position
@@ -113,10 +157,16 @@ export function useUserProfile(): UserProfileMethods {
           imageUrl = `${BACKEND_URL}${imageUrl}`
         }
 
+        // Extract backend verification status to avoid overwriting the frontend object
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { verificationStatus: backendStatus, ...restDetails } = updatedUserDetails
+
         // Update local state with fresh data from backend
         const freshProfile = {
           ...userProfile,
           ...updates,
+          ...restDetails, // Merge fresh backend data (e.g. country, region) without conflicts
+          backendVerificationStatus: backendStatus,
           avatar: imageUrl || userProfile.avatar,
           profileImageUrl: imageUrl,
         }

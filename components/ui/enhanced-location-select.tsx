@@ -94,8 +94,22 @@ function parseLocationValue(value: string): { country: string; city: string; isC
     }
   }
 
+  // If no match, check if it's just a country name
+  const matchedCountry = COUNTRIES.find(
+    (c) =>
+      c.name.toLowerCase() === value.toLowerCase() || c.code.toLowerCase() === value.toLowerCase()
+  )
+
+  if (matchedCountry) {
+    return {
+      country: matchedCountry.name,
+      city: '',
+      isCustom: false,
+    }
+  }
+
   // If no match, it's a custom location
-  return { country: '', city: '', isCustom: true }
+  return { country: '', city: value, isCustom: true }
 }
 
 /**
@@ -169,6 +183,7 @@ export function EnhancedLocationSelect({
 
   // Handle city selection
   const handleCityChange = (cityLabel: string) => {
+    console.log('[EnhancedLocationSelect] handleCityChange called with:', cityLabel)
     if (cityLabel === 'other') {
       setShowOtherInput(true)
       setSelectedCity('')
@@ -179,6 +194,7 @@ export function EnhancedLocationSelect({
     }
 
     setSelectedCity(cityLabel)
+    console.log('[EnhancedLocationSelect] Calling onValueChange with:', cityLabel)
     onValueChange(cityLabel)
   }
 
@@ -297,7 +313,9 @@ export function EnhancedLocationSelect({
                 )}
               >
                 <SelectValue
-                  placeholder={selectedCountry ? 'Select city' : '← Choose country first'}
+                  placeholder={
+                    selectedCountry ? 'Select city' : '← Choose country first, then city'
+                  }
                 />
               </SelectTrigger>
               <SelectContent>

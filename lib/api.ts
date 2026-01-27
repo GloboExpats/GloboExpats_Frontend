@@ -176,7 +176,10 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     // If endpoint starts with /api/ (Next.js API routes), don't prepend backend URL
     // This allows us to use Next.js proxy routes to avoid CORS issues
-    const isNextApiRoute = endpoint.startsWith('/api/') && !endpoint.startsWith('/api/v1/')
+    const isNextApiRoute =
+      endpoint.startsWith('/api/') &&
+      !endpoint.startsWith('/api/v1/') &&
+      !endpoint.startsWith('/api/saved-products')
     const url = isNextApiRoute ? endpoint : `${this.baseURL}${endpoint}`
 
     // Log the request for debugging (dev only)
@@ -930,6 +933,7 @@ class ApiClient {
 
     return this.request(url, {
       method: 'POST',
+      body: JSON.stringify(filterCriteria),
     })
   }
 
@@ -1217,6 +1221,96 @@ class ApiClient {
     }
   }
 
+  /**
+   * Fetches reviews for a specific user
+   * @param userId - User ID to fetch reviews for
+   * @returns Promise resolving to user reviews
+   */
+  async getUserReviews(userId?: number): Promise<unknown> {
+    const qs = userId ? `?userId=${userId}` : ''
+    return this.request(`/api/v1/user-reviews${qs}`)
+  }
+
+  /**
+   * Fetches the average rating for a user
+   * @param userId - User ID to fetch average rating for
+   * @returns Promise resolving to average rating
+   */
+  async getAverageRating(userId?: number): Promise<number> {
+    const qs = userId ? `?userId=${userId}` : ''
+    const response = await this.request(`/api/v1/average-rating${qs}`)
+    return response as unknown as number
+  }
+
+  /**
+   * Posts a review for a user
+   * @param data - Review data including target userId, rating, and comment
+   */
+  async reviewUser(data: {
+    targetUserId: number
+    rating: number
+    comment: string
+  }): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/review-user', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Rates a user
+   * @param data - Rating data including target userId and rating value
+   */
+  async rateUser(data: { targetUserId: number; rating: number }): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/rate-user', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Fetches the seller's product status (likely active, sold, etc. counts)
+   * @returns Promise resolving to seller product status summary
+   */
+  async getSellerProductStatus(): Promise<Record<string, number>> {
+    const response = await this.request('/api/v1/displayItem/seller-productStatus')
+    return response as unknown as Record<string, number>
+  }
+
+  // ============================================================================
+  // SAVED PRODUCTS (WISHLIST) ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Fetches all products saved by the current user
+   * @returns Promise resolving to a list of saved products
+   */
+  async getSavedProducts(): Promise<unknown> {
+    return this.request('/api/saved-products')
+  }
+
+  /**
+   * Saves a product to the user's wishlist
+   * @param productId - Product identifier
+   * @returns Promise resolving to the saved status
+   */
+  async saveProduct(productId: number): Promise<ApiResponse<unknown>> {
+    return this.request(`/api/saved-products/${productId}`, {
+      method: 'POST',
+    })
+  }
+
+  /**
+   * Removes a product from the user's wishlist
+   * @param productId - Product identifier
+   * @returns Promise resolving to the unsaved status
+   */
+  async unsaveProduct(productId: number): Promise<ApiResponse<unknown>> {
+    return this.request(`/api/saved-products/${productId}`, {
+      method: 'DELETE',
+    })
+  }
+
   // ============================================================================
   // USER ENDPOINTS
   // ============================================================================
@@ -1234,8 +1328,11 @@ class ApiClient {
     position: string
     aboutMe: string
     phoneNumber: string
+    whatsAppPhoneNumber?: string
     organization: string
     location: string
+    country?: string
+    region?: string
     profileImageUrl?: string
     verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
     passportVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -1252,7 +1349,21 @@ class ApiClient {
       console.log('🔍 getUserDetails API response:', response)
     }
 
-    return response as unknown as {
+    // Backend returns country and region separately
+    // Generate location string from country and region if not provided
+    const data = response as any
+    let location = data.location
+    if (!location && (data.country || data.region)) {
+      location = [data.region, data.country].filter(Boolean).join(', ')
+    }
+
+    return {
+      ...data,
+      location,
+      whatsAppPhoneNumber: data.whatsAppPhoneNumber,
+      country: data.country,
+      region: data.region,
+    } as {
       userId?: number
       firstName: string
       lastName: string
@@ -1261,8 +1372,11 @@ class ApiClient {
       position: string
       aboutMe: string
       phoneNumber: string
+      whatsAppPhoneNumber?: string
       organization: string
       location: string
+      country?: string
+      region?: string
       profileImageUrl?: string
       verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
       passportVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -1302,6 +1416,7 @@ class ApiClient {
   }> {
     // Try multiple possible endpoint variations
     const endpointsToTry = [
+      `/api/v1/userManagement/seller-profile/${sellerId}`,
       `/api/v1/userManagement/user-details?userId=${sellerId}`,
       `/api/v1/userManagement/users/${sellerId}`,
       `/api/v1/userManagement/public-profile/${sellerId}`,
@@ -1316,16 +1431,29 @@ class ApiClient {
         console.log(`🔍 Trying endpoint: ${endpoint}`)
         const response = await this.request(endpoint)
         console.log(`✅ Success with endpoint: ${endpoint}`, response)
-        return response as unknown as {
-          userId: number
-          firstName: string
-          lastName: string
-          position?: string
-          aboutMe?: string
-          organization?: string
-          location?: string
-          profileImageUrl?: string
-          verificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'
+        const data = (response as any).data || response
+        // Normalize profile image URL - ensure it starts with /
+        let normalizedProfileImageUrl = data.profileImageUrl
+        if (normalizedProfileImageUrl && typeof normalizedProfileImageUrl === 'string') {
+          // Skip if already an absolute URL
+          if (!normalizedProfileImageUrl.startsWith('http')) {
+            // Add leading slash if missing
+            normalizedProfileImageUrl = normalizedProfileImageUrl.startsWith('/')
+              ? normalizedProfileImageUrl
+              : `/${normalizedProfileImageUrl}`
+          }
+        }
+
+        return {
+          userId: data.userId || data.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          position: data.position,
+          aboutMe: data.aboutMe,
+          organization: data.organization,
+          location: data.location || data.country || data.region,
+          profileImageUrl: normalizedProfileImageUrl,
+          verificationStatus: data.verificationStatus,
         }
       } catch (error) {
         console.log(`❌ Failed endpoint: ${endpoint}`)
@@ -1378,7 +1506,52 @@ class ApiClient {
   ): Promise<ApiResponse<unknown>> {
     // Backend expects multipart/form-data with profileInformationDTO as a JSON string
     const formData = new FormData()
-    formData.append('profileInformationDTO', JSON.stringify(data))
+
+    // Map frontend fields to backend DTO fields
+    // Based on backend logs, 'phoneNumber' is unrecognized, and GET api shows 'whatsAppPhoneNumber'
+    const backendData: any = {
+      ...data,
+      whatsAppPhoneNumber: data.phoneNumber,
+    }
+
+    // Parse location into country and region (City)
+    // Frontend sends "City, Country" or just "City"
+    if (data.location) {
+      if (data.location.includes(',')) {
+        const parts = data.location.split(',').map(s => s.trim())
+        // Assuming format "City, Country"
+        backendData.region = parts[0]
+        backendData.country = parts[parts.length - 1]
+
+        // Map common ISO codes to full names if needed
+        const countryMap: Record<string, string> = {
+          'TZ': 'Tanzania',
+          'KE': 'Kenya',
+          'UG': 'Uganda',
+          'RW': 'Rwanda',
+          'BI': 'Burundi'
+        }
+        if (countryMap[backendData.country]) {
+          backendData.country = countryMap[backendData.country]
+        }
+      } else {
+        // If no comma, assume it's just the country if it matches a known country, otherwise region
+        const lowerLoc = data.location.toLowerCase()
+        if (['tanzania', 'kenya', 'uganda', 'rwanda', 'burundi'].some(c => lowerLoc.includes(c))) {
+          backendData.country = data.location
+        } else {
+          backendData.region = data.location
+        }
+      }
+    }
+
+    // Remove the unrecognized/redundant fields
+    delete (backendData as any).phoneNumber
+    // Backend throws "Unrecognized field: location", so we must remove it
+    // We have already split it into country and region
+    delete (backendData as any).location
+
+    formData.append('profileInformationDTO', JSON.stringify(backendData))
 
     if (profileImage) {
       formData.append('profileImage', profileImage)
@@ -1570,19 +1743,13 @@ class ApiClient {
    * Verifies organization email OTP
    * @param organizationalEmail - Organization email used
    * @param otp - One-time password received in email
-   * @param userRoles - Role to assign, e.g., 'SELLER' or 'USER'
    */
-  async verifyEmailOtp(
-    organizationalEmail: string,
-    otp: string,
-    userRoles: 'SELLER' | 'USER' | string
-  ): Promise<ApiResponse<unknown>> {
+  async verifyEmailOtp(organizationalEmail: string, otp: string): Promise<ApiResponse<unknown>> {
     return this.request('/api/v1/email/verifyOTP', {
       method: 'POST',
       body: JSON.stringify({
-        organizationalEmail,
+        email: organizationalEmail, // Backend expects 'email' per VerifyOTPDTO schema
         otp,
-        userRoles,
       }),
     })
   }

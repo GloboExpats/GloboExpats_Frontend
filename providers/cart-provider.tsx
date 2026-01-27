@@ -116,6 +116,8 @@ export interface CartItem {
   isAvailable?: boolean
   /** Whether item is selected for checkout */
   selected?: boolean
+  /** Maximum available quantity from stock */
+  maxQuantity?: number
 }
 
 /**
@@ -213,7 +215,7 @@ export const CartContext = createContext<CartContextType | undefined>(undefined)
 const CART_STORAGE_KEY = 'expatCartItems'
 const CART_EXPIRY_HOURS = 168 // 7 days
 const _MAX_CART_ITEMS = 50 // Reserved for future cart limits
-const MAX_ITEM_QUANTITY = 10
+const MAX_ITEM_QUANTITY = 999
 
 // ============================================================================
 // CART PROVIDER COMPONENT

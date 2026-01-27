@@ -41,6 +41,7 @@ import { ShoppingCart, Trash2, X, ArrowRight, Minus, Plus } from 'lucide-react'
 import { useCart } from '@/hooks/use-cart'
 import { cn } from '@/lib/utils'
 import PriceDisplay from '@/components/price-display'
+import apiClient from '@/lib/api'
 
 interface CartSidePanelProps {
   open: boolean
@@ -56,20 +57,19 @@ interface CartItem {
   currency?: string
 }
 
-/**
- * Cart Item Row Component
- */
+// Cart Item Row Component
 const CartItemRow: React.FC<{
   item: CartItem
   onRemove: (id: string) => void
   onUpdateQuantity: (id: string, quantity: number) => void
-}> = ({ item, onRemove, onUpdateQuantity }) => {
+  maxQuantity?: number
+}> = ({ item, onRemove, onUpdateQuantity, maxQuantity }) => {
   return (
     <li className="flex gap-4 p-4 bg-white border border-neutral-200 rounded-xl">
       {/* Product Image */}
       <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-100">
         <Image
-          src={item.image || '/placeholder.svg'}
+          src={item.image || '/icon-512.svg'}
           alt={item.title}
           fill
           className="object-cover"
@@ -102,8 +102,9 @@ const CartItemRow: React.FC<{
               {item.quantity}
             </span>
             <button
-              onClick={() => onUpdateQuantity(item.id, Math.min(10, item.quantity + 1))}
-              className="p-1.5 hover:bg-neutral-50 text-neutral-600 transition-colors"
+              onClick={() => onUpdateQuantity(item.id, Math.min(maxQuantity ?? 10, item.quantity + 1))}
+              disabled={item.quantity >= (maxQuantity ?? 10)}
+              className="p-1.5 hover:bg-neutral-50 text-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Increase quantity"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -164,6 +165,40 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
 
   const [isClearingCart, setIsClearingCart] = useState(false)
   const [headerOffset, setHeaderOffset] = useState(0)
+  const [stockLimits, setStockLimits] = useState<Record<string, number>>({})
+
+  // Fetch stock limits when panel opens or items change
+  useEffect(() => {
+    if (!open || items.length === 0) return
+
+    const fetchStockLimits = async () => {
+      const limits: Record<string, number> = {}
+
+      await Promise.all(
+        items.map(async (item) => {
+          try {
+            const rawId = Number(item.id)
+            if (!Number.isFinite(rawId)) return
+
+            // Using apiClient to fetch details which includes current productQuantity
+            const details = await apiClient.getProductDetails(rawId) as any
+
+            if (details && (typeof details.productQuantity === 'number' || typeof details.quantity === 'number')) {
+              // Prefer productQuantity, fallback to quantity
+              const available = details.productQuantity ?? details.quantity
+              limits[item.id] = available
+            }
+          } catch (err) {
+            console.error(`Failed to fetch stock for item ${item.title}:`, err)
+          }
+        })
+      )
+
+      setStockLimits(prev => ({ ...prev, ...limits }))
+    }
+
+    fetchStockLimits()
+  }, [items, open])
 
   const handleClearCart = async () => {
     setIsClearingCart(true)
@@ -264,6 +299,7 @@ export const CartSidePanel: React.FC<CartSidePanelProps> = ({ open, onOpenChange
                     item={item}
                     onRemove={removeFromCart}
                     onUpdateQuantity={updateQuantity}
+                    maxQuantity={stockLimits[item.id]}
                   />
                 ))}
               </div>
