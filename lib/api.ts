@@ -1331,6 +1331,8 @@ class ApiClient {
     whatsAppPhoneNumber?: string
     organization: string
     location: string
+    country?: string
+    region?: string
     profileImageUrl?: string
     verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
     passportVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -1347,7 +1349,21 @@ class ApiClient {
       console.log('🔍 getUserDetails API response:', response)
     }
 
-    return response as unknown as {
+    // Backend returns country and region separately
+    // Generate location string from country and region if not provided
+    const data = response as any
+    let location = data.location
+    if (!location && (data.country || data.region)) {
+      location = [data.region, data.country].filter(Boolean).join(', ')
+    }
+
+    return {
+      ...data,
+      location,
+      whatsAppPhoneNumber: data.whatsAppPhoneNumber,
+      country: data.country,
+      region: data.region,
+    } as {
       userId?: number
       firstName: string
       lastName: string
@@ -1356,8 +1372,11 @@ class ApiClient {
       position: string
       aboutMe: string
       phoneNumber: string
+      whatsAppPhoneNumber?: string
       organization: string
       location: string
+      country?: string
+      region?: string
       profileImageUrl?: string
       verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
       passportVerificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED'
@@ -1413,6 +1432,18 @@ class ApiClient {
         const response = await this.request(endpoint)
         console.log(`✅ Success with endpoint: ${endpoint}`, response)
         const data = (response as any).data || response
+        // Normalize profile image URL - ensure it starts with /
+        let normalizedProfileImageUrl = data.profileImageUrl
+        if (normalizedProfileImageUrl && typeof normalizedProfileImageUrl === 'string') {
+          // Skip if already an absolute URL
+          if (!normalizedProfileImageUrl.startsWith('http')) {
+            // Add leading slash if missing
+            normalizedProfileImageUrl = normalizedProfileImageUrl.startsWith('/')
+              ? normalizedProfileImageUrl
+              : `/${normalizedProfileImageUrl}`
+          }
+        }
+
         return {
           userId: data.userId || data.id,
           firstName: data.firstName,
@@ -1421,7 +1452,7 @@ class ApiClient {
           aboutMe: data.aboutMe,
           organization: data.organization,
           location: data.location || data.country || data.region,
-          profileImageUrl: data.profileImageUrl,
+          profileImageUrl: normalizedProfileImageUrl,
           verificationStatus: data.verificationStatus,
         }
       } catch (error) {

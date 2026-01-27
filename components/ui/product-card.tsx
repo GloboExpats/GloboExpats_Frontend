@@ -165,7 +165,7 @@ export function ProductCard({
       title: product.title,
       price: parseNumericPrice(product.price),
       originalPrice: product.originalPrice ? parseNumericPrice(product.originalPrice) : undefined,
-      image: product.image || '/assets/images/products/placeholder.svg',
+      image: product.image || '/icon-512.svg',
       condition: 'used',
       expatId: product.sellerId ? String(product.sellerId) : 'unknown',
       expatName: product.sellerName || product.listedBy || 'Unknown Seller',
@@ -204,7 +204,7 @@ export function ProductCard({
             )}
           >
             <Image
-              src={product.image || '/assets/images/products/placeholder.svg'}
+              src={product.image || '/icon-512.svg'}
               alt={`${product.title} product image`}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -212,6 +212,13 @@ export function ProductCard({
               loading="lazy"
               placeholder="blur"
               blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                // Prevent infinite loop if fallback image also fails
+                if (!target.src.includes('icon-512.svg')) {
+                  target.src = '/icon-512.svg'
+                }
+              }}
             />
             {/* Status Badge */}
             {status && (

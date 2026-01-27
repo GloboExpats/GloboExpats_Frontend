@@ -444,8 +444,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         position: userDetails.position,
         aboutMe: userDetails.aboutMe,
         phoneNumber: userDetails.phoneNumber,
+        whatsAppPhoneNumber: userDetails.whatsAppPhoneNumber,
         organization: userDetails.organization,
         location: userDetails.location,
+        country: userDetails.country,
+        region: userDetails.region,
 
         // Backend verification statuses (simple strings)
         backendVerificationStatus: userDetails.verificationStatus,
@@ -454,20 +457,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Frontend verification status (for UI logic)
         verificationStatus: {
-          isFullyVerified:
-            userDetails.verificationStatus === 'VERIFIED' &&
-            userDetails.passportVerificationStatus === 'VERIFIED' &&
-            userDetails.addressVerificationStatus === 'VERIFIED',
+          isFullyVerified: userDetails.verificationStatus === 'VERIFIED',
           isIdentityVerified: userDetails.passportVerificationStatus === 'VERIFIED',
           isOrganizationEmailVerified: !!userDetails.organizationalEmail,
           canBuy:
             userDetails.verificationStatus === 'VERIFIED' || !!userDetails.organizationalEmail,
           canList:
-            userDetails.verificationStatus === 'VERIFIED' &&
-            userDetails.passportVerificationStatus === 'VERIFIED',
+            userDetails.verificationStatus === 'VERIFIED',
           canSell:
-            userDetails.verificationStatus === 'VERIFIED' &&
-            userDetails.passportVerificationStatus === 'VERIFIED',
+            userDetails.verificationStatus === 'VERIFIED',
           canContact: userDetails.verificationStatus === 'VERIFIED',
           currentStep: userDetails.verificationStatus === 'VERIFIED' ? 'complete' : 'identity',
           pendingActions: userDetails.verificationStatus === 'PENDING' ? ['admin_review'] : [],
@@ -944,7 +942,7 @@ export function useAuth(): AuthContextType {
   if (context === undefined) {
     throw new Error(
       'useAuth must be used within an AuthProvider. ' +
-        'Make sure your component is wrapped with <AuthProvider>.'
+      'Make sure your component is wrapped with <AuthProvider>.'
     )
   }
 

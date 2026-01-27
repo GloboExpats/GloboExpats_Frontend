@@ -35,3 +35,5 @@ next-env.d.ts
 
 # Backend folder (prevent version control conflicts)
 Expat-Platform-main-Backend/
+
+.playwright-mcp/

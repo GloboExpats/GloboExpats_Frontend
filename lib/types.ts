@@ -97,6 +97,8 @@ export interface User {
   whatsAppPhoneNumber?: string
   organization?: string
   location?: string
+  country?: string // Backend returns country separately
+  region?: string // Backend returns region (city) separately
 
   // Backend verification statuses (simple strings)
   backendVerificationStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED'

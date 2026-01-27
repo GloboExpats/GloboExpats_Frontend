@@ -28,7 +28,7 @@ const accountMenuItems = [
   },
   {
     id: 'settings',
-    label: 'Settings',
+    label: 'Profile Information',
     icon: Settings,
     href: '/account/settings',
     description: 'Profile & security',
@@ -129,7 +129,7 @@ export default function AccountDashboard() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6" data-tutorial="account-header">
-          <h1 className="text-3xl font-bold text-neutral-800 mb-1">My Account</h1>
+          <h1 className="text-3xl font-bold text-neutral-800 mb-1">Account Settings</h1>
           <p className="text-neutral-600">Manage your account settings and view your activity</p>
         </div>
 

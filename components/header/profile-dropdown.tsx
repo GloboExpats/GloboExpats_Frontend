@@ -101,7 +101,7 @@ export const ProfileDropdown = React.memo<ProfileDropdownProps>(
           >
             <Link href="/account">
               <User className="w-4 h-4 mr-2" />
-              My Account
+              Account Settings
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -111,15 +111,6 @@ export const ProfileDropdown = React.memo<ProfileDropdownProps>(
             <Link href="/account/verification">
               <Shield className="w-4 h-4 mr-2" />
               Verification
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            asChild
-            className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100"
-          >
-            <Link href="/account/settings">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem

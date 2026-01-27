@@ -22,10 +22,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProductActions } from '@/components/product-actions'
 import { useParams, useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api'
-import { parseNumericPrice } from '@/lib/utils'
+import { parseNumericPrice, getInitials } from '@/lib/utils'
 import { parseProductDescription, categorizeSpecifications } from '@/lib/description-parser'
 import { FeaturedItem } from '@/lib/types'
-import { transformBackendProduct } from '@/lib/image-utils'
+import { transformBackendProduct, getFullImageUrl } from '@/lib/image-utils'
 import PriceDisplay from '@/components/price-display'
 import { handleAuthError } from '@/lib/auth-redirect'
 import { useAuth } from '@/hooks/use-auth'
@@ -46,6 +46,7 @@ export default function ProductPage() {
   const [error, setError] = useState<string | null>(null)
   const [currentImage, setCurrentImage] = useState(0)
   const [sellerProfileImage, setSellerProfileImage] = useState<string | null>(null)
+  const [sellerId, setSellerId] = useState<number | null>(null) // Track the product's seller ID
   const [imagesPreloaded, setImagesPreloaded] = useState(false)
   const [currentThumbnailPage, setCurrentThumbnailPage] = useState(0)
   const [imageLoading, setImageLoading] = useState(false)
@@ -141,18 +142,46 @@ export default function ProductPage() {
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
 
-          // Set seller profile image from product data
-          // NOTE: Backend limitation - profile images are stored with products at creation time
-          // This means if a seller updates their profile later, old products still show the old image
-          // Backend stores: sellerId, sellerName, profileImageUrl (snapshot at creation)
-          // To get current seller image would require: GET /api/v1/users/{sellerId} endpoint (doesn't exist)
-          setSellerProfileImage((productData.profileImageUrl as string) || null)
+          // Store the seller ID from the product - this is used for the View Profile link
+          const productSellerId = productData.sellerId as number | undefined
+          if (productSellerId) {
+            setSellerId(productSellerId)
+          }
+
+          // Fetch fresh seller profile image from API
+          // This ensures we get the current profile image, not a stale snapshot from when the product was listed
+          if (productSellerId) {
+            try {
+              console.log('👤 Fetching fresh seller profile for sellerId:', productSellerId)
+              const sellerProfile = await apiClient.getSellerProfile(productSellerId)
+              if (sellerProfile?.profileImageUrl) {
+                // Use getFullImageUrl to normalize the URL for all environments
+                const normalizedUrl = getFullImageUrl(sellerProfile.profileImageUrl)
+                setSellerProfileImage(normalizedUrl)
+                console.log('👤 Fetched fresh seller profile image:', normalizedUrl)
+              } else {
+                // Fallback to product data if no profile image in API response
+                const fallbackUrl = productData.profileImageUrl as string
+                setSellerProfileImage(fallbackUrl ? getFullImageUrl(fallbackUrl) : null)
+                console.log('👤 No profile image from API, using product snapshot')
+              }
+            } catch (sellerErr) {
+              console.warn('👤 Could not fetch fresh seller profile, using product snapshot:', sellerErr)
+              // Fallback to product data profile image
+              const fallbackUrl = productData.profileImageUrl as string
+              setSellerProfileImage(fallbackUrl ? getFullImageUrl(fallbackUrl) : null)
+            }
+          } else {
+            // No sellerId available, use product data
+            const fallbackUrl = productData.profileImageUrl as string
+            setSellerProfileImage(fallbackUrl ? getFullImageUrl(fallbackUrl) : null)
+          }
 
           console.log('👤 Seller info:', {
             sellerId: productData.sellerId,
             sellerName: productData.sellerName,
             profileImageUrl: productData.profileImageUrl || 'Not set',
-            note: 'Using stored profile image from product (historical snapshot)',
+            note: 'Attempting to fetch fresh profile image from API',
           })
 
           // Fetch similar products from all products list
@@ -452,12 +481,12 @@ export default function ProductPage() {
                             key={actualIndex}
                             onClick={() => selectImage(actualIndex)}
                             className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${actualIndex === currentImage
-                                ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
-                                : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
+                              : 'border-gray-200 hover:border-gray-300'
                               }`}
                           >
                             <Image
-                              src={image || '/placeholder.svg'}
+                              src={image || '/icon-512.svg'}
                               alt={`Thumbnail ${actualIndex + 1}`}
                               fill
                               sizes="(max-width: 640px) 80px, 96px"
@@ -485,12 +514,12 @@ export default function ProductPage() {
                                 key={actualIndex}
                                 onClick={() => selectImage(actualIndex)}
                                 className={`relative aspect-square rounded-md overflow-hidden border-2 transition-all duration-200 bg-gray-50 ${actualIndex === currentImage
-                                    ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                  ? 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
+                                  : 'border-gray-200 hover:border-gray-300'
                                   }`}
                               >
                                 <Image
-                                  src={image || '/placeholder.svg'}
+                                  src={image || '/icon-512.svg'}
                                   alt={`Thumbnail ${actualIndex + 1}`}
                                   fill
                                   sizes="(max-width: 640px) 80px, 96px"
@@ -513,8 +542,8 @@ export default function ProductPage() {
                             key={pageIndex}
                             onClick={() => setCurrentThumbnailPage(pageIndex)}
                             className={`w-3 h-3 rounded-full transition-all duration-200 ${pageIndex === currentThumbnailPage
-                                ? 'bg-brand-primary scale-125'
-                                : 'bg-gray-300 hover:bg-gray-400'
+                              ? 'bg-brand-primary scale-125'
+                              : 'bg-gray-300 hover:bg-gray-400'
                               }`}
                           />
                         )
@@ -882,14 +911,15 @@ export default function ProductPage() {
                   <div className="flex items-start gap-4 mb-4">
                     <Avatar className="w-14 h-14 border-2 border-blue-100 shadow-md flex-shrink-0">
                       <AvatarImage
-                        src={sellerProfileImage || '/placeholder.svg'}
+                        src={sellerProfileImage || undefined}
                         alt={product.listedBy}
                         onError={(e) => {
-                          ; (e.target as HTMLImageElement).src = '/placeholder.svg'
+                          // Hide the image element so fallback shows
+                          ; (e.target as HTMLImageElement).style.display = 'none'
                         }}
                       />
                       <AvatarFallback className="bg-gradient-to-br from-blue-400 to-cyan-500 text-white font-semibold text-lg">
-                        {product.listedBy?.slice(0, 2).toUpperCase() || 'UN'}
+                        {getInitials(product.listedBy || 'Unknown')}
                       </AvatarFallback>
                     </Avatar>
 
@@ -930,7 +960,7 @@ export default function ProductPage() {
                       className="w-full justify-center border-gray-300 hover:bg-gray-50 h-11"
                       asChild
                     >
-                      <Link href={`/seller/${product.sellerId || encodeURIComponent(product.listedBy)}`}>
+                      <Link href={`/seller/${sellerId || rawProductData?.sellerId || encodeURIComponent(product.listedBy)}`}>
                         View Profile
                       </Link>
                     </Button>

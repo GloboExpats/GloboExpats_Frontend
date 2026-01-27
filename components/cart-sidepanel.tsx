@@ -69,7 +69,7 @@ const CartItemRow: React.FC<{
       {/* Product Image */}
       <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-100">
         <Image
-          src={item.image || '/placeholder.svg'}
+          src={item.image || '/icon-512.svg'}
           alt={item.title}
           fill
           className="object-cover"

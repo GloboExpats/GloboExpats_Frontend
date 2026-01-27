@@ -658,7 +658,7 @@ export default function CheckoutPage() {
             title: item.title,
             price: item.price,
             quantity: item.quantity,
-            image: item.image || '/placeholder.svg',
+            image: item.image || '/icon-512.svg',
             seller: item.expatName || 'Unknown Seller',
             sellerVerified: item.verified || false,
           })),

@@ -63,12 +63,27 @@ export default function AccountSettings() {
   // Initialize profile data from userProfile
   useEffect(() => {
     if (userProfile && !profileLoading) {
+      // Construct location from country and region if location is not set
+      let location = userProfile.location || ''
+      if (!location && (userProfile.country || userProfile.region)) {
+        // Map country names to codes for EnhancedLocationSelect
+        const countryCodeMap: Record<string, string> = {
+          'Tanzania': 'TZ',
+          'Kenya': 'KE',
+          'Uganda': 'UG',
+          'Rwanda': 'RW',
+          'Burundi': 'BI',
+        }
+        const countryCode = countryCodeMap[userProfile.country] || userProfile.country || ''
+        location = [userProfile.region, countryCode].filter(Boolean).join(', ')
+      }
+
       setProfileData({
         firstName: userProfile.firstName || '',
         lastName: userProfile.lastName || '',
         email: userProfile.email || '',
-        phone: userProfile.phoneNumber || '',
-        location: userProfile.location || '',
+        phone: userProfile.phoneNumber || userProfile.whatsAppPhoneNumber || '',
+        location: location,
         bio: userProfile.aboutMe || '',
         website: '', // Not in User type, keeping as empty for now
         organization: userProfile.organization || '',
@@ -185,12 +200,26 @@ export default function AccountSettings() {
 
     // Reset profile data to original values
     if (userProfile && !profileLoading) {
+      // Construct location from country and region if location is not set
+      let location = userProfile.location || ''
+      if (!location && (userProfile.country || userProfile.region)) {
+        const countryCodeMap: Record<string, string> = {
+          'Tanzania': 'TZ',
+          'Kenya': 'KE',
+          'Uganda': 'UG',
+          'Rwanda': 'RW',
+          'Burundi': 'BI',
+        }
+        const countryCode = countryCodeMap[userProfile.country] || userProfile.country || ''
+        location = [userProfile.region, countryCode].filter(Boolean).join(', ')
+      }
+
       setProfileData({
         firstName: userProfile.firstName || '',
         lastName: userProfile.lastName || '',
         email: userProfile.email || '',
-        phone: userProfile.phoneNumber || '',
-        location: userProfile.location || '',
+        phone: userProfile.phoneNumber || userProfile.whatsAppPhoneNumber || '',
+        location: location,
         bio: userProfile.aboutMe || '',
         website: '',
         organization: userProfile.organization || '',
@@ -321,7 +350,7 @@ export default function AccountSettings() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-800">Settings</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-800">Profile Information</h1>
             <p className="text-neutral-600 mt-1">Manage your profile, security and preferences.</p>
           </div>
         </div>
@@ -449,7 +478,7 @@ export default function AccountSettings() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="phone">WhatsApp Number</Label>
                   <Input
                     id="phone"
                     value={profileData.phone}
@@ -588,8 +617,8 @@ export default function AccountSettings() {
                               {specialty}
                             </Badge>
                           )) || (
-                            <span className="text-sm text-neutral-500">No specialties set</span>
-                          )}
+                              <span className="text-sm text-neutral-500">No specialties set</span>
+                            )}
                         </div>
                         {isEditing && (
                           <p className="text-xs text-neutral-500">

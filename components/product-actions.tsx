@@ -33,7 +33,7 @@ export function ProductActions({
   sellerName = 'Seller',
   productTitle = 'item',
   productPrice = 0,
-  productImage = '/placeholder.svg',
+  productImage = '/icon-512.svg',
   productCondition = 'new',
   productLocation = '',
   verifiedSeller = true,

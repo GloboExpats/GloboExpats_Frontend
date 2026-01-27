@@ -94,8 +94,22 @@ function parseLocationValue(value: string): { country: string; city: string; isC
     }
   }
 
+  // If no match, check if it's just a country name
+  const matchedCountry = COUNTRIES.find(
+    (c) =>
+      c.name.toLowerCase() === value.toLowerCase() || c.code.toLowerCase() === value.toLowerCase()
+  )
+
+  if (matchedCountry) {
+    return {
+      country: matchedCountry.name,
+      city: '',
+      isCustom: false,
+    }
+  }
+
   // If no match, it's a custom location
-  return { country: '', city: '', isCustom: true }
+  return { country: '', city: value, isCustom: true }
 }
 
 /**

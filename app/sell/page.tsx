@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,7 +25,9 @@ import { getStepTips, getCategoryTips, getStepName } from '@/lib/step-tips'
 import { useToast } from '@/components/ui/use-toast'
 import { CountryFlag } from '@/components/country-flag'
 import Image from 'next/image'
+import Link from 'next/link'
 import { ReviewStep } from '@/components/sell/review-step'
+import { useAuth } from '@/hooks/use-auth'
 
 interface FormData {
   images: File[]
@@ -81,6 +83,7 @@ export default function SellPage() {
 
 function SellPageContent() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
   const [currentStep, setCurrentStep] = useState(1)
   const [isPublishing, setIsPublishing] = useState(false)
@@ -108,6 +111,60 @@ function SellPageContent() {
     }
     fetchCategories()
   }, [])
+
+  // Pre-fill WhatsApp number and location from user profile
+  useEffect(() => {
+    if (!user) return
+
+    const updates: Partial<FormData> = {}
+
+    // Pre-fill WhatsApp number from user profile
+    // Check both specific WhatsApp field and generic phone number field
+    const phoneToUse = user.whatsAppPhoneNumber || user.phoneNumber
+    if (phoneToUse && !formData.whatsappNumber) {
+      updates.whatsappNumber = phoneToUse
+    }
+
+    // Pre-fill location from user profile (country + region/city)
+    if (!formData.location) {
+      // Try to construct location from country and region
+      if (user.country || user.region) {
+        // Find matching location in EXPAT_LOCATIONS
+        const matchingLocation = EXPAT_LOCATIONS.find((loc) => {
+          const locParts = loc.label.split(',').map((s) => s.trim())
+          const locCity = locParts[0]
+          // Match by region (city) name
+          if (user.region && locCity.toLowerCase() === user.region.toLowerCase()) {
+            return true
+          }
+          return false
+        })
+
+        if (matchingLocation) {
+          updates.location = matchingLocation.value
+        } else if (user.region && user.country) {
+          // Construct location string if no matching location found
+          // Use country code if we can find it
+          const countryCodeMap: Record<string, string> = {
+            'Tanzania': 'TZ',
+            'Kenya': 'KE',
+            'Uganda': 'UG',
+            'Rwanda': 'RW',
+            'Burundi': 'BI',
+          }
+          const countryCode = countryCodeMap[user.country] || user.country
+          updates.location = `${user.region}, ${countryCode}`
+        }
+      } else if (user.location) {
+        updates.location = user.location
+      }
+    }
+
+    // Only update if there are changes
+    if (Object.keys(updates).length > 0) {
+      setFormData((prev) => ({ ...prev, ...updates }))
+    }
+  }, [user, formData.whatsappNumber, formData.location])
 
   const updateFormData = (updates: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }))
@@ -992,6 +1049,24 @@ function Step1Content({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* Info box about pre-filled values */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm text-blue-800">
+            <strong>Tip:</strong> Your WhatsApp number and location are pre-filled from your profile.
+            To update these defaults for all future listings, visit your{' '}
+            <Link
+              href="/account/settings"
+              className="text-blue-600 hover:text-blue-800 underline font-semibold"
+            >
+              Profile Settings
+            </Link>
+            .
+          </p>
         </div>
       </div>
 
