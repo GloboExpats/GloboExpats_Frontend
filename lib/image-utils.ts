@@ -181,7 +181,12 @@ export const transformBackendProduct = (rawItem: Record<string, unknown>) => {
       (typeof listedBy === 'object' ? listedBy?.name : listedBy) ||
       'Unknown Seller'
     ),
-    rating: (item.rating as number) || 0, // Default to 0 if no rating
+    rating:
+      typeof item.rating === 'number'
+        ? item.rating
+        : Number.isFinite(parseFloat(String(item.rating)))
+          ? parseFloat(String(item.rating))
+          : 0,
     reviews:
       typeof reviews === 'number'
         ? reviews
@@ -209,8 +214,12 @@ export const transformBackendProduct = (rawItem: Record<string, unknown>) => {
     category: String(category?.categoryName || item.categoryName || ''),
     condition: String(item.productCondition || item.condition || 'used'),
     // Preserve view count (clickCount from backend) if available
-    views: (item.clickCount as number) || 0,
-    // Default to 1 if missing or 0 to ensure legacy products are visible
+    views:
+      typeof item.clickCount === 'number'
+        ? item.clickCount
+        : Number.isFinite(parseFloat(String(item.clickCount)))
+          ? parseFloat(String(item.clickCount))
+          : 0,
     quantity: typeof item.productQuantity === 'number' ? item.productQuantity : 1,
     createdAt: (item.createdAt || item.datePosted) as string | undefined,
   }

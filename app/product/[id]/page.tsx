@@ -748,7 +748,6 @@ export default function ProductPage() {
                   <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2 leading-tight">
                     {product.title}
                   </h1>
-
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     {(() => {
                       const countryCode = getCountryCodeFromLabel(product.location || '')

@@ -585,6 +585,8 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null)
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
 
+  const includeOutOfStock = process.env.NODE_ENV !== 'production'
+
   // Debounce updates to the actual search query to reduce re-renders and URL churn
   const debouncedUpdateQuery = useMemo(
     () =>
@@ -634,7 +636,7 @@ export default function BrowsePage() {
         const { content: productsData, totalElements } = response
         const transformedProducts = productsData
           .map((item) => transformToFeaturedItem(item as Record<string, unknown>))
-          .filter((item) => (item.quantity ?? 0) > 0) // Exclude out-of-stock items
+          .filter((item) => includeOutOfStock || (item.quantity ?? 0) > 0)
 
         // Randomize products for initial display using Fisher-Yates shuffle
         const shuffled = [...transformedProducts]

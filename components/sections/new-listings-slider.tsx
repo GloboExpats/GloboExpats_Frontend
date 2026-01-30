@@ -16,6 +16,8 @@ export default function NewListingsSlider() {
   const [error, setError] = useState<Error | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
 
+  const includeOutOfStock = process.env.NODE_ENV !== 'production'
+
   // Scroll to start when items are loaded
   useEffect(() => {
     if (items.length > 0 && scrollerRef.current) {
@@ -30,8 +32,6 @@ export default function NewListingsSlider() {
       const res = await apiClient.getNewestListings(0, 20)
       let content = extractContentFromResponse(res)
 
-      // FALLBACK: If dedicated newest endpoint is empty (common backend sync issue),
-      // fetch from the general products list which is guaranteed to work
       if (content.length === 0) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[NewListings] Empty newest list, falling back to general products...')
@@ -54,7 +54,7 @@ export default function NewListingsSlider() {
             views: 0, // Initialize to 0 to prevent flashing "1" from backend list API
           }
         })
-        .filter((item) => item.quantity > 0)
+        .filter((item) => includeOutOfStock || (item.quantity ?? 0) > 0)
         .slice(0, 8)
 
       setItems(initialProducts)
