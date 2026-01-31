@@ -221,7 +221,7 @@ export const transformBackendProduct = (rawItem: Record<string, unknown>) => {
           ? parseFloat(String(item.clickCount))
           : 0,
     quantity: typeof item.productQuantity === 'number' ? item.productQuantity : 1,
-    createdAt: (item.createdAt || item.datePosted) as string | undefined,
+    createdAt: (item.formattedCreatedAt || item.createdAt || item.datePosted) as string | undefined,
   }
 
   return transformed

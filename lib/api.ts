@@ -811,8 +811,9 @@ class ApiClient {
    * @param size - Number of items per page
    * @returns Promise resolving to paginated newest listings
    */
-  async getNewestListings(page: number = 0, size: number = 12): Promise<unknown> {
-    return this.request(`/api/v1/displayItem/newest?page=${page}&size=${size}`)
+  async getNewestListings(page: number = 0, size: number = 12, productCountry?: string): Promise<unknown> {
+    const countryParam = productCountry ? `&productCountry=${encodeURIComponent(productCountry)}` : ''
+    return this.request(`/api/v1/displayItem/newest?page=${page}&size=${size}${countryParam}`)
   }
 
   /**
@@ -967,194 +968,35 @@ class ApiClient {
     const hasImages = images && images.length > 0
     const hasImageRemoval = imageIdsToRemove && imageIdsToRemove.length > 0
 
-    // If no images involved, use proxy endpoint to avoid CORS issues
-    // Backend doesn't have CORS configured for PATCH, so we proxy through Next.js API
-    if (!hasImages && !hasImageRemoval) {
-      // Use Next.js API route proxy (server-to-server, no CORS)
-      const proxyUrl = `/api/products/${id}`
-
-      const response = await fetch(proxyUrl, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: (this.headers as Record<string, string>).Authorization || '',
-        },
-        body: JSON.stringify(productData),
-      })
-
-      if (!response.ok) {
-        let errorData
-        try {
-          const errorText = await response.text()
-          console.error('[ApiClient] Error response text:', errorText)
-          errorData = JSON.parse(errorText)
-        } catch (parseError) {
-          console.error('[ApiClient] Failed to parse error response:', parseError)
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        throw new Error(
-          errorData.message || errorData.error || `HTTP error! status: ${response.status}`
-        )
-      }
-
-      const result = await response.json()
-      return result
-    }
-
-    // If images are involved, use multipart/form-data
-    // We need to use a proxy here too because of CORS issues with multipart
+    // Backend expects multipart/form-data with 'product' part (JSON string)
+    // and optional 'images' part (files) and optional 'imageIds' parameter
     const formData = new FormData()
 
-    // Validate and log the product data
+    // Add product data as JSON string
     const productJsonString = JSON.stringify(productData)
-    const productJsonSize = new Blob([productJsonString]).size
-
-    console.log('[ApiClient] Product JSON size:', productJsonSize, 'bytes')
-    console.log('[ApiClient] Product data keys:', Object.keys(productData))
-
-    // Check for potential issues with product data
-    if (productJsonSize > 50 * 1024) {
-      // 50KB limit for JSON
-      console.error('[ApiClient] Product JSON is too large:', productJsonSize, 'bytes')
-      throw new Error(
-        `Product data too large: ${(productJsonSize / 1024).toFixed(1)}KB. Please reduce description length.`
-      )
-    }
-
-    // Validate JSON string doesn't contain problematic characters
-    if (productJsonString.includes('\0') || productJsonString.includes('\uFEFF')) {
-      console.error('[ApiClient] Product JSON contains invalid characters')
-      throw new Error('Product data contains invalid characters. Please check your input.')
-    }
-
-    console.log('[ApiClient] Adding product JSON to FormData...')
     formData.append('product', productJsonString)
 
+    // Add new images
     if (hasImages) {
-      const totalImageSize = images.reduce((sum, img) => sum + img.size, 0)
-      console.log(`[ApiClient] Appending ${images.length} images to FormData`)
-      console.log(
-        `[ApiClient] Total image size: ${totalImageSize} bytes (${(totalImageSize / 1024 / 1024).toFixed(2)}MB)`
-      )
-
-      // Validate each image before adding to FormData
-      images.forEach((image, index) => {
-        console.log(
-          `[ApiClient] Image ${index}: ${image.name}, size: ${image.size} bytes, type: ${image.type}`
-        )
-
-        // Check for corrupted or invalid files
-        if (!image.name || image.name.trim() === '') {
-          throw new Error(`Image ${index} has no filename`)
-        }
-
-        if (image.size === 0) {
-          throw new Error(`Image ${index} (${image.name}) is empty`)
-        }
-
-        if (!image.type.startsWith('image/')) {
-          throw new Error(`File ${index} (${image.name}) is not a valid image`)
-        }
-
-        // Check for extremely long filenames that might cause issues
-        if (image.name.length > 255) {
-          console.warn(
-            `[ApiClient] Image ${index} has very long filename: ${image.name.length} chars`
-          )
-        }
-
+      images.forEach((image) => {
         // Clean filename to prevent multipart parsing issues
         const cleanFilename = image.name.replace(/[^\w\-_.]/g, '_')
-
-        // Append with explicit filename to ensure proper multipart parsing
         formData.append('images', image, cleanFilename)
       })
-
-      // Estimate total request size
-      const estimatedTotalSize = productJsonSize + totalImageSize + images.length * 200 // +200 bytes overhead per image
-      console.log(
-        `[ApiClient] Estimated total request size: ${estimatedTotalSize} bytes (${(estimatedTotalSize / 1024 / 1024).toFixed(2)}MB)`
-      )
-
-      if (estimatedTotalSize > 100 * 1024 * 1024) {
-        console.error(
-          `[ApiClient] Request size (${(estimatedTotalSize / 1024 / 1024).toFixed(2)}MB) exceeds 100MB limit!`
-        )
-        throw new Error(
-          `Request too large: ${(estimatedTotalSize / 1024 / 1024).toFixed(2)}MB exceeds server limit. Please reduce image sizes.`
-        )
-      }
     }
 
-    // Build URL with query params for image removal
-    let url = `/api/products/${id}`
+    // Direct request to backend
+    let url = `/api/v1/products/update/${id}`
     if (hasImageRemoval) {
-      const params = new URLSearchParams()
-      imageIdsToRemove.forEach((id) => params.append('imageIds', id.toString()))
-      url += `?${params.toString()}`
+      const idsParam = imageIdsToRemove.join(',')
+      url += `?imageIds=${idsParam}`
     }
 
-    // Use fetch directly for multipart (don't go through this.request which adds JSON headers)
-    console.log(`[ApiClient] Sending multipart request to: ${url}`)
-    console.log(`[ApiClient] Request headers:`, {
-      Authorization: !!(this.headers as Record<string, string>).Authorization,
+    // Use request method which handles Auth headers and knows not to set Content-Type for FormData
+    return this.request(url, {
+      method: 'PATCH',
+      body: formData,
     })
-
-    // Add timeout for large uploads
-    const controller = new AbortController()
-    const timeoutId = setTimeout(
-      () => {
-        console.error('[ApiClient] Request timeout after 5 minutes')
-        controller.abort()
-      },
-      5 * 60 * 1000
-    ) // 5 minutes timeout
-
-    let response: Response
-    try {
-      response = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          Authorization: (this.headers as Record<string, string>).Authorization || '',
-          // Don't set Content-Type - let browser set it with boundary for multipart
-        },
-        body: formData,
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-      console.log(`[ApiClient] Response status: ${response.status}`)
-      console.log(`[ApiClient] Response headers:`, Object.fromEntries(response.headers.entries()))
-    } catch (fetchError) {
-      clearTimeout(timeoutId)
-
-      if (controller.signal.aborted) {
-        throw new Error(
-          'Upload timeout: Request took too long. Please try with fewer or smaller images.'
-        )
-      }
-
-      console.error('[ApiClient] Fetch error:', fetchError)
-      throw fetchError
-    }
-
-    if (!response.ok) {
-      let errorData
-      try {
-        const errorText = await response.text()
-        console.error('[ApiClient] Multipart error:', errorText)
-        errorData = JSON.parse(errorText)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (_parseError) {
-        console.error('[ApiClient] Failed to parse multipart error')
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      throw new Error(
-        errorData.message || errorData.error || `HTTP error! status: ${response.status}`
-      )
-    }
-
-    return response.json()
   }
 
   /**
