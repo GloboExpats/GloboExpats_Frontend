@@ -5,6 +5,7 @@ const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/register',
+  '/verify-email',
   '/reset-password',
   '/privacy',
   '/terms',

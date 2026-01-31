@@ -38,6 +38,8 @@ interface FormData {
   condition: string
   location: string
   street: string
+  streetAddress: string
+  postcode: string
   whatsappNumber: string
   description: string
   price: string
@@ -57,6 +59,8 @@ const INITIAL_FORM_DATA: FormData = {
   condition: '',
   location: '',
   street: '',
+  streetAddress: '',
+  postcode: '',
   whatsappNumber: '',
   description: '',
   price: '',

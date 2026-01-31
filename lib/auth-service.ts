@@ -214,3 +214,20 @@ export function extractAuthCodeFromUrl(url: string): string | null {
 export async function verifyOrgEmailOtp(organizationalEmail: string, otp: string) {
   return apiClient.verifyEmailOtp(organizationalEmail, otp)
 }
+
+/**
+ * Send signup verification OTP to user's email after registration
+ * @param email - The email address to send the OTP to
+ */
+export async function sendSignupOtp(email: string) {
+  return apiClient.sendSignupOtp(email)
+}
+
+/**
+ * Verify signup OTP to complete email verification
+ * @param email - The email address used for registration
+ * @param otp - The OTP code received via email
+ */
+export async function verifySignupOtp(email: string, otp: string) {
+  return apiClient.verifySignupOtp(email, otp)
+}

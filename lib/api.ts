@@ -1755,6 +1755,36 @@ class ApiClient {
   }
 
   /**
+   * Sends signup verification OTP to user's email after registration
+   * @param email - User email address used for registration
+   * @returns Promise resolving to OTP send confirmation
+   */
+  async sendSignupOtp(email: string, firstName?: string, lastName?: string): Promise<ApiResponse<unknown>> {
+    // Note: The endpoint is strictly /api/v1/email/send-signup-Otp (capital O)
+    // and expects 'signupEmail' as a query parameter
+    const params = new URLSearchParams({ signupEmail: email })
+    if (firstName) params.append('firstName', firstName)
+    if (lastName) params.append('lastName', lastName)
+
+    return this.request(`/api/v1/email/send-signup-Otp?${params.toString()}`, {
+      method: 'POST',
+    })
+  }
+
+  /**
+   * Verifies the signup OTP sent to user's email
+   * @param email - User email address used for registration
+   * @param otp - One-time password received in email
+   * @returns Promise resolving to verification result
+   */
+  async verifySignupOtp(email: string, otp: string): Promise<ApiResponse<unknown>> {
+    return this.request('/api/v1/email/verify-signup-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    })
+  }
+
+  /**
    * Step 1: Sends password reset OTP to user's email
    * @param email - User email address
    * @returns Promise resolving to OTP send confirmation
@@ -1948,6 +1978,9 @@ export const api = {
       apiClient.verifyPasswordResetOtp(email, otp),
     resetPasswordWithOtp: (email: string, newPassword: string) =>
       apiClient.resetPasswordWithOtp(email, newPassword),
+    sendSignupOtp: (email: string, firstName?: string, lastName?: string) =>
+      apiClient.sendSignupOtp(email, firstName, lastName),
+    verifySignupOtp: (email: string, otp: string) => apiClient.verifySignupOtp(email, otp),
     logout: () => apiClient.logout(),
   },
 

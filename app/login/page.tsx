@@ -95,6 +95,35 @@ function LoginContent() {
     handleOAuthCallback()
   }, [searchParams, toast, isLoggedIn, isLoading])
 
+  // Handle post-verification redirect
+  useEffect(() => {
+    const verified = searchParams.get('verified')
+    const verifiedEmail = searchParams.get('email')
+
+    if (verified === 'true') {
+      // Pre-fill the email
+      if (verifiedEmail) {
+        setEmail(verifiedEmail)
+        setShowEmailForm(true) // Show the email form automatically
+      }
+
+      // Show success toast
+      toast({
+        title: '🎉 Email Verified Successfully!',
+        description: 'Your email has been verified. Please log in to continue.',
+        variant: 'default',
+        duration: 5000,
+      })
+
+      // Clean up URL to remove query params
+      const url = new URL(window.location.href)
+      url.searchParams.delete('verified')
+      url.searchParams.delete('email')
+      url.searchParams.delete('returnUrl')
+      window.history.replaceState({}, '', url.pathname)
+    }
+  }, [searchParams, toast])
+
   // Add redirect logic for already authenticated users
   useEffect(() => {
     if (!isLoading && isLoggedIn) {
@@ -330,9 +359,6 @@ function LoginContent() {
                 <CardTitle className="text-3xl font-bold text-neutral-800">
                   Login into your account
                 </CardTitle>
-                <CardDescription className="text-neutral-500 font-medium">
-                  Enter your email and password to access your account
-                </CardDescription>
               </CardHeader>
 
               <CardContent className="px-6 pb-10 space-y-6 text-left">
@@ -393,9 +419,8 @@ function LoginContent() {
 
                 {/* Email/Password Form - Smooth Accordion */}
                 <div
-                  className={`overflow-hidden p-1 -m-1 transition-all duration-300 ease-in-out ${
-                    showEmailForm ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'
-                  }`}
+                  className={`overflow-hidden p-1 -m-1 transition-all duration-300 ease-in-out ${showEmailForm ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0'
+                    }`}
                 >
                   <form onSubmit={handleSubmit} className="space-y-4 pt-2">
                     <div className="space-y-2">
@@ -407,9 +432,8 @@ function LoginContent() {
                         name="email"
                         type="email"
                         placeholder="your.email@example.com"
-                        className={`h-12 rounded-xl bg-neutral-50 border-neutral-100 focus:bg-white focus:ring-brand-primary/20 focus-visible:ring-offset-0 ring-offset-0 ${
-                          fieldErrors.email ? 'border-red-500' : ''
-                        }`}
+                        className={`h-12 rounded-xl bg-neutral-50 border-neutral-100 focus:bg-white focus:ring-brand-primary/20 focus-visible:ring-offset-0 ring-offset-0 ${fieldErrors.email ? 'border-red-500' : ''
+                          }`}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         disabled={isLoading || socialLoading !== null}
@@ -430,9 +454,8 @@ function LoginContent() {
                           name="password"
                           type={showPassword ? 'text' : 'password'}
                           placeholder="••••••••••••••••"
-                          className={`h-12 rounded-xl pr-10 bg-neutral-50 border-neutral-100 focus:bg-white focus:ring-brand-primary/20 focus-visible:ring-offset-0 ring-offset-0 ${
-                            fieldErrors.password ? 'border-red-500' : ''
-                          }`}
+                          className={`h-12 rounded-xl pr-10 bg-neutral-50 border-neutral-100 focus:bg-white focus:ring-brand-primary/20 focus-visible:ring-offset-0 ring-offset-0 ${fieldErrors.password ? 'border-red-500' : ''
+                            }`}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           disabled={isLoading || socialLoading !== null}
@@ -459,11 +482,10 @@ function LoginContent() {
                     <Button
                       type="submit"
                       disabled={!isFormValid || isSubmitting || socialLoading !== null}
-                      className={`w-full h-12 rounded-full font-bold text-lg shadow-lg shadow-brand-primary/20 transition-all duration-300 ${
-                        isFormValid && !isSubmitting
-                          ? 'bg-neutral-800 hover:bg-neutral-900 translate-y-0 hover:-translate-y-0.5 active:translate-y-0'
-                          : 'bg-neutral-300 pointer-events-none'
-                      }`}
+                      className={`w-full h-12 rounded-full font-bold text-lg shadow-lg shadow-brand-primary/20 transition-all duration-300 ${isFormValid && !isSubmitting
+                        ? 'bg-neutral-800 hover:bg-neutral-900 translate-y-0 hover:-translate-y-0.5 active:translate-y-0'
+                        : 'bg-neutral-300 pointer-events-none'
+                        }`}
                     >
                       {isSubmitting ? (
                         <div className="flex items-center gap-2">
