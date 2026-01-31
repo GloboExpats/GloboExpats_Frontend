@@ -16,7 +16,7 @@ export default function TopPicksSlider() {
   const [error, setError] = useState<Error | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
 
-  const includeOutOfStock = process.env.NODE_ENV !== 'production'
+  const includeOutOfStock = true // Show all products for now
 
   // Scroll to start when items are loaded
   useEffect(() => {

@@ -38,8 +38,6 @@ interface FormData {
   condition: string
   location: string
   street: string
-  streetAddress: string
-  postcode: string
   whatsappNumber: string
   description: string
   price: string
@@ -59,8 +57,6 @@ const INITIAL_FORM_DATA: FormData = {
   condition: '',
   location: '',
   street: '',
-  streetAddress: '',
-  postcode: '',
   whatsappNumber: '',
   description: '',
   price: '',
@@ -1116,53 +1112,7 @@ function Step1Content({
         />
       </div>
 
-      {/* Street Address and Postcode - shown after city/country is selected */}
-      {formData.location && (
-        <div className="space-y-4 border-t border-[#E2E8F0] pt-6">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-[#1E3A8A] rounded-full"></div>
-            <h3 className="text-lg font-semibold text-[#0F172A]">Detailed Address</h3>
-            <span className="text-sm text-neutral-500">(Optional)</span>
-          </div>
-          <p className="text-sm text-neutral-500">
-            Adding street address and postcode helps buyers know the exact pickup location.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="streetAddress" className="text-sm font-medium text-neutral-700">
-                Street Address
-              </Label>
-              <Input
-                id="streetAddress"
-                placeholder="e.g., 123 Main Street, Apt 4B"
-                className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
-                value={formData.streetAddress}
-                onChange={(e) => updateFormData({ streetAddress: e.target.value })}
-                maxLength={200}
-              />
-              <p className="text-xs text-neutral-500">
-                Include building name, street number, and any apartment details
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postcode" className="text-sm font-medium text-neutral-700">
-                Postcode / ZIP Code
-              </Label>
-              <Input
-                id="postcode"
-                placeholder="e.g., 11101, PO Box 123"
-                className="h-12 sm:h-14 border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 bg-white"
-                value={formData.postcode}
-                onChange={(e) => updateFormData({ postcode: e.target.value })}
-                maxLength={20}
-              />
-              <p className="text-xs text-neutral-500">Postal or ZIP code for your area</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Detailed Address section removed as requested */}
     </>
   )
 }

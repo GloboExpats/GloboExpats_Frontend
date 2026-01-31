@@ -15,7 +15,7 @@ export default function FeaturedGrid() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const includeOutOfStock = process.env.NODE_ENV !== 'production'
+  const includeOutOfStock = true // Show all products for now
 
   const loadData = async () => {
     try {

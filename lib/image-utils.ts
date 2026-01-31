@@ -201,7 +201,7 @@ export const transformBackendProduct = (rawItem: Record<string, unknown>) => {
         item.location ||
         (item.productRegion && item.productCountry
           ? `${item.productRegion}, ${item.productCountry}`
-          : 'Dar es Salaam, TZ')
+          : '') // No default fallback to Dar es Salaam
       )
     ),
     city: String(item.productRegion || item.city || '').trim(),
