@@ -16,6 +16,8 @@ export default function TopPicksSlider() {
   const [error, setError] = useState<Error | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
 
+  const includeOutOfStock = true // Show all products for now
+
   // Scroll to start when items are loaded
   useEffect(() => {
     if (items.length > 0 && scrollerRef.current) {
@@ -27,11 +29,9 @@ export default function TopPicksSlider() {
     try {
       setLoading(true)
       setError(null)
-      const res = await apiClient.getTopPicks(0, 30) // Fetch more to have better selection
+      const res = await apiClient.getTopPicks(0, 30)
       let content = extractContentFromResponse(res)
 
-      // FALLBACK: If dedicated trending/top-picks endpoint is empty (common backend sync issue),
-      // fetch from the general products list which is guaranteed to work
       if (content.length === 0) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[TopPicks] Empty top picks list, falling back to general products...')
@@ -55,7 +55,7 @@ export default function TopPicksSlider() {
             views: 0, // Initialize to 0 to prevent flashing "1" from backend list API
           }
         })
-        .filter((item) => item.quantity > 0)
+        .filter((item) => includeOutOfStock || (item.quantity ?? 0) > 0)
 
       setItems(initialProducts)
       setLoading(false)
@@ -105,7 +105,7 @@ export default function TopPicksSlider() {
               views: it.views || 0,
             }
           })
-          .filter((item) => item.quantity > 0)
+          .filter((item) => includeOutOfStock || (item.quantity ?? 0) > 0)
 
         if (process.env.NODE_ENV === 'development') {
           console.log(`[TopPicks] Final sorted products:`, sortedProducts.length)

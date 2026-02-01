@@ -165,16 +165,39 @@ export default function CheckoutPage() {
     }
   }, [authLoading, isLoggedIn, checkVerification, router])
 
-  // Auto-fill phone number from user profile if available
+  // Auto-fill phone number and location from user profile if available
   useEffect(() => {
-    if (userProfile?.phoneNumber) {
+    if (userProfile) {
       setShippingAddress((prev) => {
-        // Only update if phone is empty
+        const updates: Partial<ShippingAddress> = {}
+
+        // 1. Auto-fill phone (prioritize WhatsApp)
         if (!prev.phone) {
-          return {
-            ...prev,
-            phone: userProfile.phoneNumber || '',
+          updates.phone = userProfile.whatsAppPhoneNumber || userProfile.phoneNumber || ''
+        }
+
+        // 2. Auto-fill country
+        if (!prev.country && userProfile.country) {
+          const countryData = eastAfricanCountries.find(
+            (c) =>
+              c.name.toLowerCase() === userProfile.country?.toLowerCase() ||
+              c.code.toLowerCase() === userProfile.country?.toLowerCase()
+          )
+          if (countryData) {
+            setSelectedCountry(countryData.code)
+            updates.country = countryData.name
+          } else {
+            updates.country = userProfile.country
           }
+        }
+
+        // 3. Auto-fill city (region)
+        if (!prev.city && userProfile.region) {
+          updates.city = userProfile.region
+        }
+
+        if (Object.keys(updates).length > 0) {
+          return { ...prev, ...updates }
         }
         return prev
       })
@@ -393,9 +416,9 @@ export default function CheckoutPage() {
     if (!authLoading) {
       if (!isLoggedIn) {
         toast({
-          title: 'Login Required',
+          title: '🔐 Secure Your Purchase',
           description:
-            'Please login to proceed with checkout or create an account to complete your purchase!',
+            'Almost there! Please sign in to verify your account and complete your order securely.',
           variant: 'default',
         })
         router.push('/')
@@ -1145,7 +1168,7 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Label htmlFor="phone">WhatsApp Phone Number *</Label>
                       <Input
                         id="phone"
                         value={shippingAddress.phone}
@@ -1259,28 +1282,6 @@ export default function CheckoutPage() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="state">State / Region</Label>
-                      <Input
-                        id="state"
-                        value={shippingAddress.state}
-                        onChange={(e) => handleAddressChange('state', e.target.value)}
-                        placeholder="Region, state or province"
-                        className="border-2 focus:border-brand-primary"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="zip">Postal / ZIP Code</Label>
-                      <Input
-                        id="zip"
-                        value={shippingAddress.zip}
-                        onChange={(e) => handleAddressChange('zip', e.target.value)}
-                        placeholder="e.g., 14111"
-                        className="border-2 focus:border-brand-primary"
-                      />
-                    </div>
-                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Street Address *</Label>

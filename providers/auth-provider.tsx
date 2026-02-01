@@ -171,6 +171,24 @@ const SESSION_STORAGE_KEY = 'expatUserSession'
 const SESSION_EXPIRY_HOURS = 24
 
 /**
+ * Helper function to safely push events to Matomo Tag Manager
+ * Waits for Matomo to be ready before pushing data
+ */
+const pushToMatomo = (data: Record<string, unknown>, retries = 10): void => {
+  if (typeof window === 'undefined') return
+
+  if (window._mtm && typeof window._mtm.push === 'function') {
+    window._mtm.push(data)
+    console.log('[Matomo] Pushed:', data)
+  } else if (retries > 0) {
+    // Matomo not ready yet, retry after 100ms
+    setTimeout(() => pushToMatomo(data, retries - 1), 100)
+  } else {
+    console.warn('[Matomo] Failed to push after retries:', data)
+  }
+}
+
+/**
  * Creates default verification status for new users
  * SIMPLIFIED: Email verification = full access
  */
@@ -303,6 +321,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               error: null,
               verificationStatus,
             })
+
+            // Track user ID in Matomo for session restoration
+            pushToMatomo({
+              event: 'user_session_restore',
+              userId: rebuiltUser.email,
+            })
+
             console.log('[Auth] Session rebuilt successfully')
             return
           } catch (error) {
@@ -338,6 +363,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         error: null,
         verificationStatus,
+      })
+
+      // Track user ID in Matomo for session restoration
+      pushToMatomo({
+        event: 'user_session_restore',
+        userId: normalizedUser.email,
       })
     } catch (error) {
       console.error('Session restoration failed:', error)
@@ -523,6 +554,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             verificationStatus,
           })
 
+          // Track user login in Matomo
+          pushToMatomo({
+            event: 'user_login',
+            userId: completeUser.email,
+          })
+
           // ...existing code...
         } else {
           // Fallback to creating user from login response if backend fetch fails
@@ -551,6 +588,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isLoading: false,
             error: null,
             verificationStatus,
+          })
+
+          // Track user login in Matomo (fallback case)
+          pushToMatomo({
+            event: 'user_login',
+            userId: user.email,
           })
 
           // ...existing code...
@@ -602,6 +645,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Flush any pending writes before clearing
       flushPendingWrites()
+
+      // Track user logout in Matomo (before clearing user state)
+      pushToMatomo({
+        event: 'user_logout',
+        userId: undefined,
+      })
 
       // Clear local state
       setAuthState((prev) => ({
@@ -837,12 +886,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ...existing code...
       } catch (error) {
         console.error('Verification completion failed:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to complete verification'
         setAuthState((prev) => ({
           ...prev,
           isLoading: false,
-          error: 'Failed to complete verification',
+          error: errorMessage,
         }))
-        throw new Error('Failed to complete verification')
+        throw new Error(errorMessage)
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
@@ -943,4 +993,18 @@ export function useAuth(): AuthContextType {
   }
 
   return context
+}
+
+/**
+ * =============================================================================
+ * TYPESCRIPT DECLARATIONS
+ * =============================================================================
+ */
+
+// Extend Window interface for Matomo Tag Manager
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _mtm?: any[]
+  }
 }

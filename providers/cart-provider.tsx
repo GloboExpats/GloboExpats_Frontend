@@ -71,6 +71,7 @@ import {
   getItem,
   removeItem as removeStorageItem,
   flushPendingWrites,
+  setItemImmediate,
 } from '@/lib/storage-utils'
 
 // ============================================================================
@@ -272,14 +273,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
    */
   const persistCart = useCallback(
     (items: CartItem[], selectedItems: string[] = []) => {
-      if (!isLoggedIn) return // Don't persist if user not logged in
-
+      // Always persist cart, even when logged out
+      // This allows cart to survive across login/logout sessions
       try {
         const cartData = {
           items,
           selectedItems,
           timestamp: Date.now(),
-          userId: user?.id, // Associate cart with user
+          userId: user?.id || 'guest', // Use 'guest' for non-logged-in users
         }
         // Use debounced storage to prevent aggressive writes
         setItemDebounced(CART_STORAGE_KEY, cartData, 500)
@@ -291,7 +292,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }))
       }
     },
-    [isLoggedIn, user?.id]
+    [user?.id]
   )
 
   // ============================================================================
@@ -309,18 +310,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        if (!isLoggedIn) {
-          // Clear cart for non-authenticated users (only after auth has loaded)
-          setCart({
-            items: [],
-            isLoading: false,
-            error: null,
-            isInitialized: true,
-            selectedItems: [],
-          })
-          removeStorageItem(CART_STORAGE_KEY)
-          return
-        }
+        // Note: We no longer clear the cart for non-authenticated users.
+        // This allows the cart to persist as a "guest" cart when the user logs out.
+
 
         // Load from localStorage for authenticated users
         const cartData = getItem(CART_STORAGE_KEY)
@@ -336,9 +328,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // Validate cart data and user association
-        if (!isCartDataValid(cartData) || cartData.userId !== user?.id) {
-          console.warn('⚠️ Invalid cart data or user mismatch, clearing cart')
+        // Validate cart data structure
+        if (!isCartDataValid(cartData)) {
+          console.warn('⚠️ Invalid or expired cart data, clearing cart')
           removeStorageItem(CART_STORAGE_KEY)
           setCart((prev) => ({
             ...prev,
@@ -348,6 +340,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
             selectedItems: [],
           }))
           return
+        }
+
+        // Check if cart belongs to current user or was saved as guest
+        const cartUserId = cartData.userId
+        const currentUserId = user?.id
+
+        // Allow cart if:
+        // 1. User is not logged in (allow viewing any cart found in storage as guest)
+        // 2. Cart was saved by same user (userId matches)
+        // 3. Cart was saved as guest and user is now logging in (inherit guest cart)
+        const canUseCart = !isLoggedIn || cartUserId === currentUserId || cartUserId === 'guest'
+
+        if (!canUseCart) {
+          console.warn('⚠️ Cart belongs to different user, clearing cart')
+          removeStorageItem(CART_STORAGE_KEY)
+          setCart((prev) => ({
+            ...prev,
+            items: [],
+            isLoading: false,
+            isInitialized: true,
+            selectedItems: [],
+          }))
+          return
+        }
+
+        // If we're loading a guest cart for a logged-in user, update the userId
+        if (cartUserId === 'guest' && currentUserId) {
+          cartData.userId = currentUserId
+          // Immediately persist with new user ID
+          setItemImmediate(CART_STORAGE_KEY, cartData)
         }
 
         setCart({
@@ -374,24 +396,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [authLoading, isLoggedIn, user?.id, isCartDataValid])
 
   /**
-   * Clear cart when user logs out (not on initial load)
+   * Handle user logout - Keep cart items in localStorage for persistence
+   * Cart will be restored when user logs back in or returns to the site
    */
   useEffect(() => {
-    // Only clear if:
-    // 1. User is NOT logged in
-    // 2. Cart is initialized
-    // 3. Auth has finished loading (to avoid clearing on initial mount)
+    // When user logs out (goes from logged in to not logged in)
+    // Keep cart items in localStorage so they persist across sessions
+    // The cart will be restored when they return or log back in
+
+    // Note: We intentionally DO NOT clear cart items on logout
+    // This provides a better shopping experience by remembering their cart
+
     if (!isLoggedIn && cart.isInitialized && !authLoading) {
-      // Flush any pending writes before clearing
+      // Just flush any pending writes to ensure everything is saved
       flushPendingWrites()
 
-      setCart((prev) => ({
-        ...prev,
-        items: [],
-        error: null,
-        selectedItems: [],
-      }))
-      removeStorageItem(CART_STORAGE_KEY)
+      // Keep items in memory and localStorage - don't clear them
+      // They will be available when user returns
     }
   }, [isLoggedIn, cart.isInitialized, authLoading])
 
@@ -464,98 +485,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [isLoggedIn]
   )
 
-  const addItem = useCallback(
-    async (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
-      if (!isLoggedIn) {
-        toast({
-          title: 'Login Required',
-          description:
-            'Please login to add items to your cart or create an account to get started!',
-          variant: 'default',
-        })
-        return
-      }
-
-      // Check if user is verified to buy items
-      if (!canUserBuy(user)) {
-        toast({
-          title: 'Verification Required',
-          description:
-            'Please verify your account to add items to cart. Visit your account settings to complete verification.',
-          variant: 'default',
-        })
-        return
-      }
-
-      try {
-        setCart((prev) => ({ ...prev, isLoading: true, error: null }))
-
-        // Check if item already exists in cart
-        const existingItem = cart.items.find((i) => i.id === item.id)
-
-        if (existingItem) {
-          // Item already in cart - show message instead of adding
-          setCart((prev) => ({ ...prev, isLoading: false }))
-          toast({
-            title: 'Already in cart',
-            description: `${item.title} is already in your cart. You can remove it if you no longer want it.`,
-            variant: 'default',
-          })
-          return
-        }
-
-        // CLIENT-SIDE ONLY: Add new item to cart
-        setCart((prev) => {
-          const updatedSelectedItems = [...prev.selectedItems]
-
-          // New item - add to cart with specified quantity
-          const updatedItems = [...prev.items, { ...item, quantity: quantity }]
-
-          // Auto-select new item for checkout
-          if (!updatedSelectedItems.includes(item.id)) {
-            updatedSelectedItems.push(item.id)
-          }
-
-          // Persist to localStorage
-          persistCart(updatedItems, updatedSelectedItems)
-
-          return {
-            ...prev,
-            items: updatedItems,
-            selectedItems: updatedSelectedItems,
-            isLoading: false,
-            error: null,
-          }
-        })
-
-        toast({
-          title: 'Added to cart',
-          description: `${item.title} has been added to your cart.`,
-        })
-      } catch (error) {
-        console.error('❌ Error adding to cart:', error)
-        toast({
-          title: 'Error',
-          description: 'Failed to add item to cart. Please try again.',
-          variant: 'destructive',
-        })
-        setCart((prev) => ({ ...prev, isLoading: false }))
-      }
-    },
-    [isLoggedIn, persistCart, cart.items, user]
-  )
 
   const removeItem = useCallback(
     async (id: string) => {
       if (!isLoggedIn) {
         toast({
-          title: '🎉 Join the Expat Community!',
-          description:
-            'Login to manage your cart or register now to start your expat marketplace journey!',
+          title: '🔐 Sign In Required',
+          description: 'Please log in to manage your cart items.',
           variant: 'default',
         })
         return
       }
+
 
       try {
         setCart((prev) => ({ ...prev, isLoading: true, error: null }))
@@ -601,14 +542,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async (itemId: string, quantity: number) => {
       if (!isLoggedIn) {
         toast({
-          title: '🎉 Join the Expat Community!',
-          description:
-            'Login to manage your cart or register now to start your expat marketplace journey!',
+          title: '🔐 Sign In Required',
+          description: 'Please log in to update item quantities.',
           variant: 'default',
         })
         return
       }
-
       try {
         if (quantity <= 0) {
           await removeItem(itemId)
@@ -659,8 +598,83 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => ({ ...prev, isLoading: false }))
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isLoggedIn, removeItem, persistCart]
+  )
+
+  const addItem = useCallback(
+    async (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
+      if (!isLoggedIn) {
+        toast({
+          title: '🎉 Join the Expat Community!',
+          description:
+            'Please sign in to add items to your cart or create an account to start your shopping journey!',
+          variant: 'default',
+        })
+        return
+      }
+
+      // Check verification ONLY if logged in.
+      if (!canUserBuy(user)) {
+        toast({
+          title: '🔐 Complete Your Profile!',
+          description:
+            'Almost there! Please verify your email to unlock all features and start adding items to your cart.',
+          variant: 'default',
+        })
+        return
+      }
+
+      try {
+        setCart((prev) => ({ ...prev, isLoading: true, error: null }))
+
+        // Check if item already exists in cart
+        const existingItem = cart.items.find((i) => i.id === item.id)
+
+        if (existingItem) {
+          // If item exists, update its quantity instead of blocking
+          await updateQuantity(item.id, existingItem.quantity + quantity)
+          return
+        }
+
+        // CLIENT-SIDE ONLY: Add new item to cart
+        setCart((prev) => {
+          const updatedSelectedItems = [...prev.selectedItems]
+
+          // New item - add to cart with specified quantity
+          const updatedItems = [...prev.items, { ...item, quantity: quantity }]
+
+          // Auto-select new item for checkout
+          if (!updatedSelectedItems.includes(item.id)) {
+            updatedSelectedItems.push(item.id)
+          }
+
+          // Persist to localStorage
+          persistCart(updatedItems, updatedSelectedItems)
+
+          return {
+            ...prev,
+            items: updatedItems,
+            selectedItems: updatedSelectedItems,
+            isLoading: false,
+            error: null,
+          }
+        })
+
+        toast({
+          title: '🛒 Added to Cart',
+          description: `${item.title} has been added. Ready to checkout?`,
+        })
+      } catch (error) {
+        console.error('❌ Error adding to cart:', error)
+        toast({
+          title: '💡 Something went wrong',
+          description: 'We couldn\'t add the item. Please try again or refresh the page.',
+          variant: 'default',
+        })
+        setCart((prev) => ({ ...prev, isLoading: false }))
+      }
+    },
+    [isLoggedIn, persistCart, cart.items, user, updateQuantity]
   )
 
   /**
@@ -669,12 +683,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clearCart = useCallback(async () => {
     if (!isLoggedIn) {
       toast({
-        title: 'Login required',
-        description: 'Please login to modify your cart.',
-        variant: 'destructive',
+        title: '🔐 Sign In Required',
+        description: 'Please log in to clear your cart.',
+        variant: 'default',
       })
       return
     }
+
 
     try {
       setCart((prev) => ({ ...prev, isLoading: true, error: null }))
@@ -690,15 +705,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeStorageItem(CART_STORAGE_KEY)
 
       toast({
-        title: 'Cart cleared',
-        description: 'All items have been removed from your cart.',
+        title: '✨ Cart Cleared',
+        description: 'Your cart is fresh and ready for new items!',
       })
     } catch (error) {
       console.error('❌ Error clearing cart:', error)
       toast({
-        title: 'Error',
-        description: 'Failed to clear cart. Please try again.',
-        variant: 'destructive',
+        title: '💡 Action Needed',
+        description: 'We couldn\'t clear your cart right now. Please try again.',
+        variant: 'default',
       })
       setCart((prev) => ({ ...prev, isLoading: false }))
     }

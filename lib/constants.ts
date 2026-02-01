@@ -19,6 +19,7 @@ import {
   Palette,
   Sprout,
   MoreHorizontal,
+  Dog,
 } from 'lucide-react'
 import type {
   CategoryWithRequirements,
@@ -223,7 +224,7 @@ export const CATEGORIES = [
   {
     id: 12,
     name: 'Pet Supplies',
-    icon: MoreHorizontal, // Using a fallback icon first, maybe search for Paw/Dog later or keep generic
+    icon: Dog,
     count: '245 items',
     slug: 'pet-supplies',
   },

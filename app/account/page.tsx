@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Package, Settings, History, Shield, ChevronRight, HelpCircle, Star } from 'lucide-react'
+import { Package, Settings, History, Shield, ChevronRight, HelpCircle, Star, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -29,7 +29,7 @@ const accountMenuItems = [
   {
     id: 'settings',
     label: 'Profile Information',
-    icon: Settings,
+    icon: User,
     href: '/account/settings',
     description: 'Profile & security',
   },

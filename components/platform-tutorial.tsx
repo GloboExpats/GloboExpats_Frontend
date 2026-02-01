@@ -185,7 +185,7 @@ export function PlatformTutorial() {
           popover: {
             title: 'Quick Registration Steps 🚀',
             description:
-              '1️⃣ Enter your name and email\n2️⃣ Create a secure password\n3️⃣ Or use "Sign in with Google" for faster signup\n\nAfter registering, you\'ll verify your work email to start buying. Complete identity verification to start selling!',
+              '1️⃣ Enter your name and email\n2️⃣ Create a secure password\n3️⃣ Or use "Sign in with Google" for faster signup\n\nAfter registering, you\'ll verify your organization email to start buying. Complete identity verification to start selling!',
             side: 'top',
             align: 'center',
             onNextClick: () => {
@@ -289,7 +289,7 @@ export function PlatformTutorial() {
           popover: {
             title: 'Verification Steps 🔐',
             description:
-              '1️⃣ Enter your work/organization email (not Gmail, Yahoo, etc.)\n2️⃣ Click "Send Verification Code"\n3️⃣ Check your email for the 6-digit code\n4️⃣ Enter the code and verify\n\nOnce verified, come back and restart the tutorial to see the full platform tour!',
+              '1️⃣ Enter your organization email (not Gmail, Yahoo, etc.)\n2️⃣ Click "Send Verification Code"\n3️⃣ Check your email for the 6-digit code\n4️⃣ Enter the code and verify\n\nOnce verified, come back and restart the tutorial to see the full platform tour!',
             side: 'top',
             align: 'center',
             onNextClick: () => {

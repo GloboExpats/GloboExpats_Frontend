@@ -148,20 +148,24 @@ export default function AccountSettings() {
 
       // Update profile information - map form data to User type
       // Pass both profile data and optional image file
-      await updateProfile(
-        {
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          name: `${profileData.firstName} ${profileData.lastName}`,
-          email: profileData.email,
-          phoneNumber: profileData.phone,
-          location: profileData.location,
-          aboutMe: profileData.bio,
-          organization: profileData.organization,
-          position: profileData.position,
-        },
-        profileImageFile || undefined
-      )
+      // IMPORTANT: Only send email if it has changed to avoid backend validation errors
+      const updates: any = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        name: `${profileData.firstName} ${profileData.lastName}`,
+        phoneNumber: profileData.phone,
+        location: profileData.location,
+        aboutMe: profileData.bio,
+        organization: profileData.organization,
+        position: profileData.position,
+      }
+
+      // Only include email if it has actually changed
+      if (userProfile?.email && profileData.email !== userProfile.email) {
+        updates.email = profileData.email
+      }
+
+      await updateProfile(updates, profileImageFile || undefined)
 
       // Show success message
       let successMessage = 'Your profile information has been saved successfully.'

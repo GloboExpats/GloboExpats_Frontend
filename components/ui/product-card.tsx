@@ -21,6 +21,7 @@ import { useCart } from '@/hooks/use-cart'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from '@/components/ui/use-toast'
 import { CountryFlag, getCountryCodeFromLabel } from '@/components/country-flag'
+import { getShortLocationDisplay } from '@/lib/location-utils'
 
 interface ProductCardProps {
   product: FeaturedItem
@@ -57,9 +58,15 @@ export function ProductCard({
   const { addToCart } = useCart()
   const { isLoggedIn, user } = useAuth()
 
-  // Check if we are in management mode (edit/delete only, no view/cart buttons)
-  // OR if explicitly enabled via prop
-  const effectiveManagementMode = isManagementMode || ((onEdit || onDelete) && !showViewButton && !showCartButton)
+  const effectiveManagementMode =
+    isManagementMode || ((onEdit || onDelete) && !showViewButton && !showCartButton)
+
+  const ratingValue =
+    typeof product.rating === 'number'
+      ? product.rating
+      : Number.isFinite(parseFloat(String(product.rating)))
+        ? parseFloat(String(product.rating))
+        : 0
 
   // Prevent double clicks with debouncing
   const lastClickTime = useRef<number>(0)
@@ -343,7 +350,7 @@ export function ProductCard({
               {/* Always show rating with star, even if 0 */}
               <div
                 className="flex items-center gap-1 flex-shrink-0"
-                aria-label={`Rating ${product.rating || 0} out of 5 stars with ${product.reviews || 0} reviews`}
+                aria-label={`Rating ${ratingValue} out of 5 stars with ${product.reviews || 0} reviews`}
               >
                 <Star
                   className={cn(
@@ -359,7 +366,7 @@ export function ProductCard({
                     compact ? 'text-xs sm:text-sm' : 'text-sm'
                   )}
                 >
-                  {(product.rating || 0).toFixed(1)}
+                  {ratingValue.toFixed(1)}
                 </span>
                 <span
                   className={cn('text-neutral-500', compact ? 'text-xs sm:text-sm' : 'text-sm')}
@@ -405,38 +412,45 @@ export function ProductCard({
             )}
 
             {/* Location - Fixed height with Country Flag */}
-            <div
-              className={cn('flex items-center gap-1.5 min-h-[1rem]', compact ? 'mb-1' : 'mb-1.5')}
-              aria-label={`Location: ${product.location}`}
-            >
-              {/* Country flag based on location */}
-              {(() => {
-                const countryCode = getCountryCodeFromLabel(product.location || '')
-                return countryCode ? (
-                  <CountryFlag
-                    countryCode={countryCode}
-                    size={compact ? 'sm' : 'md'}
-                    className="flex-shrink-0"
-                  />
-                ) : (
-                  <MapPin
+            {(() => {
+              // Use short location format (City, Country) for cards
+              const shortLocation = getShortLocationDisplay(product.location)
+              const countryCode = getCountryCodeFromLabel(shortLocation)
+              return (
+                <div
+                  className={cn(
+                    'flex items-center gap-1.5 min-h-[1rem]',
+                    compact ? 'mb-1' : 'mb-1.5'
+                  )}
+                  aria-label={`Location: ${shortLocation}`}
+                >
+                  {/* Country flag based on location */}
+                  {countryCode ? (
+                    <CountryFlag
+                      countryCode={countryCode}
+                      size={compact ? 'sm' : 'md'}
+                      className="flex-shrink-0"
+                    />
+                  ) : (
+                    <MapPin
+                      className={cn(
+                        'text-neutral-400 flex-shrink-0',
+                        compact ? 'w-3 h-3 sm:w-3.5 sm:h-3.5' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'
+                      )}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span
                     className={cn(
-                      'text-neutral-400 flex-shrink-0',
-                      compact ? 'w-3 h-3 sm:w-3.5 sm:h-3.5' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'
+                      'text-neutral-600 truncate',
+                      compact ? 'text-xs sm:text-sm' : 'text-sm'
                     )}
-                    aria-hidden="true"
-                  />
-                )
-              })()}
-              <span
-                className={cn(
-                  'text-neutral-600 truncate',
-                  compact ? 'text-xs sm:text-sm' : 'text-sm'
-                )}
-              >
-                {product.location}
-              </span>
-            </div>
+                  >
+                    {shortLocation}
+                  </span>
+                </div>
+              )
+            })()}
 
             {/* Date Added - New Field */}
             {(showDate || product.createdAt) && (

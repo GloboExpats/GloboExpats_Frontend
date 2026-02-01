@@ -210,12 +210,12 @@ const passesFilters = (product: SearchProduct, filters: SearchFilters): boolean 
     }
   }
 
-  // Location filter
-  if (
-    filters.location &&
-    !product.location.toLowerCase().includes(filters.location.toLowerCase())
-  ) {
-    return false
+  // Location filter (tolerant to missing product.location)
+  if (filters.location) {
+    const pLoc = (product.location || '').toLowerCase()
+    if (!pLoc.includes(filters.location.toLowerCase())) {
+      return false
+    }
   }
 
   // Verified seller filter

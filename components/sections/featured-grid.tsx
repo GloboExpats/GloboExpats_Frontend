@@ -15,6 +15,8 @@ export default function FeaturedGrid() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
+  const includeOutOfStock = true // Show all products for now
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -68,7 +70,7 @@ export default function FeaturedGrid() {
             views: 0, // Initialize to 0 to prevent flashing "1" from backend list API
           }
         })
-        .filter((item) => item.quantity > 0)
+        .filter((item) => includeOutOfStock || (item.quantity ?? 0) > 0)
 
       // Show products immediately
       setItems(initialProducts)

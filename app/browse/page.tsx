@@ -318,20 +318,20 @@ const FilterContentEl = ({
                   filters.location ||
                   filters.customCountry ||
                   filters.customCity) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 text-gray-400 hover:text-red-500 rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      updateFilter('country', '')
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                    }}
-                    title="Clear location"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-gray-400 hover:text-red-500 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        updateFilter('country', '')
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      title="Clear location"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
               </div>
             </div>
           </AccordionTrigger>
@@ -585,6 +585,8 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null)
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
 
+  const includeOutOfStock = true // Pull all products for now as requested by user
+
   // Debounce updates to the actual search query to reduce re-renders and URL churn
   const debouncedUpdateQuery = useMemo(
     () =>
@@ -634,13 +636,13 @@ export default function BrowsePage() {
         const { content: productsData, totalElements } = response
         const transformedProducts = productsData
           .map((item) => transformToFeaturedItem(item as Record<string, unknown>))
-          .filter((item) => (item.quantity ?? 0) > 0) // Exclude out-of-stock items
+          .filter((item) => includeOutOfStock || (item.quantity ?? 0) > 0)
 
         // Randomize products for initial display using Fisher-Yates shuffle
         const shuffled = [...transformedProducts]
         for (let i = shuffled.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1))
-          ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+            ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
         }
 
         setProducts(shuffled)
@@ -902,10 +904,12 @@ export default function BrowsePage() {
     const matchesLocation =
       filters.country === 'other'
         ? !filters.customCity ||
-          product.location?.toLowerCase().includes(filters.customCity.toLowerCase())
+        !product.location || // PASS if no location
+        product.location.toLowerCase().includes(filters.customCity.toLowerCase())
         : !filters.location ||
-          product.location?.toLowerCase().includes(filters.location.toLowerCase()) ||
-          generateSlug(product.location).includes(filters.location)
+        !product.location || // PASS if no location
+        product.location.toLowerCase().includes(filters.location.toLowerCase()) ||
+        generateSlug(product.location).includes(filters.location)
 
     // Country filtering
     let matchesCountry = true
@@ -935,7 +939,9 @@ export default function BrowsePage() {
       // 1. Product location contains country name
       // 2. Product slug matches a city slug
       // 3. Product location contains a city name
+      // 4. Product has no location (PASS as per user request)
       matchesCountry =
+        !productLocation ||
         productLocation.includes(countryLower) ||
         countryCitySlugs.some((citySlug) => productSlug.includes(citySlug)) ||
         countryCityNames.some((cityName) => productLocation.includes(cityName))
@@ -1219,13 +1225,13 @@ export default function BrowsePage() {
                       filters.priceFilterEnabled ||
                       filters.condition ||
                       filters.location) && (
-                      <Badge
-                        variant="secondary"
-                        className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0"
-                      >
-                        •
-                      </Badge>
-                    )}
+                        <Badge
+                          variant="secondary"
+                          className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0"
+                        >
+                          •
+                        </Badge>
+                      )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent
@@ -1457,11 +1463,10 @@ export default function BrowsePage() {
                                   })
                                 }
                               }}
-                              className={`min-w-[40px] h-10 ${
-                                activePage === pageNum
+                              className={`min-w-[40px] h-10 ${activePage === pageNum
                                   ? 'bg-blue-600 text-white border-blue-600'
                                   : 'text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                              }`}
+                                }`}
                             >
                               {pageNum}
                             </Button>
@@ -1493,11 +1498,10 @@ export default function BrowsePage() {
       {/* Floating Back to Top Button */}
       <Button
         onClick={scrollToTop}
-        className={`fixed bottom-24 right-6 z-50 rounded-full h-10 px-4 shadow-2xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-blue-500/40 border-2 border-white/20 ${
-          showScrollTop
+        className={`fixed bottom-24 right-6 z-50 rounded-full h-10 px-4 shadow-2xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-blue-500/40 border-2 border-white/20 ${showScrollTop
             ? 'opacity-100 translate-y-0 scale-100'
             : 'opacity-0 translate-y-10 scale-90 pointer-events-none'
-        }`}
+          }`}
         aria-label="Back to top"
       >
         <ArrowUp className="h-4 w-4" />
