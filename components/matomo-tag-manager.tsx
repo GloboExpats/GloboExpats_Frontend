@@ -13,7 +13,7 @@ export function MatomoTagManager() {
     const s = d.getElementsByTagName('script')[0]
 
     g.async = true
-    g.src = 'http://matomo-app:80/js/container_EKgRf38T.js'
+    g.src = 'https://matomo-app:80/js/container_EKgRf38T.js'
 
     if (s && s.parentNode) {
       s.parentNode.insertBefore(g, s)
