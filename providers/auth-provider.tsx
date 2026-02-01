@@ -303,6 +303,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               error: null,
               verificationStatus,
             })
+
+            // Track user ID in Matomo for session restoration (no login event, just set ID)
+            if (typeof window !== 'undefined' && window._mtm && rebuiltUser.email) {
+              window._mtm.push({
+                userId: rebuiltUser.email,
+              })
+            }
+
             console.log('[Auth] Session rebuilt successfully')
             return
           } catch (error) {
@@ -339,6 +347,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error: null,
         verificationStatus,
       })
+
+      // Track user ID in Matomo for session restoration (no login event, just set ID)
+      if (typeof window !== 'undefined' && window._mtm && normalizedUser.email) {
+        window._mtm.push({
+          userId: normalizedUser.email,
+        })
+      }
     } catch (error) {
       console.error('Session restoration failed:', error)
       removeStorageItem(SESSION_STORAGE_KEY)
@@ -523,6 +538,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             verificationStatus,
           })
 
+          // Track user login in Matomo
+          if (typeof window !== 'undefined' && window._mtm && completeUser.email) {
+            window._mtm.push({
+              event: 'user_login',
+              userId: completeUser.email,
+            })
+          }
+
           // ...existing code...
         } else {
           // Fallback to creating user from login response if backend fetch fails
@@ -552,6 +575,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             error: null,
             verificationStatus,
           })
+
+          // Track user login in Matomo (fallback case)
+          if (typeof window !== 'undefined' && window._mtm && user.email) {
+            window._mtm.push({
+              event: 'user_login',
+              userId: user.email,
+            })
+          }
 
           // ...existing code...
         }
@@ -602,6 +633,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Flush any pending writes before clearing
       flushPendingWrites()
+
+      // Track user logout in Matomo (before clearing user state)
+      if (typeof window !== 'undefined' && window._mtm) {
+        window._mtm.push({
+          event: 'user_logout',
+          userId: undefined,
+        })
+      }
 
       // Clear local state
       setAuthState((prev) => ({
@@ -944,4 +983,18 @@ export function useAuth(): AuthContextType {
   }
 
   return context
+}
+
+/**
+ * =============================================================================
+ * TYPESCRIPT DECLARATIONS
+ * =============================================================================
+ */
+
+// Extend Window interface for Matomo Tag Manager
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _mtm?: any[]
+  }
 }
