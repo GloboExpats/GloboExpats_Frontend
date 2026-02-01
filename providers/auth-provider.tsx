@@ -171,6 +171,24 @@ const SESSION_STORAGE_KEY = 'expatUserSession'
 const SESSION_EXPIRY_HOURS = 24
 
 /**
+ * Helper function to safely push events to Matomo Tag Manager
+ * Waits for Matomo to be ready before pushing data
+ */
+const pushToMatomo = (data: Record<string, unknown>, retries = 10): void => {
+  if (typeof window === 'undefined') return
+
+  if (window._mtm && typeof window._mtm.push === 'function') {
+    window._mtm.push(data)
+    console.log('[Matomo] Pushed:', data)
+  } else if (retries > 0) {
+    // Matomo not ready yet, retry after 100ms
+    setTimeout(() => pushToMatomo(data, retries - 1), 100)
+  } else {
+    console.warn('[Matomo] Failed to push after retries:', data)
+  }
+}
+
+/**
  * Creates default verification status for new users
  * SIMPLIFIED: Email verification = full access
  */
@@ -304,12 +322,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               verificationStatus,
             })
 
-            // Track user ID in Matomo for session restoration (no login event, just set ID)
-            if (typeof window !== 'undefined' && window._mtm && rebuiltUser.email) {
-              window._mtm.push({
-                userId: rebuiltUser.email,
-              })
-            }
+            // Track user ID in Matomo for session restoration
+            pushToMatomo({
+              event: 'user_session_restore',
+              userId: rebuiltUser.email,
+            })
 
             console.log('[Auth] Session rebuilt successfully')
             return
@@ -348,12 +365,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verificationStatus,
       })
 
-      // Track user ID in Matomo for session restoration (no login event, just set ID)
-      if (typeof window !== 'undefined' && window._mtm && normalizedUser.email) {
-        window._mtm.push({
-          userId: normalizedUser.email,
-        })
-      }
+      // Track user ID in Matomo for session restoration
+      pushToMatomo({
+        event: 'user_session_restore',
+        userId: normalizedUser.email,
+      })
     } catch (error) {
       console.error('Session restoration failed:', error)
       removeStorageItem(SESSION_STORAGE_KEY)
@@ -539,12 +555,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
 
           // Track user login in Matomo
-          if (typeof window !== 'undefined' && window._mtm && completeUser.email) {
-            window._mtm.push({
-              event: 'user_login',
-              userId: completeUser.email,
-            })
-          }
+          pushToMatomo({
+            event: 'user_login',
+            userId: completeUser.email,
+          })
 
           // ...existing code...
         } else {
@@ -577,12 +591,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
 
           // Track user login in Matomo (fallback case)
-          if (typeof window !== 'undefined' && window._mtm && user.email) {
-            window._mtm.push({
-              event: 'user_login',
-              userId: user.email,
-            })
-          }
+          pushToMatomo({
+            event: 'user_login',
+            userId: user.email,
+          })
 
           // ...existing code...
         }
@@ -635,12 +647,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       flushPendingWrites()
 
       // Track user logout in Matomo (before clearing user state)
-      if (typeof window !== 'undefined' && window._mtm) {
-        window._mtm.push({
-          event: 'user_logout',
-          userId: undefined,
-        })
-      }
+      pushToMatomo({
+        event: 'user_logout',
+        userId: undefined,
+      })
 
       // Clear local state
       setAuthState((prev) => ({

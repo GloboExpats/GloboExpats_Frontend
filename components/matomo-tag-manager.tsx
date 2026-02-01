@@ -2,6 +2,11 @@
 
 import { useEffect } from 'react'
 
+// Initialize Matomo data layer immediately (before React renders)
+if (typeof window !== 'undefined') {
+  window._mtm = window._mtm || []
+}
+
 export function MatomoTagManager() {
   useEffect(() => {
     // Initialize Matomo Tag Manager
