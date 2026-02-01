@@ -401,6 +401,11 @@ export default function RegisterPage() {
                   {step === 2 && `Enter the code sent to ${formData.personalEmail}`}
                   {step === 3 && "Secure your account with a strong password"}
                 </p>
+                {step === 2 && (
+                  <p className="text-sm font-semibold text-brand-primary mt-1">
+                    Check JUNK/SPAM folder in your email account
+                  </p>
+                )}
 
                 {/* Progress Indicators */}
                 <div className="flex justify-center gap-2 mt-4">
@@ -542,13 +547,6 @@ export default function RegisterPage() {
                           />
                         ))}
                       </div>
-
-                      <p className="text-sm text-center text-neutral-500">
-                        We sent a 6-digit code to{' '}
-                        <span className="font-semibold text-neutral-800">
-                          {formData.personalEmail}
-                        </span>
-                      </p>
 
                       <p className="text-sm text-center text-neutral-500">
                         Didn't receive the code?{' '}

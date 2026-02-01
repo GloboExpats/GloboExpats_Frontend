@@ -837,12 +837,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // ...existing code...
       } catch (error) {
         console.error('Verification completion failed:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to complete verification'
         setAuthState((prev) => ({
           ...prev,
           isLoading: false,
-          error: 'Failed to complete verification',
+          error: errorMessage,
         }))
-        throw new Error('Failed to complete verification')
+        throw new Error(errorMessage)
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },

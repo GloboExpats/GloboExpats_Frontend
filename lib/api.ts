@@ -1346,6 +1346,7 @@ class ApiClient {
     },
     profileImage?: File
   ): Promise<ApiResponse<unknown>> {
+    console.log('[API] editProfile called with data:', data)
     // Backend expects multipart/form-data with profileInformationDTO as a JSON string
     const formData = new FormData()
 
@@ -1400,7 +1401,7 @@ class ApiClient {
     }
 
     // Use Next.js API proxy to avoid CORS issues
-    return this.request('/api/profile', {
+    return this.request('/api/v1/userManagement/editProfile', {
       method: 'PATCH',
       body: formData,
     })

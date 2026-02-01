@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
+import { apiClient } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function VerificationPage() {
@@ -17,17 +18,27 @@ export default function VerificationPage() {
     completeVerificationForTesting,
     verificationStatus,
     refreshSession,
+    updateUser,
+    user,
   } = useAuth()
 
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [organizationEmail, setOrganizationEmail] = useState('')
+  const [organizationName, setOrganizationName] = useState(user?.organization || '')
   const [otpSent, setOtpSent] = useState(false)
   const [otpArray, setOtpArray] = useState(['', '', '', '', '', ''])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const otpInputs = useRef<(HTMLInputElement | null)[]>([])
+
+  // Pre-fill organization name when user data is available
+  useEffect(() => {
+    if (user?.organization && !organizationName) {
+      setOrganizationName(user.organization)
+    }
+  }, [user?.organization, organizationName])
 
   // Get verification status
   const isOrganizationEmailVerified = verificationStatus?.isOrganizationEmailVerified || false
@@ -175,6 +186,31 @@ export default function VerificationPage() {
     setError('')
     setSuccess('')
     try {
+      // Step 1: Update organization name if provided
+      if (organizationName) {
+        try {
+          // Explicitly set token if available just in case
+          const token = localStorage.getItem('expat_auth_token')
+          if (token) apiClient.setAuthToken(token)
+
+          const updateResult = await apiClient.editProfile({ organization: organizationName })
+          if (updateResult.success) {
+            updateUser({ organization: organizationName })
+            toast({
+              title: 'Profile Updated',
+              description: 'Your organization has been saved to your profile.',
+            })
+          }
+        } catch (profileError) {
+          console.error('Failed to update organization in profile:', profileError)
+          toast({
+            title: 'Profile Update Hint',
+            description: 'Could not sync organization to profile, but proceeding with verification.',
+            variant: 'default',
+          })
+        }
+      }
+
       await completeVerificationForTesting(organizationEmail)
       setOtpSent(true)
       setOtpArray(['', '', '', '', '', ''])
@@ -186,7 +222,19 @@ export default function VerificationPage() {
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send OTP.'
-      setError(errorMessage)
+
+      // Handle "Email already in use" specifically with a toast
+      if (errorMessage.toLowerCase().includes('already registered') ||
+        errorMessage.toLowerCase().includes('already in use')) {
+        setError('') // Clear the red error message from UI
+        toast({
+          title: 'Email Already in Use',
+          description: 'This organization email is already associated with another account. Please use a different email or log in with that account.',
+          variant: 'destructive',
+        })
+      } else {
+        setError(errorMessage)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -222,7 +270,12 @@ export default function VerificationPage() {
               {otpSent ? 'Enter Verification Code' : 'Organization Email Verification'}
             </CardTitle>
             <p className="text-[#64748B] mt-2">
-              {otpSent ? 'Verify your identity to unlock all features' : 'Unlock buying and selling by verifying your organization email'}
+              {otpSent ? (
+                <span className="flex flex-col gap-1">
+                  <span>Verify your identity to unlock all features</span>
+                  <span className="text-sm font-semibold text-[#1E3A8A]">Check JUNK/SPAM folder in your email account</span>
+                </span>
+              ) : 'Unlock buying and selling by verifying your organization email'}
             </p>
           </CardHeader>
           <CardContent className="p-8">
@@ -236,6 +289,19 @@ export default function VerificationPage() {
                         Be sure to check your <strong>JUNK or SPAM</strong> folder!
                       </AlertDescription>
                     </Alert>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="organizationName" className="font-semibold text-neutral-700">Organization / Office</Label>
+                      <Input
+                        id="organizationName"
+                        type="text"
+                        placeholder="e.g. UN, WFP, UNICEF, Embassy"
+                        value={organizationName}
+                        onChange={(e) => setOrganizationName(e.target.value)}
+                        className="h-12 rounded-2xl border-neutral-200 focus:border-brand-primary"
+                      />
+                      <p className="text-xs text-neutral-400 px-1">Which organization or office are you with?</p>
+                    </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="organizationEmail" className="font-semibold text-neutral-700">Organization Email Address</Label>

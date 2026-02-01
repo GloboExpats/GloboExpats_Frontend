@@ -253,9 +253,10 @@ export default function ProductPage() {
           // Don't log as error - this is expected flow for unauthenticated users
           console.log('🔐 Auth required, showing toast notification')
           toast({
-            title: '🔐 Login Required',
+            title: '🎉 Join the Expat Community!',
             description:
-              'Sign in to explore this item or join our expat community to start shopping!',
+              'Sign in to explore this item or join our community to start your shopping journey!',
+            variant: 'default',
           })
           setError(null) // Don't show error in UI
           return

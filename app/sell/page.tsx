@@ -763,31 +763,32 @@ function SellPageContent() {
 
         {/* Step Indicator */}
         <div className="mb-10 sm:mb-12">
-          <div className="flex items-center justify-center max-w-4xl mx-auto px-4">
+          <div className="flex items-center justify-center max-w-3xl mx-auto px-4">
             {[1, 2, 3, 4].map((step, index) => (
-              <div key={step} className="flex items-center flex-1">
-                <div className="flex flex-col items-center w-full">
+              <div key={step} className="flex items-center">
+                <div className="flex flex-col items-center">
                   <div
                     className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all duration-300 ${step === currentStep
-                      ? 'bg-[#1E3A8A] text-white shadow-md'
-                      : step < currentStep
-                        ? 'bg-[#1E3A8A] text-white'
-                        : 'bg-[#F1F5F9] text-[#94A3B8] border-2 border-[#E2E8F0]'
+                        ? 'bg-[#1E3A8A] text-white shadow-md'
+                        : step < currentStep
+                          ? 'bg-[#1E3A8A] text-white'
+                          : 'bg-[#F1F5F9] text-[#94A3B8] border-2 border-[#E2E8F0]'
                       }`}
                   >
                     {step}
                   </div>
                   <span
-                    className={`mt-2 text-xs sm:text-sm font-medium transition-all duration-300 text-center ${step <= currentStep ? 'text-[#0F172A]' : 'text-[#94A3B8]'
+                    className={`mt-2 text-xs sm:text-sm font-medium transition-all duration-300 text-center whitespace-nowrap ${step <= currentStep ? 'text-[#0F172A]' : 'text-[#94A3B8]'
                       }`}
                   >
                     {STEP_TITLES[step - 1]}
                   </span>
                 </div>
                 {index < 3 && (
-                  <div className="flex-1 h-0.5 mx-2 sm:mx-4 mb-8">
+                  <div className="w-12 sm:w-16 md:w-20 h-0.5 mx-2 mb-8">
                     <div
-                      className={`h-full transition-all duration-300 ${step < currentStep ? 'bg-[#1E3A8A]' : 'bg-[#E2E8F0]'}`}
+                      className={`h-full transition-all duration-300 ${step < currentStep ? 'bg-[#1E3A8A]' : 'bg-[#E2E8F0]'
+                        }`}
                     />
                   </div>
                 )}
