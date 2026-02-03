@@ -565,6 +565,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         setCart((prev) => ({ ...prev, isLoading: true, error: null }))
 
+        // Get current item to track quantity difference
+        const currentItem = cart.items.find((item) => item.id === itemId)
+        const oldQuantity = currentItem?.quantity || 0
+
         // CLIENT-SIDE ONLY: Update item quantity in local cart
         setCart((prev) => {
           const updatedItems = prev.items.map((item) =>
@@ -581,6 +585,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
             error: null,
           }
         })
+
+        // Track quantity increase as add to cart event in Matomo
+        const quantityDiff = quantity - oldQuantity
+        if (currentItem && quantityDiff > 0 && typeof window !== 'undefined' && window._mtm) {
+          try {
+            window._mtm.push({
+              event: 'add_to_cart',
+              ecommerce: {
+                items: [
+                  {
+                    item_id: String(currentItem.id),
+                    item_name: currentItem.title,
+                    item_category: currentItem.category || 'Uncategorized',
+                    item_price: currentItem.price,
+                    quantity: quantityDiff, // Track only the additional quantity
+                  },
+                ],
+                total: currentItem.price * quantityDiff,
+              },
+            })
+
+            console.log('✅ Matomo: Cart quantity increased (tracked as add_to_cart)', {
+              itemId: currentItem.id,
+              itemName: currentItem.title,
+              oldQuantity: oldQuantity,
+              newQuantity: quantity,
+              addedQuantity: quantityDiff,
+              total: currentItem.price * quantityDiff,
+            })
+          } catch (matomoErr) {
+            console.warn('⚠️ Failed to track quantity increase in Matomo:', matomoErr)
+          }
+        }
 
         toast({
           title: 'Quantity updated',
@@ -664,6 +701,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
           title: '🛒 Added to Cart',
           description: `${item.title} has been added. Ready to checkout?`,
         })
+
+        // Track add to cart event in Matomo
+        if (typeof window !== 'undefined' && window._mtm) {
+          try {
+            window._mtm.push({
+              event: 'add_to_cart',
+              ecommerce: {
+                items: [
+                  {
+                    item_id: String(item.id),
+                    item_name: item.title,
+                    item_category: item.category || 'Uncategorized',
+                    item_price: item.price,
+                    quantity: quantity,
+                  },
+                ],
+                total: item.price * quantity,
+              },
+            })
+
+            console.log('✅ Matomo: Add to Cart tracked', {
+              itemId: item.id,
+              itemName: item.title,
+              category: item.category,
+              quantity: quantity,
+              total: item.price * quantity,
+            })
+          } catch (matomoErr) {
+            console.warn('⚠️ Failed to track add to cart in Matomo:', matomoErr)
+          }
+        }
       } catch (error) {
         console.error('❌ Error adding to cart:', error)
         toast({

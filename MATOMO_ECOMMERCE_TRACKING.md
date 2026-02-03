@@ -5,7 +5,8 @@
 ### What Was Implemented
 1. **Product View Tracking** - Tracks when users view product detail pages
 2. **Category View Tracking** - Tracks product category interest based on product views
-3. **Purchase Tracking** - Tracks completed orders on the checkout success page with **payment confirmation validation**
+3. **Add to Cart Tracking** - Tracks when users add items to cart or increase quantities
+4. **Purchase Tracking** - Tracks completed orders on the checkout success page with **payment confirmation validation**
 
 All tracking events are implemented in their respective pages with proper deduplication and error handling.
 
@@ -75,6 +76,176 @@ When a user views a product page, the category is also tracked:
 - ✅ Extracts category from product data: `productData.categoryName || transformedProduct.category`
 - ✅ Only tracks if category exists and is not "Uncategorized"
 - ✅ Fires automatically with every product view
+
+### Why This Approach?
+Instead of tracking category filter selections in browse pages, we track the **actual category of products users view**. This gives:
+- ✅ **Real category interest** - what categories do users actually engage with?
+- ✅ **Simple implementation** - single location, same product data
+- ✅ **No deduplication needed** - each product view = one category view
+- ✅ **Automatic** - works for all product views regardless of entry point
+
+---
+
+## 🛒 Add to Cart Tracking
+
+### Code Location
+**File:** `/providers/cart-provider.tsx`  
+**Functions:** 
+- `addItem()` - Line ~604 (tracks new items added to cart)
+- `updateQuantity()` - Line ~542 (tracks quantity increases)
+
+### ⭐ Why Track in Cart Provider?
+- ✅ **Complete Coverage** - Tracks ALL add-to-cart actions from anywhere in the app
+- ✅ **Single Source of Truth** - All cart operations go through this provider
+- ✅ **No Duplication** - One place to maintain tracking code
+- ✅ **Success Confirmation** - Only tracks after verification checks pass
+- ✅ **Automatic** - Works for product pages, search results, product cards, etc.
+
+### What Gets Tracked
+
+#### 1. **New Item Added to Cart**
+When a user adds a product to their cart:
+
+```typescript
+{
+  event: 'add_to_cart',
+  ecommerce: {
+    items: [{
+      item_id: "123",                    // Product ID
+      item_name: "Product Name",         // Product name
+      item_category: "Electronics",      // Category name
+      item_price: 99.99,                 // Product price
+      quantity: 2                        // Quantity added
+    }],
+    total: 199.98                        // Price × Quantity
+  }
+}
+```
+
+#### 2. **Quantity Increased in Cart**
+When a user increases quantity of an existing cart item (e.g., from 2 to 5):
+
+```typescript
+{
+  event: 'add_to_cart',
+  ecommerce: {
+    items: [{
+      item_id: "123",
+      item_name: "Product Name",
+      item_category: "Electronics",
+      item_price: 99.99,
+      quantity: 3                        // Only the ADDITIONAL quantity (5 - 2)
+    }],
+    total: 299.97                        // Additional quantity × Price
+  }
+}
+```
+
+### Where It's Triggered From
+
+The tracking automatically works for add-to-cart actions from:
+
+1. ✅ **Product Detail Page** (`/app/product/[id]/page.tsx`)
+   - "Add to Cart" button → calls `addToCart()` from provider
+   
+2. ✅ **Product Cards** (`/components/ui/product-card.tsx`)
+   - Quick-add cart button → calls `addToCart()` from provider
+   
+3. ✅ **Search Results** (`/app/search/page.tsx`)
+   - Search result "Add to Cart" → calls `addToCart()` from provider
+   
+4. ✅ **Browse/Category Pages**
+   - Any product card → calls `addToCart()` from provider
+   
+5. ✅ **Cart Page** (`/app/cart/page.tsx`)
+   - Quantity increase buttons → calls `updateQuantity()` from provider
+   
+6. ✅ **Cart Side Panel** (`/components/cart-sidepanel.tsx`)
+   - Quantity controls → calls `updateQuantity()` from provider
+
+### Tracking Logic
+
+#### New Item Added:
+```typescript
+// After successful cart addition (in addItem function)
+if (typeof window !== 'undefined' && window._mtm) {
+  window._mtm.push({
+    event: 'add_to_cart',
+    ecommerce: {
+      items: [{
+        item_id: String(item.id),
+        item_name: item.title,
+        item_category: item.category || 'Uncategorized',
+        item_price: item.price,
+        quantity: quantity
+      }],
+      total: item.price * quantity
+    }
+  })
+}
+```
+
+#### Quantity Increase:
+```typescript
+// After quantity update (in updateQuantity function)
+const quantityDiff = newQuantity - oldQuantity
+
+if (quantityDiff > 0) { // Only track increases
+  window._mtm.push({
+    event: 'add_to_cart',
+    ecommerce: {
+      items: [{
+        item_id: String(item.id),
+        item_name: item.title,
+        item_category: item.category || 'Uncategorized',
+        item_price: item.price,
+        quantity: quantityDiff  // Only the additional quantity
+      }],
+      total: item.price * quantityDiff
+    }
+  })
+}
+```
+
+### What's NOT Tracked
+- ❌ **Quantity decreases** - Use separate `remove_from_cart` event for that (future)
+- ❌ **Failed additions** - Only tracks after verification passes
+- ❌ **Unauthenticated users** - Tracking only fires for logged-in users
+- ❌ **Unverified email** - Must have verified email to add to cart
+
+### Fields Tracked
+✅ **item_id** - Product ID (string)  
+✅ **item_name** - Product name (string)  
+✅ **item_category** - Category name (string, defaults to "Uncategorized")  
+✅ **item_price** - Product price (number)  
+✅ **quantity** - Number of units added (number)  
+✅ **total** - Total value of items added (price × quantity)
+
+### Console Logging
+Every successful tracking logs to console for debugging:
+
+```javascript
+// New item added:
+✅ Matomo: Add to Cart tracked
+{
+  itemId: "123",
+  itemName: "Product Name",
+  category: "Electronics",
+  quantity: 2,
+  total: 199.98
+}
+
+// Quantity increased:
+✅ Matomo: Cart quantity increased (tracked as add_to_cart)
+{
+  itemId: "123",
+  itemName: "Product Name",
+  oldQuantity: 2,
+  newQuantity: 5,
+  addedQuantity: 3,
+  total: 299.97
+}
+```
 
 ### Why This Approach?
 Instead of tracking category filter selections in browse pages, we track the **actual category of products users view**. This gives:
@@ -357,22 +528,74 @@ revenue: orderData.total  // From backend/checkout calculation
 
 ---
 
-## 3️⃣ Purchase (Ecommerce Order) Configuration
+## 3️⃣ Add to Cart Configuration
 
-### F) Data Layer Variable
+### I) Custom Event Trigger
+- **Name:** `Add to Cart Event`
+- **Trigger Type:** Custom Event
+- **Event Name:** `add_to_cart`
+
+### J) Custom HTML Tag
+- **Name:** `Ecommerce - Add to Cart`
+- **Tag Type:** Custom HTML
+- **Trigger:** `Add to Cart Event` (from step I)
+- **HTML Content:**
+
+```html
+<script>
+    window._paq = window._paq || [];
+    
+    // Find the add_to_cart event in the data layer
+    var ecommerceData = _mtm.find(function(item) {
+        return item.event === "add_to_cart" && item.ecommerce && item.ecommerce.items;
+    });
+    
+    if (ecommerceData) {
+        var items = ecommerceData.ecommerce.items;
+        
+        // Loop through the items and track each one to Matomo
+        items.forEach(function(item, index) {
+            _paq.push(['addEcommerceItem',
+                item.item_id,       // Product SKU (Required)
+                item.item_name,     // Product Name (Optional)
+                item.item_category, // Product Category (Optional)
+                item.item_price,    // Product Price (Optional)
+                item.quantity       // Product Quantity (Optional)
+            ]);
+            
+            console.log('Matomo addEcommerceItem:', item.item_name, 'qty:', item.quantity);
+        });
+        
+        // Track the cart update with the total value
+        _paq.push(['trackEcommerceCartUpdate', ecommerceData.ecommerce.total]);
+        
+        console.log('Matomo trackEcommerceCartUpdate:', ecommerceData.ecommerce.total);
+    }
+</script>
+```
+
+**Note:** This configuration tracks both:
+- ✅ New items added to cart
+- ✅ Quantity increases (tracked as additional add-to-cart)
+
+---
+
+## 4️⃣ Purchase (Ecommerce Order) Configuration
+
+### K) Data Layer Variable
 - **Name:** `PurchaseInfo`
 - **Type:** Data Layer Variable
 - **Data Layer Variable Name:** `ecommerce.purchase`
 
-### G) Custom Event Trigger
+### L) Custom Event Trigger
 - **Name:** `Ecommerce Purchase`
 - **Trigger Type:** Custom Event
 - **Event Name:** `purchase`
 
-### H) Custom HTML Tag
+### M) Custom HTML Tag
 - **Name:** `Ecommerce - Order Tracking`
 - **Tag Type:** Custom HTML
-- **Trigger:** `Ecommerce Purchase` (from step G)
+- **Trigger:** `Ecommerce Purchase` (from step L)
 - **HTML Content:**
 
 ```html
@@ -401,9 +624,9 @@ revenue: orderData.total  // From backend/checkout calculation
 
 ---
 
-## 4️⃣ Publish Container
+## 5️⃣ Publish Container
 - Click **"Create Version"** in Matomo Tag Manager
-- Add description: "Added ecommerce product, category, and purchase tracking"
+- Add description: "Added ecommerce product, category, add-to-cart, and purchase tracking"
 - Click **"Publish"**
 
 ---
@@ -441,6 +664,31 @@ window._mtm
 ]
 ```
 
+**For Add to Cart:**
+Add a product to cart, then check:
+
+```javascript
+window._mtm
+
+// Should show add_to_cart event:
+[
+  { event: "mtm.Start", ... },
+  {
+    event: "add_to_cart",
+    ecommerce: {
+      items: [{
+        item_id: "123",
+        item_name: "Product Name",
+        item_category: "Electronics",
+        item_price: 99.99,
+        quantity: 2
+      }],
+      total: 199.98
+    }
+  }
+]
+```
+
 **For Purchase:**
 Complete an order and land on checkout success page:
 
@@ -472,7 +720,15 @@ window._mtm
    - Navigate to a product page (e.g., `/product/123`)
    - Check Preview panel for `view_item` and `view_item_list` events
    - Verify both tags fire
-3. **Test Purchase Tracking:**
+3. **Test Add to Cart Tracking:**
+   - From product page or search results, click "Add to Cart"
+   - Check Preview panel for `add_to_cart` event
+   - Verify `Ecommerce` data layer variable is populated
+   - Verify `Ecommerce - Add to Cart` tag fires
+   - Check console for `✅ Matomo: Add to Cart tracked` message
+   - **Test quantity increase:** Go to cart, increase quantity
+   - Check console for `✅ Matomo: Cart quantity increased (tracked as add_to_cart)`
+4. **Test Purchase Tracking:**
    - Complete a test order
    - **Important:** Use **Cash on Delivery (COD)** payment method for immediate tracking
    - Land on `/checkout/success?orderId=XXX`
@@ -480,7 +736,7 @@ window._mtm
    - Verify `PurchaseInfo` data layer variable is populated
    - Verify `Ecommerce - Order Tracking` tag fires
    - Check console for `✅ Matomo: Purchase tracked (CONFIRMED ORDER)` message
-4. **Test Mobile Payment Tracking:**
+5. **Test Mobile Payment Tracking:**
    - Complete a test order with Mobile Money payment
    - Land on success page - purchase should **NOT be tracked yet**
    - Wait for webhook/SSE to confirm payment
@@ -584,10 +840,14 @@ Purchase (purchase)
 - **Commit 2:** `08a5d32` - "feat: Add Matomo category view tracking on product pages"
 - **Commit 3:** `83d3cc8` - "docs: Update Matomo tracking docs with category view tracking"
 - **Commit 4:** `86449b1` - "feat: Add Matomo ecommerce purchase tracking on order success"
-- **Commit 5:** *(Next)* - "feat: Add payment confirmation validation to purchase tracking"
+- **Commit 5:** `faa6165` - "feat: Add payment confirmation validation to purchase tracking"
   - Only confirmed orders are tracked (COD immediate, mobile after webhook confirmation)
   - Added storage event listener for mobile payment SSE updates
   - Prevents revenue inflation from pending/failed/cancelled orders
+- **Commit 6:** *(Next)* - "feat: Add Matomo add-to-cart tracking in cart provider"
+  - Tracks all add-to-cart actions from any component
+  - Tracks quantity increases as additional add-to-cart events
+  - Complete coverage with single source of truth in cart provider
 - **Date:** February 3, 2026
 - **Branch:** `main`
 
@@ -596,17 +856,18 @@ Purchase (purchase)
 ## 🎯 Future Enhancements
 
 ### Future Ecommerce Events
-Once product and category tracking is working, you can add:
+Once current tracking is validated, you can add:
 
-- **`add_to_cart`** - When user adds product to cart
-- **`remove_from_cart`** - When user removes from cart
-- **`begin_checkout`** - When user starts checkout
-- **`purchase`** - When order is completed
+- ✅ **`add_to_cart`** - COMPLETED ✅
+- **`remove_from_cart`** - When user removes from cart or decreases quantity
+- **`begin_checkout`** - When user starts checkout process
+- **`view_cart`** - When user views their cart page
 
 ### Where to Add Future Events
-- **Add to Cart:** `/components/product-actions.tsx` (in cart button handler)
-- **Begin Checkout:** `/app/checkout/page.tsx` (on page load)
-- **Purchase:** `/app/checkout/page.tsx` (after successful order)
+- ✅ **Add to Cart:** `/providers/cart-provider.tsx` (COMPLETED - addItem & updateQuantity functions)
+- **Remove from Cart:** `/providers/cart-provider.tsx` (in removeItem function - track quantity decreases)
+- **Begin Checkout:** `/app/checkout/page.tsx` (on page load or initial render)
+- **View Cart:** `/app/cart/page.tsx` (on page load)
 
 ---
 
