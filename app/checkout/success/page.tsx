@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
@@ -77,6 +77,9 @@ function CheckoutSuccessContent() {
   const [orderData, setOrderData] = useState<OrderData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Track which orders have been tracked in Matomo (prevent duplicate tracking)
+  const trackedOrders = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     // Try to get order data from URL params or localStorage
@@ -91,6 +94,50 @@ function CheckoutSuccessContent() {
           const parsedOrder = JSON.parse(storedOrder)
           setOrderData(parsedOrder)
 
+          // Track purchase in Matomo (with deduplication)
+          if (
+            typeof window !== 'undefined' &&
+            window._mtm &&
+            parsedOrder &&
+            !trackedOrders.current.has(parsedOrder.id)
+          ) {
+            try {
+              // Calculate order subtotal (sum of all items)
+              const orderSubTotal = parsedOrder.items.reduce(
+                (sum: number, item: { price: number; quantity: number }) =>
+                  sum + item.price * item.quantity,
+                0
+              )
+
+              // Track purchase event
+              window._mtm.push({
+                event: 'purchase',
+                ecommerce: {
+                  purchase: {
+                    id: parsedOrder.id,
+                    revenue: parsedOrder.total,
+                    orderSubTotal: orderSubTotal,
+                    tax: 0, // Add if you track tax
+                    shipping: 0, // Add if you track shipping cost separately
+                    discount: 0, // Add if you track discounts
+                  },
+                },
+              })
+
+              // Mark order as tracked
+              trackedOrders.current.add(parsedOrder.id)
+
+              console.log('📊 Matomo: Purchase tracked', {
+                orderId: parsedOrder.id,
+                revenue: parsedOrder.total,
+                currency: parsedOrder.currency,
+                items: parsedOrder.items.length,
+              })
+            } catch (matomoErr) {
+              console.warn('⚠️ Failed to track purchase in Matomo:', matomoErr)
+            }
+          }
+
           // Clear cart after successfully loading order data
           const shouldClearCart = localStorage.getItem('clearCartAfterOrder')
           if (shouldClearCart === 'true') {
@@ -104,7 +151,48 @@ function CheckoutSuccessContent() {
           if (lastOrderId === orderId) {
             const lastOrder = localStorage.getItem(`order_${lastOrderId}`)
             if (lastOrder) {
-              setOrderData(JSON.parse(lastOrder))
+              const parsedOrder = JSON.parse(lastOrder)
+              setOrderData(parsedOrder)
+
+              // Track purchase in Matomo (same logic as above)
+              if (
+                typeof window !== 'undefined' &&
+                window._mtm &&
+                parsedOrder &&
+                !trackedOrders.current.has(parsedOrder.id)
+              ) {
+                try {
+                  const orderSubTotal = parsedOrder.items.reduce(
+                    (sum: number, item: { price: number; quantity: number }) =>
+                      sum + item.price * item.quantity,
+                    0
+                  )
+
+                  window._mtm.push({
+                    event: 'purchase',
+                    ecommerce: {
+                      purchase: {
+                        id: parsedOrder.id,
+                        revenue: parsedOrder.total,
+                        orderSubTotal: orderSubTotal,
+                        tax: 0,
+                        shipping: 0,
+                        discount: 0,
+                      },
+                    },
+                  })
+
+                  trackedOrders.current.add(parsedOrder.id)
+
+                  console.log('📊 Matomo: Purchase tracked (fallback)', {
+                    orderId: parsedOrder.id,
+                    revenue: parsedOrder.total,
+                  })
+                } catch (matomoErr) {
+                  console.warn('⚠️ Failed to track purchase in Matomo:', matomoErr)
+                }
+              }
+
               // Clear cart for fallback case too
               const shouldClearCart = localStorage.getItem('clearCartAfterOrder')
               if (shouldClearCart === 'true') {
