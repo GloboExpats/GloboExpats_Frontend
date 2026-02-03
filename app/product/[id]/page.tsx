@@ -150,6 +150,47 @@ export default function ProductPage() {
           const price = parseNumericPrice(productData.productPrice as string) || 0
           trackProductView(productId, productName, categoryName, price)
 
+          // Track product view in Matomo
+          if (typeof window !== 'undefined' && window._mtm) {
+            try {
+              const categoryName = productData.categoryName || transformedProduct.category
+
+              // Track product view
+              window._mtm.push({
+                event: 'view_item',
+                ecommerce: {
+                  items: [
+                    {
+                      item_id: String(productData.productId || productData.id),
+                      item_name: productData.productName || transformedProduct.title,
+                      item_category: categoryName || 'Uncategorized',
+                      price: parseNumericPrice(transformedProduct.price),
+                    },
+                  ],
+                },
+              })
+
+              // Track category view (interest in product category)
+              if (categoryName && categoryName !== 'Uncategorized') {
+                window._mtm.push({
+                  event: 'view_item_list',
+                  ecommerce: {
+                    item_list_name: categoryName,
+                  },
+                })
+                console.log('📊 Matomo: Category view tracked', categoryName)
+              }
+
+              console.log('📊 Matomo: Product view tracked', {
+                id: productData.productId || productData.id,
+                name: productData.productName || transformedProduct.title,
+                category: categoryName,
+              })
+            } catch (err) {
+              console.warn('⚠️ Failed to track in Matomo:', err)
+            }
+          }
+
           // Store the seller ID from the product - this is used for the View Profile link
           const productSellerId = productData.sellerId as number | undefined
           if (productSellerId) {
