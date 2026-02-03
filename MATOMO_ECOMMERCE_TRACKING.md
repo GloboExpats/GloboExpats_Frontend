@@ -5,9 +5,20 @@
 ### What Was Implemented
 1. **Product View Tracking** - Tracks when users view product detail pages
 2. **Category View Tracking** - Tracks product category interest based on product views
-3. **Purchase Tracking** - Tracks completed orders on the checkout success page
+3. **Purchase Tracking** - Tracks completed orders on the checkout success page with **payment confirmation validation**
 
 All tracking events are implemented in their respective pages with proper deduplication and error handling.
+
+### 🎯 Revenue Tracking Accuracy
+**ONLY CONFIRMED ORDERS ARE TRACKED** to ensure accurate revenue reporting:
+- ✅ **COD orders:** Tracked immediately (confirmed on creation)
+- ✅ **Mobile Money orders:** Tracked ONLY after webhook confirms payment
+- ✅ **Meetup orders:** Tracked ONLY after manual confirmation
+- ❌ **Failed payments:** Never tracked
+- ❌ **Pending payments:** Not tracked (prevents revenue inflation)
+- ❌ **Cancelled orders:** Not tracked
+
+This prevents your Matomo revenue reports from being inflated with unconfirmed, failed, or cancelled transactions.
 
 ---
 
@@ -78,10 +89,22 @@ Instead of tracking category filter selections in browse pages, we track the **a
 
 ### Code Location
 **File:** `/app/checkout/success/page.tsx`  
-**Line:** ~95-170 (inside `useEffect` that loads order data from localStorage)
+**Line:** ~95-295 (inside multiple useEffects for order loading and SSE updates)
+
+### ⚠️ IMPORTANT: Only Confirmed Orders Are Tracked
+The implementation includes **payment confirmation validation** to ensure only completed purchases are tracked. This prevents inflating revenue reports with pending, failed, or cancelled orders.
+
+### Payment Method Logic
+Different payment methods have different confirmation flows:
+
+| Payment Method | Initial Status | Tracked When | Timing |
+|---------------|----------------|--------------|--------|
+| **Cash on Delivery (COD)** | `status: 'confirmed'` | Immediately | On success page load |
+| **Mobile Money (M-Pesa/Airtel)** | `status: 'pending_payment'` | After payment confirmed | When SSE updates status |
+| **Meet in Person** | `status: 'awaiting_meetup'` | After meetup confirmed | When status manually updated |
 
 ### What Gets Tracked
-When a user successfully completes an order and lands on the success page:
+When an order is **confirmed**, the following data is pushed to Matomo:
 
 ```typescript
 {
@@ -91,13 +114,57 @@ When a user successfully completes an order and lands on the success page:
       id: "ORD-1738619234-456",        // Unique order ID
       revenue: 45000,                  // Total revenue (grand total)
       orderSubTotal: 45000,            // Order subtotal (before tax/shipping)
-      tax: 0,                          // Tax amount
-      shipping: 0,                     // Shipping cost
-      discount: 0                      // Discount applied
+      tax: 0,                          // Tax amount (not implemented yet)
+      shipping: 0,                     // Shipping cost (included in total)
+      discount: 0                      // Discount applied (not implemented yet)
     }
   }
 }
 ```
+
+### Tracking Validation Logic
+```typescript
+// Only track if order is CONFIRMED
+const isOrderConfirmed = 
+  parsedOrder.status === 'confirmed' ||
+  parsedOrder.mobilePayment?.status === 'COMPLETED' ||
+  parsedOrder.paymentStatus?.toLowerCase().includes('completed')
+
+if (isOrderConfirmed && !trackedOrders.current.has(parsedOrder.id)) {
+  // Track purchase in Matomo
+}
+```
+
+### How It Works
+
+#### 1. **COD Orders** ✅
+- Order created with `status: 'confirmed'`
+- User redirected to success page
+- Purchase tracked immediately on page load
+- ✅ **Result:** Accurate - payment happens on delivery
+
+#### 2. **Mobile Money Orders** ⏳→✅
+- Order created with `status: 'pending_payment'`
+- User redirected to success page
+- Purchase **NOT tracked yet** (payment pending)
+- Webhook → SSE updates localStorage when payment completes
+- Storage event listener detects status change
+- Purchase tracked when `status: 'confirmed'` or `mobilePayment.status: 'COMPLETED'`
+- ✅ **Result:** Accurate - only confirmed payments tracked
+
+#### 3. **Meet in Person Orders** ⏳→✅
+- Order created with `status: 'awaiting_meetup'`
+- User redirected to success page
+- Purchase **NOT tracked yet** (meetup not happened)
+- When meetup happens and order is manually confirmed
+- Purchase tracked when `status: 'confirmed'`
+- ✅ **Result:** Accurate - only completed meetups tracked
+
+### Deduplication
+Uses `useRef<Set<string>>` to track which orders have been sent to Matomo:
+- ✅ Prevents duplicate tracking if user refreshes success page
+- ✅ Prevents duplicate tracking when SSE updates localStorage
+- ✅ Works across page refreshes (tracked IDs persist in component lifecycle)
 
 ### Fields Tracked
 ✅ **id** - Unique order ID (string)  
@@ -406,20 +473,54 @@ window._mtm
    - Check Preview panel for `view_item` and `view_item_list` events
    - Verify both tags fire
 3. **Test Purchase Tracking:**
-   - Complete a test order (use COD for easy testing)
+   - Complete a test order
+   - **Important:** Use **Cash on Delivery (COD)** payment method for immediate tracking
    - Land on `/checkout/success?orderId=XXX`
-   - Check Preview panel for `purchase` event
+   - Check Preview panel for `purchase` event immediately
    - Verify `PurchaseInfo` data layer variable is populated
    - Verify `Ecommerce - Order Tracking` tag fires
-   - Check console for `trackEcommerceOrder` call
+   - Check console for `✅ Matomo: Purchase tracked (CONFIRMED ORDER)` message
+4. **Test Mobile Payment Tracking:**
+   - Complete a test order with Mobile Money payment
+   - Land on success page - purchase should **NOT be tracked yet**
+   - Wait for webhook/SSE to confirm payment
+   - When payment confirms, check console for `✅ Matomo: Purchase tracked (Payment CONFIRMED via SSE)`
 
-### 3. Test Deduplication (Purchase Only)
-1. Complete an order and land on success page
-2. **Refresh the success page**
-3. Check console - should see `📊 Matomo: Purchase tracked` only ONCE
-4. Verify `trackedOrders` prevents duplicate tracking
+### 3. Test Payment Confirmation Logic
+**COD Orders (Immediate Tracking):**
+1. Complete order with COD payment
+2. Check console immediately: Should see `✅ Matomo: Purchase tracked (CONFIRMED ORDER)`
+3. Verify order status in localStorage: `status: 'confirmed'`
 
-### 4. Test in Matomo Reports
+**Mobile Money Orders (Delayed Tracking):**
+1. Complete order with M-Pesa/Airtel Money
+2. Check console immediately: Should **NOT** see purchase tracking yet
+3. Verify order status: `status: 'pending_payment'`
+4. Wait for payment webhook to fire (SSE updates localStorage)
+5. Check console: Should see `✅ Matomo: Purchase tracked (Payment CONFIRMED via SSE)`
+6. Verify order status updated: `status: 'confirmed'` or `mobilePayment.status: 'COMPLETED'`
+
+**Meetup Orders (No Tracking Until Confirmed):**
+1. Complete order with "Meet in Person" payment
+2. Check console: Should **NOT** see purchase tracking
+3. Verify order status: `status: 'awaiting_meetup'`
+4. Order will be tracked only when manually confirmed to `status: 'confirmed'`
+
+### 4. Test Deduplication
+1. Complete an order (COD for easy testing) and land on success page
+2. Verify console shows `✅ Matomo: Purchase tracked (CONFIRMED ORDER)` once
+3. **Refresh the success page**
+4. Check console - should **NOT** see tracking message again
+5. Verify deduplication: `trackedOrders` ref prevents duplicate tracking
+
+### 5. Test Failed/Cancelled Payments (Should NOT Track)
+1. Complete mobile payment order
+2. Simulate failed payment (backend webhook sends `status: 'FAILED'`)
+3. Verify purchase is **NOT tracked** in Matomo
+4. Confirm no `purchase` event in console
+5. ✅ **Result:** Failed payments don't inflate revenue reports
+
+### 6. Test in Matomo Reports
 After publishing and waiting ~24 hours:
 
 **Product Views:**
@@ -483,6 +584,10 @@ Purchase (purchase)
 - **Commit 2:** `08a5d32` - "feat: Add Matomo category view tracking on product pages"
 - **Commit 3:** `83d3cc8` - "docs: Update Matomo tracking docs with category view tracking"
 - **Commit 4:** `86449b1` - "feat: Add Matomo ecommerce purchase tracking on order success"
+- **Commit 5:** *(Next)* - "feat: Add payment confirmation validation to purchase tracking"
+  - Only confirmed orders are tracked (COD immediate, mobile after webhook confirmation)
+  - Added storage event listener for mobile payment SSE updates
+  - Prevents revenue inflation from pending/failed/cancelled orders
 - **Date:** February 3, 2026
 - **Branch:** `main`
 

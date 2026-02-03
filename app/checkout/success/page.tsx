@@ -94,11 +94,21 @@ function CheckoutSuccessContent() {
           const parsedOrder = JSON.parse(storedOrder)
           setOrderData(parsedOrder)
 
-          // Track purchase in Matomo (with deduplication)
+          // ✅ ONLY track purchase in Matomo if order is CONFIRMED
+          // This ensures we only track:
+          // - COD orders (immediately confirmed)
+          // - Mobile Money orders (after SSE confirms payment)
+          // - Meetup orders (after manual confirmation)
+          const isOrderConfirmed = 
+            parsedOrder.status === 'confirmed' ||
+            parsedOrder.mobilePayment?.status === 'COMPLETED' ||
+            parsedOrder.paymentStatus?.toLowerCase().includes('completed')
+
           if (
             typeof window !== 'undefined' &&
             window._mtm &&
             parsedOrder &&
+            isOrderConfirmed &&
             !trackedOrders.current.has(parsedOrder.id)
           ) {
             try {
@@ -127,7 +137,7 @@ function CheckoutSuccessContent() {
               // Mark order as tracked
               trackedOrders.current.add(parsedOrder.id)
 
-              console.log('📊 Matomo: Purchase tracked', {
+              console.log('✅ Matomo: Purchase tracked (CONFIRMED ORDER)', {
                 orderId: parsedOrder.id,
                 revenue: parsedOrder.total,
                 currency: parsedOrder.currency,
@@ -154,11 +164,17 @@ function CheckoutSuccessContent() {
               const parsedOrder = JSON.parse(lastOrder)
               setOrderData(parsedOrder)
 
-              // Track purchase in Matomo (same logic as above)
+              // ✅ ONLY track purchase in Matomo if order is CONFIRMED (fallback path)
+              const isOrderConfirmed = 
+                parsedOrder.status === 'confirmed' ||
+                parsedOrder.mobilePayment?.status === 'COMPLETED' ||
+                parsedOrder.paymentStatus?.toLowerCase().includes('completed')
+
               if (
                 typeof window !== 'undefined' &&
                 window._mtm &&
                 parsedOrder &&
+                isOrderConfirmed &&
                 !trackedOrders.current.has(parsedOrder.id)
               ) {
                 try {
@@ -184,7 +200,7 @@ function CheckoutSuccessContent() {
 
                   trackedOrders.current.add(parsedOrder.id)
 
-                  console.log('📊 Matomo: Purchase tracked (fallback)', {
+                  console.log('✅ Matomo: Purchase tracked (CONFIRMED ORDER - fallback)', {
                     orderId: parsedOrder.id,
                     revenue: parsedOrder.total,
                   })
@@ -217,6 +233,76 @@ function CheckoutSuccessContent() {
       setIsLoading(false)
     }
   }, [searchParams, clearCart])
+
+  // Listen for localStorage changes (when mobile payment gets confirmed via SSE)
+  useEffect(() => {
+    const orderId = searchParams.get('orderId')
+    if (!orderId) return
+
+    const handleStorageChange = (e: StorageEvent) => {
+      // Check if the order we're viewing was updated
+      if (e.key === `order_${orderId}` && e.newValue) {
+        try {
+          const updatedOrder = JSON.parse(e.newValue)
+          
+          // Update the displayed order data
+          setOrderData(updatedOrder)
+
+          // Check if order was just confirmed and hasn't been tracked yet
+          const isOrderConfirmed = 
+            updatedOrder.status === 'confirmed' ||
+            updatedOrder.mobilePayment?.status === 'COMPLETED' ||
+            updatedOrder.paymentStatus?.toLowerCase().includes('completed')
+
+          if (
+            typeof window !== 'undefined' &&
+            window._mtm &&
+            isOrderConfirmed &&
+            !trackedOrders.current.has(updatedOrder.id)
+          ) {
+            // Calculate order subtotal
+            const orderSubTotal = updatedOrder.items.reduce(
+              (sum: number, item: { price: number; quantity: number }) =>
+                sum + item.price * item.quantity,
+              0
+            )
+
+            // Track purchase now that payment is confirmed
+            window._mtm.push({
+              event: 'purchase',
+              ecommerce: {
+                purchase: {
+                  id: updatedOrder.id,
+                  revenue: updatedOrder.total,
+                  orderSubTotal: orderSubTotal,
+                  tax: 0,
+                  shipping: 0,
+                  discount: 0,
+                },
+              },
+            })
+
+            trackedOrders.current.add(updatedOrder.id)
+
+            console.log('✅ Matomo: Purchase tracked (Payment CONFIRMED via SSE)', {
+              orderId: updatedOrder.id,
+              revenue: updatedOrder.total,
+              paymentMethod: updatedOrder.paymentMethod,
+            })
+          }
+        } catch (err) {
+          console.error('Failed to parse updated order:', err)
+        }
+      }
+    }
+
+    // Listen for storage events (fired when localStorage changes in checkout page)
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [searchParams])
 
   const copyOrderNumber = () => {
     if (orderData?.id) {
