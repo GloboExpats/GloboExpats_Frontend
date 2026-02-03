@@ -142,6 +142,31 @@ export default function ProductPage() {
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
 
+          // Track product view in Matomo
+          if (typeof window !== 'undefined' && window._mtm) {
+            try {
+              window._mtm.push({
+                event: 'view_item',
+                ecommerce: {
+                  items: [
+                    {
+                      item_id: String(productData.productId || productData.id),
+                      item_name: productData.productName || transformedProduct.title,
+                      item_category: productData.categoryName || transformedProduct.category || 'Uncategorized',
+                      price: parseNumericPrice(transformedProduct.price),
+                    },
+                  ],
+                },
+              })
+              console.log('📊 Matomo: Product view tracked', {
+                id: productData.productId || productData.id,
+                name: productData.productName || transformedProduct.title,
+              })
+            } catch (err) {
+              console.warn('⚠️ Failed to track product view in Matomo:', err)
+            }
+          }
+
           // Store the seller ID from the product - this is used for the View Profile link
           const productSellerId = productData.sellerId as number | undefined
           if (productSellerId) {
