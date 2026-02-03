@@ -145,6 +145,9 @@ export default function ProductPage() {
           // Track product view in Matomo
           if (typeof window !== 'undefined' && window._mtm) {
             try {
+              const categoryName = productData.categoryName || transformedProduct.category
+
+              // Track product view
               window._mtm.push({
                 event: 'view_item',
                 ecommerce: {
@@ -152,18 +155,31 @@ export default function ProductPage() {
                     {
                       item_id: String(productData.productId || productData.id),
                       item_name: productData.productName || transformedProduct.title,
-                      item_category: productData.categoryName || transformedProduct.category || 'Uncategorized',
+                      item_category: categoryName || 'Uncategorized',
                       price: parseNumericPrice(transformedProduct.price),
                     },
                   ],
                 },
               })
+
+              // Track category view (interest in product category)
+              if (categoryName && categoryName !== 'Uncategorized') {
+                window._mtm.push({
+                  event: 'view_item_list',
+                  ecommerce: {
+                    item_list_name: categoryName,
+                  },
+                })
+                console.log('📊 Matomo: Category view tracked', categoryName)
+              }
+
               console.log('📊 Matomo: Product view tracked', {
                 id: productData.productId || productData.id,
                 name: productData.productName || transformedProduct.title,
+                category: categoryName,
               })
             } catch (err) {
-              console.warn('⚠️ Failed to track product view in Matomo:', err)
+              console.warn('⚠️ Failed to track in Matomo:', err)
             }
           }
 
