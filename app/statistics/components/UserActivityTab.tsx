@@ -74,8 +74,17 @@ export default function UserActivityTab({ period, date }: UserActivityTabProps) 
   const [refreshKey, setRefreshKey] = useState(0)
 
   // Fetch users list
-  const { data: usersData, loading: loadingUsers } = useMatomo({
+  const { data: usersData, loading: loadingUsers, error: usersError } = useMatomo({
     method: 'UserId.getUsers',
+    period,
+    date,
+    filter_limit: '100',
+    _key: refreshKey,
+  })
+
+  // Fetch all recent visits (fallback if UserId plugin not available)
+  const { data: allVisits, loading: loadingAllVisits } = useMatomo({
+    method: 'Live.getLastVisitsDetails',
     period,
     date,
     filter_limit: '100',
@@ -92,10 +101,34 @@ export default function UserActivityTab({ period, date }: UserActivityTabProps) 
     _key: refreshKey,
   })
 
+  // Extract unique users from visits if UserId.getUsers fails or returns empty
   const users = useMemo(() => {
-    if (!usersData) return []
-    return Array.isArray(usersData) ? (usersData as UserData[]) : []
-  }, [usersData])
+    // First try the UserId API result
+    if (usersData && Array.isArray(usersData) && usersData.length > 0) {
+      return usersData as UserData[]
+    }
+    
+    // Fallback: extract unique userIds from visit data
+    if (allVisits && Array.isArray(allVisits)) {
+      const userMap = new Map<string, UserData>()
+      allVisits.forEach((visit: VisitDetail) => {
+        if (visit.userId && !userMap.has(visit.userId)) {
+          userMap.set(visit.userId, {
+            label: visit.userId,
+            nb_visits: 1,
+            nb_actions: visit.actions || 0,
+          })
+        } else if (visit.userId && userMap.has(visit.userId)) {
+          const existing = userMap.get(visit.userId)!
+          existing.nb_visits = (existing.nb_visits || 0) + 1
+          existing.nb_actions = (existing.nb_actions || 0) + (visit.actions || 0)
+        }
+      })
+      return Array.from(userMap.values())
+    }
+    
+    return []
+  }, [usersData, allVisits])
 
   const visits = useMemo(() => {
     if (!userVisits || !selectedUser) return []
@@ -142,10 +175,10 @@ export default function UserActivityTab({ period, date }: UserActivityTabProps) 
           </div>
           <button
             onClick={handleRefresh}
-            disabled={loadingUsers}
+            disabled={loadingUsers || loadingAllVisits}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 shadow-sm"
           >
-            <RefreshCw className={`h-4 w-4 ${loadingUsers ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${(loadingUsers || loadingAllVisits) ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -164,7 +197,7 @@ export default function UserActivityTab({ period, date }: UserActivityTabProps) 
 
         {/* Users List */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          {loadingUsers ? (
+          {(loadingUsers && loadingAllVisits) ? (
             <div className="p-8 text-center">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-4">
                 <RefreshCw className="h-6 w-6 text-slate-400 animate-spin" />
@@ -177,10 +210,10 @@ export default function UserActivityTab({ period, date }: UserActivityTabProps) 
                 <User className="h-6 w-6 text-slate-400" />
               </div>
               <p className="text-sm font-medium text-slate-900">No users found</p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                 {searchTerm
                   ? 'Try a different search term'
-                  : 'No users with User ID have been tracked yet'}
+                  : 'No users with User ID have been tracked yet. Make sure user tracking is configured with _paq.push([\'setUserId\', userId]) in your Matomo setup.'}
               </p>
             </div>
           ) : (

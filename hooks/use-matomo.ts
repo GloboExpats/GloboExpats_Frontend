@@ -80,9 +80,16 @@ export function useMatomo(options: UseMatomoAnalyticsOptions = {}) {
         setData(null)
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      const errorMessage = err instanceof Error ? err.message : String(err || 'Unknown error')
       setError(errorMessage)
-      console.error('[useMatomo] Error:', { method, error: err })
+      console.error('[useMatomo] Error:', { 
+        method, 
+        period,
+        date,
+        error: err,
+        errorType: typeof err,
+        errorString: String(err)
+      })
     } finally {
       setLoading(false)
     }

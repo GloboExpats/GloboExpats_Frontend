@@ -15,6 +15,7 @@ const PUBLIC_ROUTES = [
   '/browse',
   '/about',
   '/statistics', // Matomo analytics - completely independent
+  '/insights', // Business intelligence dashboard
 ]
 
 export function middleware(request: NextRequest) {
@@ -31,7 +32,8 @@ export function middleware(request: NextRequest) {
   // Check if route is public or matches public patterns
   if (
     PUBLIC_ROUTES.includes(pathname) ||
-    pathname.startsWith('/product/') // Allow product detail pages
+    pathname.startsWith('/product/') || // Allow product detail pages
+    pathname.startsWith('/insights') // Allow all insights routes
   ) {
     return NextResponse.next()
   }

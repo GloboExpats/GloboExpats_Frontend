@@ -17,6 +17,9 @@ interface MiniChartProps {
   color?: string
 }
 
+// Deterministic skeleton heights to avoid hydration mismatch
+const SKELETON_HEIGHTS = [65, 45, 80, 55, 70, 40, 75]
+
 export function BarChart({
   data,
   title,
@@ -33,11 +36,11 @@ export function BarChart({
 
       {loading ? (
         <div className="flex items-end justify-between gap-2" style={{ height }}>
-          {Array.from({ length: 7 }).map((_, i) => (
+          {SKELETON_HEIGHTS.map((h, i) => (
             <div
               key={i}
               className="flex-1 bg-slate-200 rounded-t animate-pulse"
-              style={{ height: `${30 + Math.random() * 70}%` }}
+              style={{ height: `${h}%` }}
             />
           ))}
         </div>

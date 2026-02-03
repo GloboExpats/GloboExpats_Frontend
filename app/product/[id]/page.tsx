@@ -32,6 +32,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { canUserContact } from '@/lib/verification-utils'
 import { toast } from '@/components/ui/use-toast'
 import { CountryFlag, getCountryCodeFromLabel } from '@/components/country-flag'
+import { trackProductView } from '@/components/matomo-tag-manager'
 
 export default function ProductPage() {
   const params = useParams()
@@ -141,6 +142,13 @@ export default function ProductPage() {
           setRawProductData(productData)
           const transformedProduct = transformToFeaturedItem(productData)
           setProduct(transformedProduct)
+
+          // Track product view in Matomo
+          const productId = (productData.productId || productData.id) as number
+          const productName = productData.productName as string
+          const categoryName = productData.category as string
+          const price = parseNumericPrice(productData.productPrice as string) || 0
+          trackProductView(productId, productName, categoryName, price)
 
           // Store the seller ID from the product - this is used for the View Profile link
           const productSellerId = productData.sellerId as number | undefined

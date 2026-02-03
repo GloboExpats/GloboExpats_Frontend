@@ -5,11 +5,14 @@ const MATOMO_URL = process.env.NEXT_PUBLIC_MATOMO_URL || 'https://matomo.globoex
 const MATOMO_TOKEN = process.env.MATOMO_TOKEN // This is a secret, never expose to frontend
 const MATOMO_SITE_ID = process.env.MATOMO_SITE_ID || '1' // Your site ID
 
+// Parameters that should NOT be passed through to Matomo API
+const EXCLUDED_PARAMS = ['_key']
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
 
-    // Get parameters from query string
+    // Get core parameters with defaults
     const method = searchParams.get('method') || 'VisitsSummary.get'
     const period = searchParams.get('period') || 'day'
     const date = searchParams.get('date') || 'today'
@@ -30,6 +33,15 @@ export async function GET(request: NextRequest) {
     apiUrl.searchParams.append('period', period)
     apiUrl.searchParams.append('date', date)
     apiUrl.searchParams.append('format', 'JSON')
+
+    // Pass through all other query parameters (for segments, filters, etc.)
+    searchParams.forEach((value, key) => {
+      // Skip params already added or excluded
+      if (['method', 'period', 'date', 'idSite', 'format', 'module'].includes(key)) return
+      if (EXCLUDED_PARAMS.includes(key)) return
+      // Add the parameter
+      apiUrl.searchParams.append(key, value)
+    })
 
     if (MATOMO_TOKEN) {
       apiUrl.searchParams.append('token_auth', MATOMO_TOKEN)

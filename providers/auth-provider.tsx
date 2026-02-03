@@ -64,6 +64,7 @@ import {
   setItemImmediate,
   flushPendingWrites,
 } from '@/lib/storage-utils'
+import { setMatomoUserId } from '@/components/matomo-tag-manager'
 
 /**
  * =============================================================================
@@ -180,6 +181,11 @@ const pushToMatomo = (data: Record<string, unknown>, retries = 10): void => {
   if (window._mtm && typeof window._mtm.push === 'function') {
     window._mtm.push(data)
     console.log('[Matomo] Pushed:', data)
+    
+    // Also set userId via the proper Matomo API for analytics tracking
+    if (data.userId !== undefined) {
+      setMatomoUserId(data.userId as string | undefined)
+    }
   } else if (retries > 0) {
     // Matomo not ready yet, retry after 100ms
     setTimeout(() => pushToMatomo(data, retries - 1), 100)

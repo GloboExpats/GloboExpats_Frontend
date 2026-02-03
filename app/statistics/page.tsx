@@ -14,6 +14,7 @@ import {
   AlertCircle,
   BarChart3,
   UserCircle,
+  Package,
 } from 'lucide-react'
 
 import OverviewTab from './components/OverviewTab'
@@ -22,6 +23,7 @@ import TechnologyTab from './components/TechnologyTab'
 import ContentTabComponent from './components/ContentTabComponent'
 import RealtimeTab from './components/RealtimeTab'
 import UserActivityTab from './components/UserActivityTab'
+import ProductAnalyticsTab from './components/ProductAnalyticsTab'
 
 // Utility to normalize Matomo data - handles both flat arrays and date-keyed objects
 function normalizeData(data: any): any[] {
@@ -443,7 +445,7 @@ export default function StatisticsPage() {
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-1.5">
-            <TabsList className="grid w-full grid-cols-6 gap-1 bg-transparent">
+            <TabsList className="grid w-full grid-cols-7 gap-1 bg-transparent">
               <TabsTrigger
                 value="overview"
                 className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-500/30 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -457,6 +459,13 @@ export default function StatisticsPage() {
               >
                 <UserCircle className="h-4 w-4" />
                 <span className="hidden sm:inline">Users</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="products"
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/30 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              >
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">Products</span>
               </TabsTrigger>
               <TabsTrigger
                 value="audience"
@@ -504,6 +513,10 @@ export default function StatisticsPage() {
 
           <TabsContent value="users" className="mt-6">
             <UserActivityTab period={period} date={matomoDate} />
+          </TabsContent>
+
+          <TabsContent value="products" className="mt-6">
+            <ProductAnalyticsTab period={period} date={matomoDate} />
           </TabsContent>
 
           <TabsContent value="audience" className="mt-6">
