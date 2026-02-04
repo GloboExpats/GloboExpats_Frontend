@@ -1,4 +1,4 @@
-import type React from 'react'
+import React, { Suspense } from 'react'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Lexend } from 'next/font/google'
 import './globals.css'
@@ -141,7 +141,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
               <TutorialProvider>
                 <ScrollToTop />
                 <ErrorBoundary level="page" name="Application">
-                  <MatomoTagManager />
+                  <Suspense fallback={null}>
+                    <MatomoTagManager />
+                  </Suspense>
                   <LayoutContent>{children}</LayoutContent>
                   <Toaster />
                   <PlatformTutorial />

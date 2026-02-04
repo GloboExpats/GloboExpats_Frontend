@@ -393,6 +393,12 @@ class ApiClient {
         }
         apiError.statusCode = response.status
         apiError.isAuthError = response.status === 401 || response.status === 403
+
+        // Dispatch expiry event so AuthProvider can sync UI state immediately
+        if (apiError.isAuthError && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('authTokenExpired'))
+        }
+
         apiError.isGatewayError =
           response.status === 502 || response.status === 503 || response.status === 504
         apiError.isVerificationError =
@@ -1173,6 +1179,8 @@ class ApiClient {
     whatsAppPhoneNumber?: string
     organization: string
     location: string
+    street?: string
+    zipCode?: string
     country?: string
     region?: string
     profileImageUrl?: string
@@ -1343,6 +1351,8 @@ class ApiClient {
       aboutMe?: string
       organization?: string
       position?: string
+      street?: string
+      zipCode?: string
     },
     profileImage?: File
   ): Promise<ApiResponse<unknown>> {
@@ -1867,6 +1877,8 @@ export const api = {
         aboutMe?: string
         organization?: string
         position?: string
+        street?: string
+        zipCode?: string
       },
       profileImage?: File
     ) => apiClient.editProfile(data, profileImage),

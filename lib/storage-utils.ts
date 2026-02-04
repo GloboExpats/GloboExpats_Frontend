@@ -43,7 +43,9 @@ export function setItemDebounced(key: string, value: unknown, delay: number = 30
   // Set new debounced timer
   const timer = setTimeout(() => {
     try {
-      localStorage.setItem(key, JSON.stringify(value))
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(value))
+      }
       debounceTimers.delete(key)
     } catch (error) {
       console.error(`Failed to write to localStorage (key: ${key}):`, error)
@@ -61,6 +63,8 @@ export function setItemDebounced(key: string, value: unknown, delay: number = 30
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getItem<T = any>(key: string): T | null {
+  if (typeof window === 'undefined') return null
+
   try {
     // Check memory cache first
     const cached = memoryCache.get(key)
@@ -102,7 +106,9 @@ export function removeItem(key: string): void {
     memoryCache.delete(key)
 
     // Remove from localStorage
-    localStorage.removeItem(key)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(key)
+    }
   } catch (error) {
     console.error(`Failed to remove from localStorage (key: ${key}):`, error)
   }
@@ -119,7 +125,9 @@ export function flushPendingWrites(): void {
     const cached = memoryCache.get(key)
     if (cached) {
       try {
-        localStorage.setItem(key, JSON.stringify(cached.value))
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(key, JSON.stringify(cached.value))
+        }
       } catch (error) {
         console.error(`Failed to flush write for key ${key}:`, error)
       }
@@ -145,7 +153,9 @@ export function clearCache(): void {
  */
 export function setItemImmediate(key: string, value: unknown): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value))
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(value))
+    }
     memoryCache.set(key, { value, timestamp: Date.now() })
   } catch (error) {
     console.error(`Failed to write immediately to localStorage (key: ${key}):`, error)

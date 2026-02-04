@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User as UserIcon, Shield, Eye, EyeOff, Save, Camera, Edit, Building } from 'lucide-react'
+import { User as UserIcon, Shield, Eye, EyeOff, Save, Camera, Edit, Building, Check, ChevronRight, Globe, Lock, Mail, MapPin, Phone, X, Loader2 } from 'lucide-react'
+import { OrganizationSelect } from '@/components/ui/organization-select'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -55,9 +56,10 @@ export default function AccountSettings() {
     phone: '',
     location: '',
     bio: '',
-    website: '',
     organization: '',
     position: '',
+    street: '',
+    zipCode: '',
   })
 
   // Initialize profile data from userProfile
@@ -85,9 +87,10 @@ export default function AccountSettings() {
         phone: userProfile.phoneNumber || userProfile.whatsAppPhoneNumber || '',
         location: location,
         bio: userProfile.aboutMe || '',
-        website: '', // Not in User type, keeping as empty for now
         organization: userProfile.organization || '',
         position: userProfile.position || '',
+        street: userProfile.street || '',
+        zipCode: userProfile.zipCode || '',
       })
     }
   }, [userProfile, profileLoading])
@@ -158,12 +161,12 @@ export default function AccountSettings() {
         aboutMe: profileData.bio,
         organization: profileData.organization,
         position: profileData.position,
+        street: profileData.street,
+        zipCode: profileData.zipCode,
       }
 
-      // Only include email if it has actually changed
-      if (userProfile?.email && profileData.email !== userProfile.email) {
-        updates.email = profileData.email
-      }
+      // Note: We've made the email field read-only in the UI and excluded from updates
+      // to avoid backend validation errors (duplicate email checks)
 
       await updateProfile(updates, profileImageFile || undefined)
 
@@ -225,9 +228,10 @@ export default function AccountSettings() {
         phone: userProfile.phoneNumber || userProfile.whatsAppPhoneNumber || '',
         location: location,
         bio: userProfile.aboutMe || '',
-        website: '',
         organization: userProfile.organization || '',
         position: userProfile.position || '',
+        street: userProfile.street || '',
+        zipCode: userProfile.zipCode || '',
       })
     }
   }
@@ -475,10 +479,10 @@ export default function AccountSettings() {
                       type="email"
                       value={profileData.email}
                       onChange={(e) => handleProfileUpdate('email', e.target.value)}
-                      disabled={!isEditing}
-                      className="h-11"
+                      disabled={true} // Email should be read-only to avoid verification issues
+                      className="h-11 bg-neutral-50 cursor-not-allowed"
                     />
-                    <Badge className="bg-green-100 text-green-800 py-1 px-2">Verified</Badge>
+                    <Badge className="bg-green-100 text-green-800 py-1 px-2 whitespace-nowrap">Verified</Badge>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -503,13 +507,24 @@ export default function AccountSettings() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="website">Website (Optional)</Label>
+                  <Label htmlFor="street">Street Address</Label>
                   <Input
-                    id="website"
-                    value={profileData.website}
-                    onChange={(e) => handleProfileUpdate('website', e.target.value)}
+                    id="street"
+                    value={profileData.street}
+                    onChange={(e) => handleProfileUpdate('street', e.target.value)}
                     disabled={!isEditing}
-                    placeholder="https://your-website.com"
+                    placeholder="e.g., Haile Selassie Rd"
+                    className="h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zipCode">Zip Code / Postal Code</Label>
+                  <Input
+                    id="zipCode"
+                    value={profileData.zipCode}
+                    onChange={(e) => handleProfileUpdate('zipCode', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="e.g., 12345"
                     className="h-11"
                   />
                 </div>
@@ -529,13 +544,11 @@ export default function AccountSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="organization">Organization</Label>
-                    <Input
-                      id="organization"
+                    <OrganizationSelect
                       value={profileData.organization}
-                      onChange={(e) => handleProfileUpdate('organization', e.target.value)}
+                      onValueChange={(value) => handleProfileUpdate('organization', value)}
                       disabled={!isEditing}
                       placeholder="e.g., United Nations"
-                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">

@@ -38,6 +38,7 @@ interface FormData {
   condition: string
   location: string
   street: string
+  zipCode: string
   whatsappNumber: string
   description: string
   price: string
@@ -57,6 +58,7 @@ const INITIAL_FORM_DATA: FormData = {
   condition: '',
   location: '',
   street: '',
+  zipCode: '',
   whatsappNumber: '',
   description: '',
   price: '',
@@ -157,6 +159,14 @@ function SellPageContent() {
         }
       } else if (user.location) {
         updates.location = user.location
+      }
+
+      // Pre-fill street and zipCode from user profile
+      if (user.street && !formData.street) {
+        updates.street = user.street
+      }
+      if (user.zipCode && !formData.zipCode) {
+        updates.zipCode = user.zipCode
       }
     }
 
@@ -542,6 +552,7 @@ function SellPageContent() {
         productCountry: productCountry,
         productRegion: productRegion,
         productStreet: formData.street.trim() || 'Not specified',
+        productZipCode: formData.zipCode.trim() || 'Not specified',
         whatsappNumber: formData.whatsappNumber.trim() || '',
         productDescription: enhancedDescription,
         currency: 'TZS', // Always store as TZS in backend
@@ -769,10 +780,10 @@ function SellPageContent() {
                 <div className="flex flex-col items-center">
                   <div
                     className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all duration-300 ${step === currentStep
-                        ? 'bg-[#1E3A8A] text-white shadow-md'
-                        : step < currentStep
-                          ? 'bg-[#1E3A8A] text-white'
-                          : 'bg-[#F1F5F9] text-[#94A3B8] border-2 border-[#E2E8F0]'
+                      ? 'bg-[#1E3A8A] text-white shadow-md'
+                      : step < currentStep
+                        ? 'bg-[#1E3A8A] text-white'
+                        : 'bg-[#F1F5F9] text-[#94A3B8] border-2 border-[#E2E8F0]'
                       }`}
                   >
                     {step}
@@ -1071,7 +1082,7 @@ function Step1Content({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
         <div className="space-y-3">
           <label htmlFor="street" className="text-base font-semibold text-neutral-800">
             Street / Area *
@@ -1082,6 +1093,19 @@ function Step1Content({
             className="h-12 sm:h-14 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
             value={formData.street}
             onChange={(e) => updateFormData({ street: e.target.value })}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label htmlFor="zipCode" className="text-base font-semibold text-neutral-800">
+            Zip Code
+          </label>
+          <Input
+            id="zipCode"
+            placeholder="e.g., 12345"
+            className="h-12 sm:h-14 text-base border-2 border-[#E2E8F0] rounded-xl focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 transition-all duration-200 bg-white"
+            value={formData.zipCode}
+            onChange={(e) => updateFormData({ zipCode: e.target.value })}
           />
         </div>
 

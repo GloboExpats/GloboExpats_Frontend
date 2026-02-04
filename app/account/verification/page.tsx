@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { apiClient } from '@/lib/api'
 import { useToast } from '@/components/ui/use-toast'
+import { OrganizationSelect } from '@/components/ui/organization-select'
 
 export default function VerificationPage() {
   const {
@@ -29,7 +30,6 @@ export default function VerificationPage() {
   const [organizationName, setOrganizationName] = useState(user?.organization || '')
   const [otpSent, setOtpSent] = useState(false)
   const [otpArray, setOtpArray] = useState(['', '', '', '', '', ''])
-  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const otpInputs = useRef<(HTMLInputElement | null)[]>([])
 
@@ -102,12 +102,15 @@ export default function VerificationPage() {
   const handleVerifyOTP = async () => {
     const otpCode = otpArray.join('')
     if (otpCode.length < 6) {
-      setError('Please enter the complete 6-digit code.')
+      toast({
+        title: 'Incomplete Code',
+        description: 'Please enter the complete 6-digit code sent to your email.',
+        variant: 'destructive',
+      })
       return
     }
 
     setIsSubmitting(true)
-    setError('')
     setSuccess('')
     try {
       await verifyOrganizationEmail(organizationEmail, otpCode)
@@ -142,11 +145,10 @@ export default function VerificationPage() {
       }, 2500)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid OTP. Please try again.'
-      setError(errorMessage)
       toast({
         title: 'Verification Failed',
-        description: `${errorMessage} Please double-check your code and try again.`,
-        variant: 'default',
+        description: errorMessage,
+        variant: 'destructive',
       })
     } finally {
       setIsSubmitting(false)
@@ -155,13 +157,21 @@ export default function VerificationPage() {
 
   const handleCompleteVerificationForTesting = async () => {
     if (!organizationEmail) {
-      setError('Please enter your organization email address')
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your organization email address.',
+        variant: 'destructive',
+      })
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(organizationEmail)) {
-      setError('Please enter a valid email address')
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive',
+      })
       return
     }
 
@@ -178,12 +188,15 @@ export default function VerificationPage() {
 
     if (isPersonalEmail) {
       const errorMsg = 'Please use your organization email address. Personal emails are not accepted.'
-      setError(errorMsg)
+      toast({
+        title: 'Organization Email Required',
+        description: errorMsg,
+        variant: 'destructive',
+      })
       return
     }
 
     setIsSubmitting(true)
-    setError('')
     setSuccess('')
     try {
       // Step 1: Update organization name if provided
@@ -226,14 +239,17 @@ export default function VerificationPage() {
       // Handle "Email already in use" specifically with a toast
       if (errorMessage.toLowerCase().includes('already registered') ||
         errorMessage.toLowerCase().includes('already in use')) {
-        setError('') // Clear the red error message from UI
         toast({
           title: 'Email Already in Use',
           description: 'This organization email is already associated with another account. Please use a different email or log in with that account.',
           variant: 'destructive',
         })
       } else {
-        setError(errorMessage)
+        toast({
+          title: 'Verification Error',
+          description: errorMessage,
+          variant: 'destructive',
+        })
       }
     } finally {
       setIsSubmitting(false)
@@ -273,7 +289,6 @@ export default function VerificationPage() {
               {otpSent ? (
                 <span className="flex flex-col gap-1">
                   <span>Verify your identity to unlock all features</span>
-                  <span className="text-sm font-semibold text-[#1E3A8A]">Check JUNK/SPAM folder in your email account</span>
                 </span>
               ) : 'Unlock buying and selling by verifying your organization email'}
             </p>
@@ -283,22 +298,14 @@ export default function VerificationPage() {
               <div className="space-y-6">
                 {!otpSent ? (
                   <div className="space-y-6">
-                    <Alert className="bg-blue-50 border-blue-100 rounded-2xl">
-                      <Mail className="h-5 w-5 text-[#1E3A8A]" />
-                      <AlertDescription className="text-blue-900 text-sm">
-                        Be sure to check your <strong>JUNK or SPAM</strong> folder!
-                      </AlertDescription>
-                    </Alert>
+
 
                     <div className="space-y-2">
                       <Label htmlFor="organizationName" className="font-semibold text-neutral-700">Organization / Office</Label>
-                      <Input
-                        id="organizationName"
-                        type="text"
-                        placeholder="e.g. UN, WFP, UNICEF, Embassy"
+                      <OrganizationSelect
                         value={organizationName}
-                        onChange={(e) => setOrganizationName(e.target.value)}
-                        className="h-12 rounded-2xl border-neutral-200 focus:border-brand-primary"
+                        onValueChange={setOrganizationName}
+                        placeholder="e.g. UN, WFP, UNICEF, Embassy"
                       />
                       <p className="text-xs text-neutral-400 px-1">Which organization or office are you with?</p>
                     </div>
@@ -316,8 +323,6 @@ export default function VerificationPage() {
                       <p className="text-xs text-neutral-400 px-1">Use your organization email (not Gmail, Yahoo, etc.)</p>
                     </div>
 
-                    {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
-
                     <Button
                       onClick={handleCompleteVerificationForTesting}
                       disabled={isSubmitting || !organizationEmail}
@@ -329,6 +334,13 @@ export default function VerificationPage() {
                   </div>
                 ) : (
                   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <Alert className="bg-blue-50 border-blue-100 rounded-2xl">
+                      <Mail className="h-5 w-5 text-[#1E3A8A]" />
+                      <AlertDescription className="text-blue-900 text-sm">
+                        Be sure to check your <strong>JUNK or SPAM</strong> folder!
+                      </AlertDescription>
+                    </Alert>
+
                     <div className="text-center space-y-2">
                       <p className="text-neutral-600">Code sent to <span className="text-neutral-900 font-bold">{organizationEmail}</span></p>
                       <button onClick={() => setOtpSent(false)} className="text-brand-primary text-sm font-bold hover:underline">Change Email</button>
@@ -351,7 +363,6 @@ export default function VerificationPage() {
                       ))}
                     </div>
 
-                    {error && <p className="text-sm text-center text-red-500 font-medium">{error}</p>}
 
                     <div className="space-y-4">
                       <Button

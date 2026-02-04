@@ -487,15 +487,15 @@ export function ProductCard({
 
             {/* Bottom Section - Pushed to bottom */}
             {(showViewButton || showCartButton || onEdit || onDelete) && (
-              <div className={cn('mt-auto', compact ? 'pt-1' : 'pt-1.5')}>
-                <div className={cn('flex items-center justify-end', compact ? 'gap-1' : 'gap-2')}>
+              <div className={cn('mt-auto', compact ? 'pt-1.5' : 'pt-2')}>
+                <div className={cn('flex items-center', compact ? 'gap-1.5' : 'gap-2')}>
                   {showViewButton && (
                     <Button
                       className={cn(
-                        'flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full shadow-futuristic hover:shadow-xl focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-all duration-300 group/btn',
+                        'flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full shadow-sm hover:shadow-md focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-all duration-300',
                         compact
-                          ? 'py-2 sm:py-2 text-xs sm:text-sm h-9 sm:h-10'
-                          : 'py-2 sm:py-2.5 text-sm sm:text-base h-10 sm:h-11'
+                          ? 'py-1.5 text-xs h-8'
+                          : 'py-2 text-sm h-9'
                       )}
                       onClick={(e) => {
                         e.stopPropagation()
@@ -523,16 +523,16 @@ export function ProductCard({
                     <button
                       onClick={handleAddToCart}
                       className={cn(
-                        'flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-futuristic hover:shadow-xl hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2',
+                        'flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2',
                         compact
-                          ? 'p-2 sm:p-2.5 w-9 h-9 sm:w-10 sm:h-10'
-                          : 'p-2.5 sm:p-3 w-10 h-10 sm:w-11 sm:h-11',
+                          ? 'p-1.5 w-8 h-8'
+                          : 'p-2 w-9 h-9',
                         'flex items-center justify-center'
                       )}
                       aria-label={`Add ${product.title} to cart`}
                     >
                       <ShoppingCart
-                        className={cn(compact ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-4.5 h-4.5 sm:w-5 sm:h-5')}
+                        className={cn(compact ? 'w-4 h-4' : 'w-4.5 h-4.5')}
                       />
                     </button>
                   )}

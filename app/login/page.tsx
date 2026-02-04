@@ -124,6 +124,22 @@ function LoginContent() {
     }
   }, [searchParams, toast])
 
+  // Handle session expiry toast
+  useEffect(() => {
+    const expired = searchParams.get('expired')
+    if (expired === 'true') {
+      toast({
+        title: 'Session Expired',
+        description: 'Your session has expired for security. Please log in again to continue.',
+        variant: 'warning',
+      })
+      // Clean up URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('expired')
+      window.history.replaceState({}, '', url.pathname)
+    }
+  }, [searchParams, toast])
+
   // Add redirect logic for already authenticated users
   useEffect(() => {
     if (!isLoading && isLoggedIn) {

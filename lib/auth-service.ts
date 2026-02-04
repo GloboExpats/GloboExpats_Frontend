@@ -10,25 +10,26 @@ let logoutTimer: NodeJS.Timeout | null = null
 
 export function setAuthToken(token: string) {
   try {
-    localStorage.setItem(TOKEN_KEY, token)
-    // Set expiry time (2 hours from now)
-    const expiryTime = Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
-    localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString())
+    if (typeof window !== 'undefined') {
+      const expiryTime = Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000
+      localStorage.setItem(TOKEN_KEY, token)
+      localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString())
 
-    // Set cookie (conditionally use Secure flag for production only)
-    if (typeof document !== 'undefined') {
-      const expires = new Date(expiryTime).toUTCString()
-      const isProduction = window.location.protocol === 'https:'
-      const secureFlag = isProduction ? '; Secure' : ''
-      document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; expires=${expires}; path=/; SameSite=Lax${secureFlag}`
-      console.log(
-        '[AUTH] Token cookie set:',
-        document.cookie.includes(TOKEN_KEY) ? 'SUCCESS' : 'FAILED'
-      )
+      // Set cookie (conditionally use Secure flag for production only)
+      if (typeof document !== 'undefined') {
+        const expires = new Date(expiryTime).toUTCString()
+        const isProduction = window.location.protocol === 'https:'
+        const secureFlag = isProduction ? '; Secure' : ''
+        document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; expires=${expires}; path=/; SameSite=Lax${secureFlag}`
+        console.log(
+          '[AUTH] Token cookie set:',
+          document.cookie.includes(TOKEN_KEY) ? 'SUCCESS' : 'FAILED'
+        )
+      }
+
+      // Set up auto logout timer
+      setupAutoLogout()
     }
-
-    // Set up auto logout timer
-    setupAutoLogout()
   } catch (error) {
     // Silently handle localStorage errors (e.g., in private browsing mode)
     console.debug('Failed to store auth token:', error)
@@ -37,6 +38,7 @@ export function setAuthToken(token: string) {
 }
 
 export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
   try {
     const token = localStorage.getItem(TOKEN_KEY)
     const expiryTime = localStorage.getItem(TOKEN_EXPIRY_KEY)
@@ -61,8 +63,10 @@ export function getAuthToken(): string | null {
 
 export function clearAuthToken() {
   try {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(TOKEN_EXPIRY_KEY)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(TOKEN_EXPIRY_KEY)
+    }
   } catch (error) {
     // Silently handle localStorage errors
     console.debug('Failed to clear auth token:', error)
@@ -133,6 +137,7 @@ export async function sendOrgEmailOtp(organizationalEmail: string) {
 
 // Setup auto logout timer
 function setupAutoLogout() {
+  if (typeof window === 'undefined') return
   const expiryTime = localStorage.getItem(TOKEN_EXPIRY_KEY)
   if (expiryTime) {
     const timeUntilExpiry = parseInt(expiryTime) - Date.now()

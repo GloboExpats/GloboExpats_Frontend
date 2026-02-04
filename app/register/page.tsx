@@ -401,18 +401,7 @@ export default function RegisterPage() {
                   {step === 2 && `Enter the code sent to ${formData.personalEmail}`}
                   {step === 3 && "Secure your account with a strong password"}
                 </p>
-                {step === 2 && (
-                  <p className="text-sm font-semibold text-brand-primary mt-1">
-                    Check JUNK/SPAM folder in your email account
-                  </p>
-                )}
 
-                {/* Progress Indicators */}
-                <div className="flex justify-center gap-2 mt-4">
-                  <div className={`h-1.5 w-12 rounded-full ${step >= 1 ? 'bg-brand-primary' : 'bg-neutral-200'}`} />
-                  <div className={`h-1.5 w-12 rounded-full ${step >= 2 ? 'bg-brand-primary' : 'bg-neutral-200'}`} />
-                  <div className={`h-1.5 w-12 rounded-full ${step >= 3 ? 'bg-brand-primary' : 'bg-neutral-200'}`} />
-                </div>
               </CardHeader>
 
               <CardContent className="px-6 pb-10 space-y-6 text-left">
@@ -526,6 +515,13 @@ export default function RegisterPage() {
                           Change Email
                         </button>
                       </div>
+
+                      <Alert className="bg-blue-50 border-blue-100 rounded-2xl">
+                        <Mail className="h-5 w-5 text-brand-primary" />
+                        <AlertDescription className="text-blue-900 text-sm font-medium">
+                          Be sure to check your <strong>JUNK or SPAM</strong> folder!
+                        </AlertDescription>
+                      </Alert>
 
                       {/* Digit Boxes */}
                       <div className="flex justify-between gap-2 sm:gap-4" onPaste={handleOtpPaste}>

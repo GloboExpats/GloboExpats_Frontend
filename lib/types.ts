@@ -97,6 +97,8 @@ export interface User {
   whatsAppPhoneNumber?: string
   organization?: string
   location?: string
+  street?: string
+  zipCode?: string
   country?: string // Backend returns country separately
   region?: string // Backend returns region (city) separately
 

@@ -87,12 +87,16 @@ export function useUserProfile(): UserProfileMethods {
           aboutMe?: string
           organization?: string
           position?: string
+          street?: string
+          zipCode?: string
         } = {}
 
         if (updates.firstName) updatePayload.firstName = updates.firstName
         if (updates.lastName) updatePayload.lastName = updates.lastName
         if (updates.email) updatePayload.email = updates.email
         if (updates.phoneNumber) updatePayload.phoneNumber = updates.phoneNumber
+        if (updates.street) updatePayload.street = updates.street
+        if (updates.zipCode) updatePayload.zipCode = updates.zipCode
 
         if (updates.location) {
           updatePayload.location = updates.location

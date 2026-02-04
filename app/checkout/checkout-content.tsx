@@ -196,6 +196,16 @@ export default function CheckoutPage() {
           updates.city = userProfile.region
         }
 
+        // 4. Auto-fill street address
+        if (!prev.address && userProfile.street) {
+          updates.address = userProfile.street
+        }
+
+        // 5. Auto-fill zip code
+        if (!prev.zip && userProfile.zipCode) {
+          updates.zip = userProfile.zipCode
+        }
+
         if (Object.keys(updates).length > 0) {
           return { ...prev, ...updates }
         }
@@ -1128,6 +1138,17 @@ export default function CheckoutPage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
+                  {/* Profile update tip - always visible */}
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800 text-sm">
+                      <strong>Tip:</strong> Your name, email, WhatsApp number, and location are pre-filled from your profile. To update these details, please visit your{' '}
+                      <Link href="/account/settings" className="underline font-medium hover:text-blue-900">
+                        Profile Settings
+                      </Link>
+                      .
+                    </AlertDescription>
+                  </Alert>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName" className="text-sm font-medium text-neutral-700">
@@ -1138,7 +1159,8 @@ export default function CheckoutPage() {
                         value={shippingAddress.firstName}
                         onChange={(e) => handleAddressChange('firstName', e.target.value)}
                         placeholder="Enter first name"
-                        className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary"
+                        disabled={true}
+                        className="h-10 border-2 border-neutral-300 rounded-lg bg-neutral-50 cursor-not-allowed"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1150,7 +1172,8 @@ export default function CheckoutPage() {
                         value={shippingAddress.lastName}
                         onChange={(e) => handleAddressChange('lastName', e.target.value)}
                         placeholder="Enter last name"
-                        className="h-10 border-2 border-neutral-300 rounded-lg focus:border-brand-primary"
+                        disabled={true}
+                        className="h-10 border-2 border-neutral-300 rounded-lg bg-neutral-50 cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -1164,7 +1187,8 @@ export default function CheckoutPage() {
                         value={shippingAddress.email}
                         onChange={(e) => handleAddressChange('email', e.target.value)}
                         placeholder="your@email.com"
-                        className="border-2 focus:border-brand-primary"
+                        disabled={true}
+                        className="border-2 bg-neutral-50 cursor-not-allowed"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1174,7 +1198,8 @@ export default function CheckoutPage() {
                         value={shippingAddress.phone}
                         onChange={(e) => handleAddressChange('phone', e.target.value)}
                         placeholder="+255 700 123 456"
-                        className="border-2 focus:border-brand-primary"
+                        disabled={true}
+                        className="border-2 bg-neutral-50 cursor-not-allowed"
                       />
                       <p className="text-xs text-neutral-500">
                         Include country code (e.g., +255 for Tanzania, +254 for Kenya)
@@ -1282,17 +1307,28 @@ export default function CheckoutPage() {
                     </p>
                   </div>
 
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Street Address *</Label>
-                    <Input
-                      id="address"
-                      required
-                      value={shippingAddress.address}
-                      onChange={(e) => handleAddressChange('address', e.target.value)}
-                      placeholder="Building name, street, area/estate"
-                      className="border-2 focus:border-brand-primary"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Street Address *</Label>
+                      <Input
+                        id="address"
+                        required
+                        value={shippingAddress.address}
+                        onChange={(e) => handleAddressChange('address', e.target.value)}
+                        placeholder="Building name, street, area/estate"
+                        className="border-2 focus:border-brand-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="zip">Zip Code</Label>
+                      <Input
+                        id="zip"
+                        value={shippingAddress.zip || ''}
+                        onChange={(e) => handleAddressChange('zip', e.target.value)}
+                        placeholder="12345"
+                        className="border-2 focus:border-brand-primary"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -2018,7 +2054,7 @@ export default function CheckoutPage() {
                           <PriceDisplay price={totalAmount} size="lg" weight="bold" showOriginal />
                         </span>
                         {selectedCurrency !== 'TZS' && (
-                          <p className="text-xs text-neutral-500 font-medium mt-0.5">
+                          <p className="text-sm text-brand-primary font-bold mt-1">
                             Approx. TZS {totalAmount.toLocaleString()}
                           </p>
                         )}

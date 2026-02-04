@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Target,
   Zap,
+  BarChart3,
 } from 'lucide-react'
 import { useMatomo } from '@/hooks/use-matomo'
 import {
@@ -35,7 +36,7 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
+  LineChart, // Keep LineChart, Line, Legend as they are not explicitly removed by the snippet
   Line,
   Legend,
 } from 'recharts'
@@ -119,7 +120,7 @@ export default function ExecutiveOverviewPage() {
   // Process trend data for charts
   const chartData = useMemo(() => {
     if (!trendData) return []
-    
+
     // Handle both object (single date) and object with date keys
     if (typeof trendData === 'object' && !Array.isArray(trendData)) {
       const entries = Object.entries(trendData)
@@ -171,7 +172,7 @@ export default function ExecutiveOverviewPage() {
   const metrics = useMemo(() => {
     const data = summaryData as any
     if (!data) return null
-    
+
     // Calculate unique visitors from trend data (sum of daily unique visitors)
     let uniqueVisitors = 0
     if (trendData && typeof trendData === 'object' && !Array.isArray(trendData)) {
@@ -182,10 +183,10 @@ export default function ExecutiveOverviewPage() {
         }, 0)
       }
     }
-    
+
     // Calculate change (mock for now - would need historical data)
     const change = Math.random() > 0.5 ? Math.floor(Math.random() * 30) : -Math.floor(Math.random() * 20)
-    
+
     return {
       visits: data.nb_visits || 0,
       uniqueVisitors: uniqueVisitors || data.nb_visits || 0, // Fallback to visits if no unique data
@@ -304,7 +305,7 @@ export default function ExecutiveOverviewPage() {
               </div>
             </div>
           </div>
-          
+
           {loading ? (
             <div className="h-64 flex items-center justify-center">
               <RefreshCw className="h-8 w-8 text-slate-300 animate-spin" />
@@ -314,12 +315,12 @@ export default function ExecutiveOverviewPage() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorPageviews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -365,7 +366,7 @@ export default function ExecutiveOverviewPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Traffic Sources</h3>
           <p className="text-sm text-slate-500 mb-4">Where visitors come from</p>
-          
+
           {loading ? (
             <div className="h-48 flex items-center justify-center">
               <RefreshCw className="h-8 w-8 text-slate-300 animate-spin" />
@@ -394,8 +395,8 @@ export default function ExecutiveOverviewPage() {
                 {referrerChartData.map((item, index) => (
                   <div key={item.name} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
+                      <div
+                        className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       />
                       <span className="text-slate-600">{item.name}</span>
@@ -420,7 +421,7 @@ export default function ExecutiveOverviewPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Device Types</h3>
           <p className="text-sm text-slate-500 mb-4">How users access the platform</p>
-          
+
           {loading ? (
             <div className="h-32 flex items-center justify-center">
               <RefreshCw className="h-6 w-6 text-slate-300 animate-spin" />
@@ -445,7 +446,7 @@ export default function ExecutiveOverviewPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="font-semibold text-slate-900 mb-1">Top Countries</h3>
           <p className="text-sm text-slate-500 mb-4">Geographic distribution</p>
-          
+
           {loading ? (
             <div className="h-32 flex items-center justify-center">
               <RefreshCw className="h-6 w-6 text-slate-300 animate-spin" />
@@ -475,7 +476,7 @@ export default function ExecutiveOverviewPage() {
             <Zap className="h-5 w-5" />
             <h3 className="font-semibold">Quick Insights</h3>
           </div>
-          
+
           <div className="space-y-4">
             <InsightItem
               positive={true}
@@ -508,7 +509,7 @@ export default function ExecutiveOverviewPage() {
             {calculateHealthScore(metrics)}%
           </div>
         </div>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <HealthMetric
             label="Traffic"
@@ -572,9 +573,8 @@ function MetricCard({
           <Icon className="h-5 w-5" />
         </div>
         {!loading && (
-          <div className={`flex items-center gap-1 text-sm font-medium ${
-            isPositive ? 'text-green-600' : change === 0 ? 'text-slate-400' : 'text-red-500'
-          }`}>
+          <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-green-600' : change === 0 ? 'text-slate-400' : 'text-red-500'
+            }`}>
             {isPositive ? (
               <ArrowUpRight className="h-4 w-4" />
             ) : change === 0 ? (
@@ -650,14 +650,11 @@ function HealthMetric({
 // Calculate health score
 function calculateHealthScore(metrics: any): number {
   if (!metrics) return 0
-  
+
   const trafficScore = Math.min(100, (metrics.uniqueVisitors || 0) / 10)
   const engagementScore = Math.min(100, 100 - (metrics.bounceRate || 50))
   const sessionScore = Math.min(100, (metrics.avgSessionDuration || 0) * 20)
   const activityScore = Math.min(100, parseFloat(metrics.actionsPerVisit || '0') * 20)
-  
+
   return Math.round((trafficScore + engagementScore + sessionScore + activityScore) / 4)
 }
-
-// Missing import
-import { BarChart3 } from 'lucide-react'

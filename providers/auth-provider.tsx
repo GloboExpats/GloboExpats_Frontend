@@ -169,7 +169,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
  */
 
 const SESSION_STORAGE_KEY = 'expatUserSession'
-const SESSION_EXPIRY_HOURS = 24
+const SESSION_EXPIRY_HOURS = 2 // Aligned with token expiry in auth-service.ts
 
 /**
  * Helper function to safely push events to Matomo Tag Manager
@@ -309,6 +309,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               phoneNumber: userDetails.phoneNumber,
               organization: userDetails.organization,
               location: userDetails.location,
+              street: userDetails.street,
+              zipCode: userDetails.zipCode,
               backendVerificationStatus: userDetails.verificationStatus,
               passportVerificationStatus: userDetails.passportVerificationStatus,
               addressVerificationStatus: userDetails.addressVerificationStatus,
@@ -432,10 +434,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear session storage
       try {
         sessionStorage.removeItem('expat_user')
+        removeStorageItem(SESSION_STORAGE_KEY)
         removeStorageItem('expat_user')
       } catch (error) {
-        // Silently handle storage errors (e.g., in private browsing mode)
+        // Silently handle storage errors
         console.debug('Failed to clear session storage:', error)
+      }
+
+      // Proactively redirect to login page if we're on a protected route or if the session just died
+      // This prevents the "logged in header but login required content" state shown in screenshots
+      if (typeof window !== 'undefined') {
+        const isProtectedPath = !['/', '/login', '/register', '/browse'].includes(window.location.pathname)
+        if (isProtectedPath) {
+          window.location.href = '/login?expired=true'
+        }
       }
     }
 
@@ -483,6 +495,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         whatsAppPhoneNumber: userDetails.whatsAppPhoneNumber,
         organization: userDetails.organization,
         location: userDetails.location,
+        street: userDetails.street,
+        zipCode: userDetails.zipCode,
         country: userDetails.country,
         region: userDetails.region,
 

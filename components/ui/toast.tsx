@@ -32,7 +32,7 @@ const toastVariants = cva(
         default:
           'border-blue-200/60 bg-gradient-to-r from-blue-50/95 to-cyan-50/95 backdrop-blur-sm text-blue-900 shadow-xl [&>svg]:text-blue-600',
         destructive:
-          'destructive group border-destructive bg-destructive text-destructive-foreground',
+          'border-blue-200/60 bg-gradient-to-r from-blue-50/95 to-cyan-50/95 backdrop-blur-sm text-blue-900 shadow-xl [&>svg]:text-blue-600',
         warning:
           'border-neutral-200/80 bg-white/95 backdrop-blur-sm text-neutral-800 shadow-xl [&>svg]:text-neutral-600',
       },
@@ -79,7 +79,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      'absolute right-2 top-2 rounded-md p-1 text-blue-500 opacity-100 transition-all hover:text-blue-700 hover:bg-blue-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-400 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600',
+      'absolute right-2 top-2 rounded-md p-1 text-blue-500 opacity-100 transition-all hover:text-blue-700 hover:bg-blue-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-400 group-[.destructive]:text-blue-500 group-[.destructive]:hover:text-blue-700 group-[.destructive]:hover:bg-blue-100 group-[.destructive]:focus:ring-blue-400',
       className
     )}
     toast-close=""
